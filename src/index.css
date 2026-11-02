@@ -877,7 +877,10 @@ body, .app-frame, .page-content { font-family: var(--app-font-body, Inter, ui-sa
 .page-content :is(.metric-change,.positive,.health-footer,.chart-y,.chart-x,.toggle-copy strong,.caller-meta strong,
   .table-person strong,.mobile-transaction-top > strong,.call-summary-copy strong,.field-counter,.knowledge-tip,
   .monitor-note,.panel-footnote,.courier-track-result,.status-badge,.select-button,.count-pill) {
-  font-size: max(.75rem, 13px);
+  font-size: .8125rem;
 }
 .appearance-theme-options strong { font-size: .8125rem; }
 .appearance-theme-options small { font-size: .75rem !important; }
+
+.page-content .metric-amount, .page-content .wallet-balance, .page-content .chart-total > strong,
+.page-content .metric-bottom strong { font-family: var(--app-font-body, Inter, ui-sans-serif, system-ui, sans-serif); }
