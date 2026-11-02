@@ -632,61 +632,59 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 
-/* Dashboard typography hierarchy */
-:root { font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif; }
-.page-content { font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif; }
+/* Dashboard type system: editorial serif titles, highly legible sans-serif UI */
+:root { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+body { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+.page-content { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+.page-content h1, .page-content h2, .page-content h3,
+.page-content .settings-section-head strong {
+  font-family: "Playfair Display", Georgia, serif;
+  font-weight: 700;
+}
 .page-intro { margin-bottom: 30px; }
-.page-intro h1 { margin: 8px 0 7px; font: 700 clamp(28px, 2.25vw, 32px)/1.2 "Plus Jakarta Sans", sans-serif; letter-spacing: -.9px; }
-.page-intro p { color: #718078; font-size: 15px; line-height: 1.65; }
-.eyebrow, .page-intro .eyebrow, .panel-heading .eyebrow { color: #687a71; font-size: 11px; font-weight: 700; letter-spacing: 1.2px; }
-.metric-card { min-height: 174px; padding: 20px 21px 18px; }
-.metric-amount { margin-top: 17px; font: 700 clamp(32px, 2.5vw, 36px)/1.15 "Plus Jakarta Sans", sans-serif; letter-spacing: -1.25px; }
-.metric-bottom { margin-top: 10px; }
-.metric-bottom strong { color: #3f5148; font-size: 14px; font-weight: 700; }
-.metric-bottom small { margin-top: 5px; color: #78877f; font-size: 13px; }
+.page-intro h1 { margin: 8px 0 8px; color: #24342e; font-size: clamp(28px, 2.3vw, 32px); line-height: 1.22; letter-spacing: -.5px; }
+.page-intro p { margin: 0; color: #718078; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: 14px; line-height: 1.65; }
+.panel-heading h2, .sim-title-wrap h2 { color: #293b33; font-size: 19px; line-height: 1.35; letter-spacing: -.2px; }
 .panel-heading { margin-bottom: 17px; }
-.panel-heading h2, .sim-title-wrap h2 { color: #293b33; font: 700 19px/1.35 "Plus Jakarta Sans", sans-serif; letter-spacing: -.35px; }
+.eyebrow, .page-intro .eyebrow, .panel-heading .eyebrow, .sim-title-wrap .eyebrow {
+  color: #687a71; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: 11px;
+  font-weight: 600; letter-spacing: 1.2px; line-height: 1.4;
+}
+.metric-card { min-height: 174px; padding: 21px 21px 19px; }
+.metric-amount { margin-top: 17px; color: #25362f; font: 700 clamp(30px, 2.4vw, 34px)/1.2 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.8px; }
+.metric-bottom { margin-top: 11px; }
+.metric-bottom strong { color: #3f5148; font: 700 14px/1.4 Inter, "Plus Jakarta Sans", sans-serif; }
+.metric-bottom small { margin-top: 5px; color: #78877f; font-size: 13px; line-height: 1.45; }
+.wallet-balance { margin: 26px 0 23px; font: 700 34px/1.2 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.8px; }
+.chart-total > strong { font: 700 30px/1.25 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; }
 .health-panel, .chart-panel, .activity-panel, .call-log-panel, .courier-tracking-panel { padding: 22px 23px; }
 .sim-status-card, .sim-automation-settings { padding: 21px 23px; }
-.wallet-balance { margin: 26px 0 23px; font: 700 34px/1.15 "Plus Jakarta Sans", sans-serif; letter-spacing: -1px; }
-.chart-total > strong { font: 700 30px/1.2 "Plus Jakarta Sans", sans-serif; letter-spacing: -.8px; }
-.field-label { font-size: 14px; font-weight: 600; }
-.device-copy strong, .activity-copy strong, .activity-amount strong,
-.call-history-number strong, .settings-section-head strong { font-size: 14px; }
-.device-copy small, .activity-copy small, .activity-amount small,
-.call-history-number small, .settings-section-head small { font-size: 13px; }
-.sim-balance-block > strong { font-size: 32px; }
+.field-label { color: #35453f; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: 14px; font-weight: 600; }
+.device-copy strong, .activity-copy strong, .activity-amount strong, .call-history-number strong { font-size: 14px; }
+.device-copy small, .activity-copy small, .activity-amount small, .call-history-number small,
+.settings-section-head small, .sim-data-heading small, .sim-data-foot, .sim-network-block > small {
+  font-size: 13px; line-height: 1.5;
+}
+.device-copy, .activity-copy, .activity-amount, .call-history-number,
+.settings-section-head, .status-badge, .metric-amount, .wallet-balance,
+.chart-total, .sim-data-block, .sim-network-block, .sim-balance-block {
+  font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+}
+.sim-balance-block > strong { font-size: 32px; font-variant-numeric: tabular-nums; }
 .sim-data-heading strong, .sim-network-top strong { font-size: 14px; }
-.sim-data-heading small, .sim-data-foot, .sim-network-block > small { font-size: 13px; }
-.courier-tracking-panel .panel-heading h2 { font-size: 19px; }
 @media (max-width: 640px) {
   .page-content { padding-top: 23px; }
   .page-intro { margin-bottom: 22px; }
   .page-intro h1 { font-size: clamp(28px, 7.5vw, 32px); }
   .page-intro p { font-size: 14px; }
   .metric-card { min-height: 150px; padding: 16px 14px 15px; }
-  .metric-amount { margin-top: 13px; font-size: clamp(30px, 8vw, 34px); }
+  .metric-amount { margin-top: 13px; font-size: clamp(29px, 8vw, 33px); }
   .metric-bottom { margin-top: 8px; }
   .metric-bottom strong { font-size: 13px; }
-  .metric-bottom small { font-size: 12px; }
+  .metric-bottom small { font-size: 13px; }
   .panel-heading h2, .sim-title-wrap h2 { font-size: 18px; }
   .health-panel, .chart-panel, .activity-panel, .call-log-panel, .courier-tracking-panel,
   .sim-status-card, .sim-automation-settings { padding: 17px; }
-  .sim-title-wrap .eyebrow { font-size: 10px; }
   .sim-balance-block > strong { font-size: 30px; }
 }
-
-/* Editorial pairing: sans-serif interface headings with serif body copy */
-body { font-family: "Newsreader", Georgia, serif; }
-.page-content { font-family: "Newsreader", Georgia, serif; }
-.page-content h1, .page-content h2, .page-content h3,
-.page-content button, .page-content input, .page-content select,
-.page-content textarea, .page-content .eyebrow, .page-content .metric-amount,
-.page-content .wallet-balance, .page-content .chart-total > strong,
-.page-content .metric-bottom, .page-content .status-badge,
-.page-content .device-copy, .page-content .activity-copy,
-.page-content .activity-amount, .page-content .call-history-number,
-.page-content .settings-section-head { font-family: "Plus Jakarta Sans", Inter, ui-sans-serif, system-ui, sans-serif; }
-.page-content p { font-family: "Newsreader", Georgia, serif; font-size: 16px; }
-.page-content .page-intro p { font-family: "Newsreader", Georgia, serif; font-size: 16px; }
 
