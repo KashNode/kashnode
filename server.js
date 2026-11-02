@@ -9,6 +9,7 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import pg from 'pg'
 import connectPgSimple from 'connect-pg-simple'
+import path from 'node:path'
 
 const { Pool } = pg
 const app = express()
@@ -17,6 +18,7 @@ const HOST = '0.0.0.0'
 const NODE_ENV = process.env.NODE_ENV || 'development'
 const IS_PRODUCTION = NODE_ENV === 'production'
 const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
+const RENDER_ORIGIN = process.env.RENDER_EXTERNAL_URL || ''
 const SESSION_SECRET = process.env.SESSION_SECRET || ''
 const ADMIN_EMAIL = (process.env.KASHNODE_ADMIN_EMAIL || '').trim().toLowerCase()
 const ADMIN_PASSWORD_HASH = process.env.KASHNODE_ADMIN_PASSWORD_HASH || ''
@@ -46,7 +48,7 @@ app.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }))
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || origin === FRONTEND_ORIGIN) return callback(null, true)
+    if (!origin || origin === FRONTEND_ORIGIN || origin === RENDER_ORIGIN) return callback(null, true)
     return callback(new Error('Origin is not allowed by CORS.'))
   },
   credentials: true,
@@ -80,7 +82,7 @@ function asyncRoute(handler) {
 
 function requireOrigin(req, res, next) {
   const origin = req.get('origin')
-  if (origin === FRONTEND_ORIGIN || (!IS_PRODUCTION && !origin)) return next()
+  if (origin === FRONTEND_ORIGIN || (IS_PRODUCTION && origin === RENDER_ORIGIN) || (!IS_PRODUCTION && !origin)) return next()
   return res.status(403).json({ status: 'error', message: 'Request origin is not allowed.' })
 }
 
@@ -244,6 +246,12 @@ app.get('/api/calls/history', requireAdmin, asyncRoute(async (_req, res) => {
   const result = await pool.query(`SELECT id, phone_number, created_at, duration, status, ai_summary, recording_url FROM ai_calls ORDER BY created_at DESC LIMIT 100`)
   res.json({ source: 'database', calls: result.rows.map(row => ({ id: String(row.id), phone: row.phone_number, occurredAt: row.created_at, durationSeconds: Number(row.duration || 0), status: row.status, summary: row.ai_summary || '', recordingUrl: safeRecordingUrl(row.recording_url) })) })
 }))
+
+const distDir = path.resolve('dist')
+app.use(express.static(distDir))
+app.get(/^(?!\/api(?:\/|$)).*/, (_req, res, next) => {
+  res.sendFile(path.join(distDir, 'index.html'), error => { if (error) next(error) })
+})
 
 app.use((error, _req, res, _next) => {
   console.error('[KashNode API]', error)
