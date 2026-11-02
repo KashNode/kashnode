@@ -632,59 +632,79 @@ button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-
 }
 
 
-/* Dashboard type system: editorial serif titles, highly legible sans-serif UI */
-:root { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
-body { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
-.page-content { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
-.page-content h1, .page-content h2, .page-content h3,
-.page-content .settings-section-head strong {
-  font-family: "Playfair Display", Georgia, serif;
-  font-weight: 700;
+
+/* Readable dashboard system: serif display headings and sans-serif application UI */
+:root { font-size: 100%; font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+body, .app-frame { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; }
+.page-content { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; font-size: 1rem; }
+.page-content h1, .page-content h2, .page-content h3 {
+  color: #25372f; font-family: "Playfair Display", Georgia, serif; font-weight: 700;
 }
-.page-intro { margin-bottom: 30px; }
-.page-intro h1 { margin: 8px 0 8px; color: #24342e; font-size: clamp(28px, 2.3vw, 32px); line-height: 1.22; letter-spacing: -.5px; }
-.page-intro p { margin: 0; color: #718078; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: 14px; line-height: 1.65; }
-.panel-heading h2, .sim-title-wrap h2 { color: #293b33; font-size: 19px; line-height: 1.35; letter-spacing: -.2px; }
-.panel-heading { margin-bottom: 17px; }
+.page-intro { margin-bottom: 2rem; }
+.page-intro h1 { margin: .5rem 0 .5rem; font-size: clamp(1.75rem, 2.2vw, 2rem); line-height: 1.2; letter-spacing: -.025em; }
+.page-intro p { margin: 0; color: #65766d; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: .875rem !important; line-height: 1.65; }
+.panel-heading { margin-bottom: 1.125rem; }
+.panel-heading h2, .sim-title-wrap h2 { color: #293b33; font-size: 1.2rem; line-height: 1.35; letter-spacing: -.01em; }
 .eyebrow, .page-intro .eyebrow, .panel-heading .eyebrow, .sim-title-wrap .eyebrow {
-  color: #687a71; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: 11px;
-  font-weight: 600; letter-spacing: 1.2px; line-height: 1.4;
+  color: #65766d; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: .75rem !important;
+  font-weight: 600; letter-spacing: .09em; line-height: 1.4;
 }
-.metric-card { min-height: 174px; padding: 21px 21px 19px; }
-.metric-amount { margin-top: 17px; color: #25362f; font: 700 clamp(30px, 2.4vw, 34px)/1.2 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.8px; }
-.metric-bottom { margin-top: 11px; }
-.metric-bottom strong { color: #3f5148; font: 700 14px/1.4 Inter, "Plus Jakarta Sans", sans-serif; }
-.metric-bottom small { margin-top: 5px; color: #78877f; font-size: 13px; line-height: 1.45; }
-.wallet-balance { margin: 26px 0 23px; font: 700 34px/1.2 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.8px; }
-.chart-total > strong { font: 700 30px/1.25 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; }
-.health-panel, .chart-panel, .activity-panel, .call-log-panel, .courier-tracking-panel { padding: 22px 23px; }
-.sim-status-card, .sim-automation-settings { padding: 21px 23px; }
-.field-label { color: #35453f; font-family: Inter, "Plus Jakarta Sans", sans-serif; font-size: 14px; font-weight: 600; }
-.device-copy strong, .activity-copy strong, .activity-amount strong, .call-history-number strong { font-size: 14px; }
-.device-copy small, .activity-copy small, .activity-amount small, .call-history-number small,
-.settings-section-head small, .sim-data-heading small, .sim-data-foot, .sim-network-block > small {
-  font-size: 13px; line-height: 1.5;
-}
-.device-copy, .activity-copy, .activity-amount, .call-history-number,
-.settings-section-head, .status-badge, .metric-amount, .wallet-balance,
-.chart-total, .sim-data-block, .sim-network-block, .sim-balance-block {
+.metric-card { min-height: 10.5rem; padding: 1.25rem 1.3rem 1.125rem; }
+.metric-amount { margin-top: 1rem; color: #25362f; font: 700 clamp(1.875rem, 2.35vw, 2.125rem)/1.2 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.025em; }
+.metric-bottom { margin-top: .7rem; }
+.metric-bottom strong { color: #3f5148; font: 700 .875rem/1.4 Inter, "Plus Jakarta Sans", sans-serif; }
+.metric-bottom small { margin-top: .3rem; color: #718078; font-size: .8125rem !important; line-height: 1.45; }
+.wallet-balance { margin: 1.6rem 0 1.4rem; font: 700 2.125rem/1.2 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; letter-spacing: -.025em; }
+.chart-total > strong { font: 700 1.875rem/1.25 Inter, "Plus Jakarta Sans", sans-serif; font-variant-numeric: tabular-nums; }
+.health-panel, .chart-panel, .activity-panel, .call-log-panel, .courier-tracking-panel { padding: 1.4rem 1.45rem; }
+.sim-status-card, .sim-automation-settings { padding: 1.3rem 1.45rem; }
+.page-content :is(p, small, td, th, label, .toggle-copy, .device-copy, .activity-copy, .activity-amount,
+  .call-history-number, .settings-section-head, .sim-data-block, .sim-network-block, .health-footer,
+  .courier-result-meta, .courier-track-result) {
   font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
 }
-.sim-balance-block > strong { font-size: 32px; font-variant-numeric: tabular-nums; }
-.sim-data-heading strong, .sim-network-top strong { font-size: 14px; }
-@media (max-width: 640px) {
-  .page-content { padding-top: 23px; }
-  .page-intro { margin-bottom: 22px; }
-  .page-intro h1 { font-size: clamp(28px, 7.5vw, 32px); }
-  .page-intro p { font-size: 14px; }
-  .metric-card { min-height: 150px; padding: 16px 14px 15px; }
-  .metric-amount { margin-top: 13px; font-size: clamp(29px, 8vw, 33px); }
-  .metric-bottom { margin-top: 8px; }
-  .metric-bottom strong { font-size: 13px; }
-  .metric-bottom small { font-size: 13px; }
-  .panel-heading h2, .sim-title-wrap h2 { font-size: 18px; }
-  .health-panel, .chart-panel, .activity-panel, .call-log-panel, .courier-tracking-panel,
-  .sim-status-card, .sim-automation-settings { padding: 17px; }
-  .sim-balance-block > strong { font-size: 30px; }
+.page-content p { font-size: .875rem !important; line-height: 1.6; }
+.page-content small { font-size: .8125rem !important; line-height: 1.5; }
+.page-content label, .page-content .field-label { font-size: .875rem !important; }
+.page-content button { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif; font-size: .875rem; }
+.page-content .eyebrow, .page-content .status-badge, .page-content .metric-change,
+.page-content .courier-source { font-size: .75rem !important; }
+.page-content .device-copy strong, .page-content .activity-copy strong,
+.page-content .activity-amount strong, .page-content .call-history-number strong,
+.page-content .settings-section-head strong { font-size: .875rem !important; line-height: 1.45; }
+.page-content .sim-balance-block > strong { font-size: 2rem; font-variant-numeric: tabular-nums; }
+.page-content .sim-data-heading strong, .page-content .sim-network-top strong { font-size: .875rem; }
+.page-content .chart-y, .page-content .chart-x { font-size: .75rem; }
+.page-content .history-tabs a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 1rem; color: inherit; text-decoration: none; }
+.page-content .history-tabs a.selected { color: #287b66; }
+.sidebar .brand-lockup { width: auto; min-height: 3rem; }
+.sidebar .kn-logo-lockup { gap: .45rem; animation: none; transform: none; }
+.sidebar .kn-logo-mark { width: 2.25rem; height: 2.4rem; flex: 0 0 auto; filter: none; animation: none; }
+.sidebar .kn-logo-wording strong { color: #243d35; font-size: 1.2rem; text-shadow: none; }
+.sidebar .kn-logo-wording .kn-word-bold { color: #243d35; }
+.sidebar .kn-logo-wording .kn-word-light { color: #49645a; }
+.sidebar .kn-logo-wording small { display: none; }
+.side-nav-item { min-height: 2.75rem; font-size: .875rem; }
+.workspace-switch strong, .user-lines strong { font-size: .8125rem; }
+.workspace-switch small, .user-lines small { font-size: .75rem; }
+.nav-caption { font-size: .75rem; }
+.topbar > div:first-child { font-size: .875rem; }
+.mobile-nav-item { font-size: .75rem; }
+@media (max-width: 1100px) {
+  .sidebar .brand-lockup > span:last-child { display: inline-flex; }
+  .sidebar .kn-logo-wording { display: none; }
+  .sidebar .kn-logo-mark { width: 2.5rem; height: 2.65rem; }
 }
-
+@media (max-width: 640px) {
+  .page-content { padding-top: 1.45rem; }
+  .page-intro { margin-bottom: 1.4rem; }
+  .page-intro h1 { font-size: clamp(1.75rem, 7.5vw, 2rem); }
+  .metric-card { min-height: 9.375rem; padding: 1rem .875rem; }
+  .metric-amount { margin-top: .8rem; font-size: clamp(1.75rem, 8vw, 2rem); }
+  .metric-bottom { margin-top: .5rem; }
+  .metric-bottom strong, .metric-bottom small { font-size: .8125rem !important; }
+  .panel-heading h2, .sim-title-wrap h2 { font-size: 1.125rem; }
+  .health-panel, .chart-panel, .activity-panel, .call-log-panel, .courier-tracking-panel,
+  .sim-status-card, .sim-automation-settings { padding: 1.05rem; }
+  .mobile-nav-item { font-size: .75rem; }
+}
