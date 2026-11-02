@@ -702,7 +702,7 @@ body, .app-frame { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, syste
   .page-intro { margin-bottom: 1.4rem; }
   .page-intro h1 { font-size: clamp(1.75rem, 7.5vw, 2rem); }
   .metric-card { min-height: 9.375rem; padding: 1rem .875rem; }
-  .metric-amount { margin-top: .8rem; font-size: clamp(1.75rem, 8vw, 2rem); }
+  .metric-amount { margin-top: .8rem; font-size: clamp(1.875rem, 8vw, 2rem); }
   .metric-bottom { margin-top: .5rem; }
   .metric-bottom strong, .metric-bottom small { font-size: .8125rem !important; }
   .panel-heading h2, .sim-title-wrap h2 { font-size: 1.125rem; }
