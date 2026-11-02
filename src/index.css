@@ -884,3 +884,16 @@ body, .app-frame, .page-content { font-family: var(--app-font-body, Inter, ui-sa
 
 .page-content .metric-amount, .page-content .wallet-balance, .page-content .chart-total > strong,
 .page-content .metric-bottom strong { font-family: var(--app-font-body, Inter, ui-sans-serif, system-ui, sans-serif); }
+
+:root[data-appearance-theme="slate"] .sidebar .kn-logo-wording strong,
+:root[data-appearance-theme="slate"] .sidebar .kn-logo-wording .kn-word-bold,
+:root[data-appearance-theme="slate"] .sidebar .kn-logo-wording .kn-word-light,
+:root[data-appearance-theme="slate"] .topbar > div:first-child,
+:root[data-appearance-theme="slate"] .workspace-switch strong,
+:root[data-appearance-theme="slate"] .user-lines strong { color: var(--color-text); }
+:root[data-appearance-theme="slate"] .workspace-switch,
+:root[data-appearance-theme="slate"] .side-user,
+:root[data-appearance-theme="slate"] .appearance-trigger { color: var(--color-text); border-color: var(--color-border); background: var(--color-surface); }
+:root[data-appearance-theme="slate"] .side-nav-item { color: var(--color-muted); }
+:root[data-appearance-theme="slate"] .side-nav-item.active { color: var(--color-text); background: #334155; }
+:root[data-appearance-theme="slate"] .topbar .icon-button { color: var(--color-muted); }
