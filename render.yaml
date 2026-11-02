@@ -15,4 +15,4 @@ services:
         value: production
       - key: SUPABASE_URL
         value: https://pbyfxxwumgjocmxastne.supabase.co
-      - fromGroup: 'kash Node'
+      - fromGroup: kash Node

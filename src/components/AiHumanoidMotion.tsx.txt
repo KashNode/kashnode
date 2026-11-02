@@ -1,0 +1,237 @@
+import React, { useEffect, useRef } from 'react';
+
+export const AiHumanoidMotion: React.FC = () => {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    let animationFrameId: number;
+    let width = (canvas.width = canvas.parentElement?.clientWidth || 500);
+    let height = (canvas.height = canvas.parentElement?.clientHeight || 600);
+
+    // Mouse Tracking with smooth interpolation
+    let mouse = { x: 0, y: 0, targetX: 0, targetY: 0 };
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = canvas.getBoundingClientRect();
+      const rawX = (e.clientX - rect.left) / width - 0.5;
+      const rawY = (e.clientY - rect.top) / height - 0.5;
+      mouse.targetX = rawX * 1.2;
+      mouse.targetY = rawY * 0.8;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+
+    // Procedural 3D Humanoid Head & Torso Point Cloud Geometry
+    interface Point3D {
+      x: number;
+      y: number;
+      z: number;
+      size: number;
+      color: string;
+      alpha: number;
+    }
+
+    const points: Point3D[] = [];
+    
+    // Generate Head / Facial Contour (Ellipsoidal Shell)
+    for (let i = 0; i < 380; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 110 + (Math.sin(theta * 3) * Math.cos(phi * 2) * 12);
+      
+      const x = r * Math.sin(phi) * Math.cos(theta) * 0.82;
+      const y = (r * Math.cos(phi) * 1.05) - 35; // Head center offset
+      const z = r * Math.sin(phi) * Math.sin(theta) * 0.9;
+
+      points.push({
+        x, y, z,
+        size: Math.random() * 2 + 1.2,
+        color: Math.random() > 0.4 ? '#10B981' : '#06B6D4',
+        alpha: Math.random() * 0.7 + 0.3
+      });
+    }
+
+    // Generate Eye Sockets & Cyber Core Nodes
+    for (let i = -1; i <= 1; i += 2) {
+      for (let j = 0; j < 15; j++) {
+        points.push({
+          x: i * 36 + (Math.random() - 0.5) * 16,
+          y: -42 + (Math.random() - 0.5) * 10,
+          z: 75 + Math.random() * 15,
+          size: 2.5,
+          color: '#34D399',
+          alpha: 0.95
+        });
+      }
+    }
+
+    // Generate Neck & Shoulder/Torso Silhouette
+    for (let i = 0; i < 280; i++) {
+      const u = (Math.random() - 0.5) * 320;
+      const t = Math.random();
+      const y = 80 + t * 140;
+      const spread = Math.sqrt(t) * 1.5;
+      const x = u * spread;
+      const z = (Math.random() - 0.5) * 100 * (1 - t * 0.5);
+
+      points.push({
+        x, y, z,
+        size: Math.random() * 2 + 0.8,
+        color: '#059669',
+        alpha: (1 - t) * 0.6 + 0.1
+      });
+    }
+
+    // Ambient floating neural synapse nodes
+    const synapses: { x: number; y: number; z: number; speed: number }[] = [];
+    for (let i = 0; i < 40; i++) {
+      synapses.push({
+        x: (Math.random() - 0.5) * 450,
+        y: (Math.random() - 0.5) * 450,
+        z: (Math.random() - 0.5) * 200,
+        speed: Math.random() * 0.02 + 0.01
+      });
+    }
+
+    let clock = 0;
+
+    const render = () => {
+      clock += 0.025;
+      ctx.clearRect(0, 0, width, height);
+
+      // Smooth lerp mouse tracking
+      mouse.x += (mouse.targetX - mouse.x) * 0.06;
+      mouse.y += (mouse.targetY - mouse.y) * 0.06;
+
+      // Realistic Human Motion Dynamics:
+      // 1. Natural Breathing: vertical sinusoidal elevation
+      const breathingY = Math.sin(clock * 1.2) * 5;
+      // 2. Head Tilt & Swaying
+      const swayZ = Math.cos(clock * 0.8) * 0.04;
+      const rotY = mouse.x + Math.sin(clock * 0.5) * 0.08;
+      const rotX = -mouse.y + Math.cos(clock * 1.2) * 0.05;
+
+      const cosY = Math.cos(rotY);
+      const sinY = Math.sin(rotY);
+      const cosX = Math.cos(rotX);
+      const sinX = Math.sin(rotX);
+      const cosZ = Math.cos(swayZ);
+      const sinZ = Math.sin(swayZ);
+
+      const fov = 420;
+      const cx = width / 2;
+      const cy = height / 2 + 20;
+
+      // Render Synapses
+      synapses.forEach(s => {
+        s.y -= s.speed * 40;
+        if (s.y < -250) s.y = 250;
+        const scale = fov / (fov + s.z + 200);
+        const px = s.x * scale + cx;
+        const py = s.y * scale + cy;
+        ctx.fillStyle = 'rgba(16, 185, 129, 0.25)';
+        ctx.beginPath();
+        ctx.arc(px, py, 1.2 * scale, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Sort points for proper 3D depth perception
+      const projectedPoints = points.map(p => {
+        // Human Breathing offset
+        const curY = p.y + breathingY * (p.y > 50 ? 1.4 : 0.6);
+
+        // Rotation around Y (Looking left/right)
+        let x1 = p.x * cosY + p.z * sinY;
+        let z1 = -p.x * sinY + p.z * cosY;
+
+        // Rotation around X (Looking up/down)
+        let y2 = curY * cosX - z1 * sinX;
+        let z2 = curY * sinX + z1 * cosX;
+
+        // Rotation around Z (Head sway)
+        let x3 = x1 * cosZ - y2 * sinZ;
+        let y3 = x1 * sinZ + y2 * cosZ;
+
+        const depth = z2 + 350;
+        const scale = fov / depth;
+        return {
+          px: x3 * scale + cx,
+          py: y3 * scale + cy,
+          depth: z2,
+          scale,
+          color: p.color,
+          alpha: p.alpha,
+          size: p.size
+        };
+      });
+
+      projectedPoints.sort((a, b) => b.depth - a.depth);
+
+      // Draw Connection Web (Mesh Grid for Face and Neck)
+      ctx.lineWidth = 0.5;
+      for (let i = 0; i < projectedPoints.length; i += 3) {
+        const p1 = projectedPoints[i];
+        if (p1.depth < -80) continue;
+        for (let j = i + 1; j < Math.min(i + 6, projectedPoints.length); j++) {
+          const p2 = projectedPoints[j];
+          const dist = Math.hypot(p1.px - p2.px, p1.py - p2.py);
+          if (dist < 32 * p1.scale) {
+            ctx.strokeStyle = `rgba(16, 185, 129, ${0.18 * (1 - dist / (32 * p1.scale))})`;
+            ctx.beginPath();
+            ctx.moveTo(p1.px, p1.py);
+            ctx.lineTo(p2.px, p2.py);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Draw Point Nodes
+      projectedPoints.forEach(p => {
+        if (p.scale <= 0) return;
+        ctx.globalAlpha = Math.min(Math.max(p.alpha * (p.depth + 180) / 300, 0.1), 1);
+        ctx.fillStyle = p.color;
+        ctx.beginPath();
+        ctx.arc(p.px, p.py, p.size * p.scale, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      ctx.globalAlpha = 1.0;
+      animationFrameId = requestAnimationFrame(render);
+    };
+
+    render();
+
+    const handleResize = () => {
+      width = canvas.width = canvas.parentElement?.clientWidth || 500;
+      height = canvas.height = canvas.parentElement?.clientHeight || 600;
+    };
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
+
+  return (
+    <div className="relative w-full h-[400px] flex items-center justify-center overflow-hidden my-2">
+      {/* Dynamic 3D Human Canvas */}
+      <canvas ref={canvasRef} className="w-full h-full cursor-grab active:cursor-grabbing z-10" />
+
+      {/* Cybernetic Radial Aura */}
+      <div className="absolute inset-0 bg-radial-gradient from-emerald-500/10 via-transparent to-transparent pointer-events-none blur-2xl"></div>
+
+      {/* HUD Telemetry Overlay */}
+      <div className="absolute bottom-2 left-6 z-20 flex items-center gap-2 text-[10px] font-mono text-emerald-400 bg-emerald-950/40 border border-emerald-500/30 px-3 py-1 rounded-full backdrop-blur-md">
+        <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping"></span>
+        AI SYNAPTIC CORE &bull; 60 FPS MOTION
+      </div>
+    </div>
+  );
+};
