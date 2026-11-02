@@ -675,8 +675,10 @@ body, .app-frame { font-family: Inter, "Plus Jakarta Sans", ui-sans-serif, syste
 .page-content .sim-balance-block > strong { font-size: 2rem; font-variant-numeric: tabular-nums; }
 .page-content .sim-data-heading strong, .page-content .sim-network-top strong { font-size: .875rem; }
 .page-content .chart-y, .page-content .chart-x { font-size: .75rem; }
-.page-content .history-tabs a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 1rem; color: inherit; text-decoration: none; }
-.page-content .history-tabs a.selected { color: #287b66; }
+.page-content .history-tabs a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 1rem; border-radius: .4375rem; color: #718078; font-size: .875rem; font-weight: 600; text-decoration: none; }
+.page-content .history-tabs a.selected { color: #287b66; background: #edf5ef; }
+.page-content td, .page-content th { font-size: .8125rem !important; line-height: 1.5; }
+.page-content .settings-section-head strong, .page-content .review-card > strong, .page-content .account-note > strong { color: #293b33; font-family: "Playfair Display", Georgia, serif; font-size: 1rem; font-weight: 700; line-height: 1.4; }
 .sidebar .brand-lockup { width: auto; min-height: 3rem; }
 .sidebar .kn-logo-lockup { gap: .45rem; animation: none; transform: none; }
 .sidebar .kn-logo-mark { width: 2.25rem; height: 2.4rem; flex: 0 0 auto; filter: none; animation: none; }
