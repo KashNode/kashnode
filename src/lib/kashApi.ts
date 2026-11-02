@@ -1,4 +1,4 @@
-const API_BASE = (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4892').replace(/\/$/, '')
+const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4892').replace(/\/$/, '')
 
 export type SimStatus = {
   deviceId: string
