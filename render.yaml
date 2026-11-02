@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: kashnode-backend
+    runtime: node
+    repo: https://github.com/KashNode/kashnode
+    branch: main
+    plan: free
+    region: singapore
+    buildCommand: npm install && npm run build
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SUPABASE_URL
+        value: https://pbyfxxwumgjocmxastne.supabase.co
+      - fromGroup: 'kash Node'
