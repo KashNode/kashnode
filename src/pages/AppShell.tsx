@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { NavLink, Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import {
   Activity, ArrowDownLeft, ArrowUpRight, AudioLines, Bell, Bot, Check, ChevronDown,
   CircleDollarSign, Clock3, CreditCard, Headphones, LayoutDashboard, LogOut, MoreHorizontal,
@@ -8,17 +9,19 @@ import {
 import type { AuthUser } from '../lib/auth'
 import { getCallHistory, getSimStatus, getSimUssdSettings, saveSimUssdSettings, type CallHistoryEntry, type SimStatus, type SimUssdSettings } from '../lib/kashApi'
 import { CourierTrackingWidget } from '../components/CourierTrackingWidget'
+import KashNodeLogo from '../components/KashNodeLogo'
 
 type Module = 'Dashboard' | 'AI Controls' | 'History' | 'Settings'
 type Props = { user: AuthUser; onSignOut: () => void }
 
-const navItems: { label: Module; icon: typeof LayoutDashboard }[] = [
-  { label: 'Dashboard', icon: LayoutDashboard }, { label: 'AI Controls', icon: Bot },
-  { label: 'History', icon: Clock3 }, { label: 'Settings', icon: Settings },
+const navItems: { label: Module; path: string; icon: typeof LayoutDashboard }[] = [
+  { label: 'Dashboard', path: '/dashboard', icon: LayoutDashboard }, { label: 'AI Controls', path: '/ai-controls', icon: Bot },
+  { label: 'History', path: '/history', icon: Clock3 }, { label: 'Settings', path: '/settings', icon: Settings },
 ]
 
 function AppShell({ user, onSignOut }: Props) {
-  const [active, setActive] = useState<Module>('Dashboard')
+  const location = useLocation()
+  const active: Module = location.pathname.startsWith('/ai-controls') ? 'AI Controls' : location.pathname.startsWith('/history') ? 'History' : location.pathname.startsWith('/settings') ? 'Settings' : 'Dashboard'
   const [notice, setNotice] = useState('')
   const [menuOpen, setMenuOpen] = useState(false)
 
@@ -28,31 +31,39 @@ function AppShell({ user, onSignOut }: Props) {
   return (
     <div className="app-frame">
       <aside className="sidebar">
-        <a className="brand-lockup" href="/" onClick={event => { event.preventDefault(); setActive('Dashboard') }}><span className="brand-mark">K</span><span>KashNode</span></a>
+        <NavLink className="brand-lockup" to="/dashboard" aria-label="KashNode dashboard"><KashNodeLogo /></NavLink>
         <div className="workspace-switch"><span className="workspace-avatar">F</span><span><strong>Faz Network</strong><small>Business workspace</small></span><ChevronDown size={15} /></div>
         <span className="nav-caption">WORKSPACE</span>
-        <nav className="side-nav" aria-label="Main navigation">{navItems.map(item => <NavButton key={item.label} item={item} active={active === item.label} onClick={() => setActive(item.label)} />)}</nav>
+        <nav className="side-nav" aria-label="Main navigation">{navItems.map(item => <NavButton key={item.label} item={item} />)}</nav>
         <div className="sidebar-bottom"><div className="support-card"><span className="support-icon"><Headphones size={17} /></span><strong>Need a hand?</strong><small>Our team is here to help.</small><button onClick={() => notify('Support options are coming soon.')}>Contact support <ArrowUpRight size={13} /></button></div><button className="side-user" onClick={() => setMenuOpen(value => !value)}><span className="user-avatar">{firstName.slice(0, 1).toUpperCase()}</span><span className="user-lines"><strong>{user.name || firstName}</strong><small>{user.email}</small></span><MoreHorizontal size={17} /></button>{menuOpen && <button className="signout-menu" onClick={onSignOut}><LogOut size={15} /> Sign out</button>}</div>
       </aside>
 
       <div className="main-column">
         <header className="topbar"><div><span className="workspace-breadcrumb">Faz Network <span>/</span></span><strong>{active}</strong></div><div className="topbar-actions"><span className="live-pill"><i /> All systems operational</span><button className="icon-button notification-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={18} /><i /></button><button className="top-avatar" aria-label="Open account menu" onClick={() => setMenuOpen(value => !value)}>{firstName.slice(0, 1).toUpperCase()}</button>{menuOpen && <button className="top-signout" onClick={onSignOut}><LogOut size={15} /> Sign out</button>}</div></header>
         <main className="page-content">
-          {active === 'Dashboard' && <Dashboard firstName={firstName} notify={notify} />}
-          {active === 'AI Controls' && <AIControls notify={notify} />}
-          {active === 'History' && <History notify={notify} />}
-          {active === 'Settings' && <><SettingsPage notify={notify} /><SimUssdSettings notify={notify} /></>}
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard firstName={firstName} notify={notify} />} />
+            <Route path="/ai-controls" element={<AIControls notify={notify} />} />
+            <Route path="/history" element={<History notify={notify} activeTab="all" />} />
+            <Route path="/history/payments" element={<History notify={notify} activeTab="payments" />} />
+            <Route path="/history/calls" element={<History notify={notify} activeTab="calls" />} />
+            <Route path="/settings" element={<><SettingsPage notify={notify} /><SimUssdSettings notify={notify} /></>} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </main>
         {notice && <div className="toast" role="status"><Check size={16} />{notice}<button onClick={() => setNotice('')} aria-label="Dismiss"><X size={14} /></button></div>}
-        <nav className="mobile-nav" aria-label="Main navigation">{navItems.map(item => <NavButton key={item.label} item={item} active={active === item.label} onClick={() => setActive(item.label)} mobile />)}</nav>
+        <nav className="mobile-nav" aria-label="Main navigation">{navItems.map(item => <NavButton key={item.label} item={item} mobile />)}</nav>
       </div>
     </div>
   )
 }
 
-function NavButton({ item, active, onClick, mobile = false }: { item: (typeof navItems)[number]; active: boolean; onClick: () => void; mobile?: boolean }) {
+function NavButton({ item, mobile = false }: { item: (typeof navItems)[number]; mobile?: boolean }) {
+  const { pathname } = useLocation()
   const Icon = item.icon
-  return <button className={`${mobile ? 'mobile-nav-item' : 'side-nav-item'} ${active ? 'active' : ''}`} onClick={onClick} aria-current={active ? 'page' : undefined}><Icon size={19} strokeWidth={active ? 2.2 : 1.8} /><span>{item.label}</span></button>
+  const active = pathname === item.path || (item.path !== '/dashboard' && pathname.startsWith(`${item.path}/`))
+  return <NavLink to={item.path} end={item.path === '/dashboard'} className={`${mobile ? 'mobile-nav-item' : 'side-nav-item'} ${active ? 'active' : ''}`} aria-current={active ? 'page' : undefined}><Icon size={19} strokeWidth={active ? 2.2 : 1.8} /><span>{item.label}</span></NavLink>
 }
 
 function PageIntro({ eyebrow, title, subtitle, action }: { eyebrow: string; title: string; subtitle: string; action?: ReactNode }) {
@@ -146,9 +157,8 @@ const paymentLogs: PaymentLog[] = [
   { sender: 'Sabbir Ahmed', detail: '+880 17•• ••• 9608', amount: '৳ 3,600', trx: 'C6L1N5W8B', order: '#KN-48216', status: 'Matched', tone: 'matched', channel: 'bKash', time: '09:56 AM' },
 ]
 
-function History({ notify }: { notify: (message: string) => void }) {
+function History({ notify, activeTab }: { notify: (message: string) => void; activeTab: HistoryTab }) {
   const [approved, setApproved] = useState(false)
-  const [activeTab, setActiveTab] = useState<HistoryTab>('all')
   const [callLogs, setCallLogs] = useState<CallLog[]>([])
   const [callHistorySource, setCallHistorySource] = useState<'demo' | 'database' | null>(null)
   const [callsError, setCallsError] = useState('')
@@ -177,9 +187,9 @@ function History({ notify }: { notify: (message: string) => void }) {
     <section className="panel history-panel">
       <div className="history-toolbar">
         <div className="history-tabs" role="tablist" aria-label="History categories">
-          <button role="tab" aria-selected={activeTab === 'all'} className={activeTab === 'all' ? 'selected' : ''} onClick={() => setActiveTab('all')}>All activity <span>24</span></button>
-          <button role="tab" aria-selected={activeTab === 'payments'} className={activeTab === 'payments' ? 'selected' : ''} onClick={() => setActiveTab('payments')}>Payments</button>
-          <button role="tab" aria-selected={activeTab === 'calls'} className={activeTab === 'calls' ? 'selected' : ''} onClick={() => setActiveTab('calls')}>Call history</button>
+          <NavLink to="/history" end role="tab" aria-selected={activeTab === 'all'} className={activeTab === 'all' ? 'selected' : ''}>All activity <span>24</span></NavLink>
+          <NavLink to="/history/payments" role="tab" aria-selected={activeTab === 'payments'} className={activeTab === 'payments' ? 'selected' : ''}>Payments</NavLink>
+          <NavLink to="/history/calls" role="tab" aria-selected={activeTab === 'calls'} className={activeTab === 'calls' ? 'selected' : ''}>Call history</NavLink>
         </div>
         <button className="select-button" onClick={() => notify('Date filter is ready.')}>Today <ChevronDown size={14} /></button>
       </div>
