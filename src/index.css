@@ -948,7 +948,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 .km-prompt { font-size: clamp(1.75rem, 3vw, 2.4rem); line-height: 1.22; }
 .km-input-wrap input { font-size: 1rem; }
 .km-submit, .km-eye { touch-action: manipulation; }
-@media (max-width: 1023px) {
+@media (max-width: 680px) {
   .km-login {
     display: flex;
     flex-direction: column;
@@ -1014,7 +1014,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .km-footer { align-items: flex-start; flex-direction: column; gap: .5rem; font-size: .6875rem; }
   .km-footer > span:last-child { align-self: flex-start; }
 }
-@media (max-height: 720px) and (min-width: 1024px) {
+@media (max-height: 720px) and (min-width: 681px) {
   .km-auth { padding-block: 1rem; }
   .km-footer { margin-top: .75rem; padding-top: .6rem; }
 }
@@ -1023,7 +1023,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 }
 
 
-@media (max-width: 1023px) {
+@media (max-width: 680px) {
   .km-login, .km-visual, .km-auth, .km-auth-content, .km-form,
   .km-input-wrap, .km-prompt { min-width: 0; max-width: 100%; }
   .km-login { width: 100%; }
@@ -1034,12 +1034,12 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .km-footer { margin-top: 1rem; }
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 680px) {
   .km-auth-content, .km-form, .km-input-wrap, .km-prompt { width: auto; }
   .km-form { max-width: 100%; }
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 680px) {
   .km-auth-content { width: auto; }
   .km-form { width: 100%; max-width: 100%; margin: 0; }
   .km-input-wrap { width: 100%; }
@@ -1050,7 +1050,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 
 
 /* Preserve the established immersive desktop login composition */
-@media (min-width: 1024px) {
+@media (min-width: 681px) {
   .km-login {
     position: relative; display: block; width: 100%; height: 100dvh; min-height: 100dvh;
     overflow: hidden; isolation: isolate; background: #010713;
