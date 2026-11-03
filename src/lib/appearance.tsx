@@ -26,14 +26,14 @@ export const FONT_PAIRINGS = {
 export const APPEARANCE_THEMES = {
   forest: {
     label: 'Deep Forest Green',
-    primary: '#0F766E',
-    strong: '#0F766E',
-    soft: '#E6F4F2',
+    primary: '#267b66',
+    strong: '#206d5a',
+    soft: '#e8f3ef',
     surface: '#ffffff',
-    canvas: '#F8FAFC',
-    text: '#0F172A',
-    muted: '#64748B',
-    border: '#E2E8F0',
+    canvas: '#f5f7f4',
+    text: '#1e2c29',
+    muted: '#788781',
+    border: '#e8ede9',
   },
   slate: {
     label: 'Slate Dark',
@@ -69,8 +69,7 @@ export type AppearanceConfig = {
   theme: AppearanceThemeId
 }
 
-const STORAGE_KEY = 'kashnode_theme_settings'
-const LEGACY_STORAGE_KEY = 'kashnode_appearance_config'
+const STORAGE_KEY = 'kashnode_appearance_config'
 
 export const DEFAULT_APPEARANCE: AppearanceConfig = {
   fontPairing: 'playfairInter',
@@ -112,18 +111,18 @@ export type DashboardStudioConfig = {
 }
 
 export const DEFAULT_STUDIO_CONFIG: DashboardStudioConfig = {
-  pageBg: '#F8FAFC',
-  primaryColor: '#0F766E',
-  surfaceColor: '#FFFFFF',
-  headingColor: '#0F172A',
-  bodyColor: '#334155',
-  mutedColor: '#64748B',
+  pageBg: '#f5f7f4',
+  primaryColor: '#267b66',
+  surfaceColor: '#ffffff',
+  headingColor: '#24342e',
+  bodyColor: '#46564f',
+  mutedColor: '#788781',
   cardBgColor: '#ffffff',
   cardOpacity: 1,
-  cardBorderColor: '#E2E8F0',
+  cardBorderColor: '#e8ede9',
   cardBorderStyle: 'solid',
   cardBorderWidth: 1,
-  cardRadius: 8,
+  cardRadius: 13,
   cardShadow: 'subtle',
   cardPadding: 18,
   cardMinWidth: 260,
@@ -195,7 +194,7 @@ type AppearanceContextValue = {
 const AppearanceContext = createContext<AppearanceContextValue | null>(null)
 
 function readConfig(): AppearanceConfig {
-  try { return normalizeAppearanceConfig(JSON.parse(window.localStorage.getItem(STORAGE_KEY) || window.localStorage.getItem(LEGACY_STORAGE_KEY) || '{}')) }
+  try { return normalizeAppearanceConfig(JSON.parse(window.localStorage.getItem(STORAGE_KEY) || '{}')) }
   catch { return DEFAULT_APPEARANCE }
 }
 
