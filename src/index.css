@@ -1033,3 +1033,8 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .km-auth-content { justify-content: space-between; }
   .km-footer { margin-top: 1rem; }
 }
+
+@media (max-width: 1023px) {
+  .km-auth-content, .km-form, .km-input-wrap, .km-prompt { width: auto; }
+  .km-form { max-width: 100%; }
+}
