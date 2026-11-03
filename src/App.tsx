@@ -28,7 +28,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage onLogin={setUser} sessionError={sessionError} />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={setUser} sessionError={sessionError} />} />
       <Route path="/*" element={user ? <AppShell user={user} onSignOut={handleSignOut} /> : <Navigate to="/login" replace />} />
     </Routes>
   )

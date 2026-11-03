@@ -32,6 +32,7 @@ function AppShell({ user, onSignOut }: Props) {
 
   return (
     <div className="app-frame">
+      <a className="skip-link" href="#main-content">Skip to main content</a>
       <aside className="sidebar">
         <NavLink className="brand-lockup" to="/dashboard" aria-label="KashNode dashboard"><KashNodeLogo /></NavLink>
         <div className="workspace-switch"><span className="workspace-avatar">F</span><span><strong>Faz Network</strong><small>Business workspace</small></span><ChevronDown size={15} /></div>
@@ -43,7 +44,7 @@ function AppShell({ user, onSignOut }: Props) {
       <div className="main-column">
         <header className="topbar"><div className="topbar-branding"><NavLink className="mobile-header-brand" to="/dashboard" aria-label="KashNode dashboard"><KashNodeLogo /></NavLink><span className="workspace-breadcrumb">Faz Network <span>/</span></span><strong className="topbar-section-title">{active}</strong></div><div className="topbar-actions"><span className="live-pill"><i /> All systems operational</span><button className="icon-button notification-button" aria-label="Notifications" onClick={() => notify('You’re all caught up.')}><Bell size={18} /><i /></button><button className="appearance-trigger" type="button" onClick={() => setAppearanceOpen(true)} aria-haspopup="dialog" aria-expanded={appearanceOpen} aria-label="Open display and theme settings"><Palette size={17} /><span>Display &amp; Theme</span></button><button className="top-avatar" aria-label="Open account menu" onClick={() => setMenuOpen(value => !value)}>{firstName.slice(0, 1).toUpperCase()}</button>{menuOpen && <button className="top-signout" onClick={onSignOut}><LogOut size={15} /> Sign out</button>}</div></header>
         {appearanceOpen && <AppearanceDrawer onClose={() => setAppearanceOpen(false)} />}
-        <main className="page-content">
+        <main id="main-content" className="page-content" tabIndex={-1}>
           <Routes>
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard firstName={firstName} notify={notify} />} />
