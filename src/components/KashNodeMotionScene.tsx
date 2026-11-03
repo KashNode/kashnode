@@ -78,6 +78,7 @@ function makePanel(title: string, kind: 'ledger' | 'payment' | 'courier' | 'voic
   group.add(border)
   group.position.set(x, y, z)
   group.rotation.y = rotY
+  group.userData.baseX = x
   group.userData.baseY = y
   return group
 }
@@ -337,7 +338,11 @@ export default function KashNodeMotionScene({ speaking, focused, busy }: Props) 
       camera.position.z = compact ? 8.1 : 8.8
       character.root.scale.setScalar(compact ? 1.08 : 1.12)
       blackHole.scale.setScalar(compact ? .78 : 1)
-      panels.forEach(panel => { panel.visible = !compact })
+      panels.forEach(panel => {
+        panel.visible = true
+        panel.position.x = compact ? Math.sign(panel.userData.baseX) * 1.72 : panel.userData.baseX
+        panel.scale.setScalar(compact ? .82 : 1)
+      })
       camera.updateProjectionMatrix()
     }
     const observer = new ResizeObserver(layout)
