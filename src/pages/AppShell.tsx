@@ -97,7 +97,7 @@ function Dashboard({ firstName, notify }: { firstName: string; notify: (message:
       <article className="wallet-card">
         <div className="wallet-head"><span className="wallet-icon"><Wallet size={19} /></span><span className="wallet-label">AVAILABLE BALANCE</span><button className="wallet-more" aria-label="Wallet options" onClick={() => notify('Wallet options are coming soon.')}>•••</button></div>
         <div className="wallet-balance">৳ 24,850<span>.00</span></div>
-        <div className="wallet-foot"><span><i /> Ready for operations</span><button className="recharge-button" onClick={() => notify('Recharge can be connected to your payment provider.')}>Recharge <ArrowUpRight size={15} /></button></div>
+        <div className="wallet-foot"><span><i /> Ready for operations</span><button className="recharge-button" onClick={() => notify('Recharge checkout is not configured yet. Connect a payment provider to add funds.')}>Recharge <ArrowUpRight size={15} /></button></div>
         <div className="wallet-orbit orbit-one" /><div className="wallet-orbit orbit-two" />
       </article>
       <article className="panel health-panel">
