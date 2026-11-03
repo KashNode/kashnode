@@ -1,6 +1,7 @@
 import { useEffect, type CSSProperties } from 'react'
 import { Check, Palette, RotateCcw, Type, X } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
+import DashboardStudio from './DashboardStudio'
 import {
   APPEARANCE_THEMES, FONT_PAIRINGS, TEXT_SCALE_PRESETS, useAppearance,
   type AppearanceThemeId, type FontPairingId,
@@ -20,6 +21,7 @@ export function AppearancePage() {
       <div><span className="eyebrow">PERSONALIZE WORKSPACE</span><h1>Appearance &amp; Display</h1><p>Set the type, scale, and colors you want across your dashboard.</p></div>
     </div>
     <AppearanceControls />
+    <DashboardStudio />
   </>
 }
 
@@ -95,7 +97,7 @@ export function AppearanceDrawer({ onClose }: { onClose: () => void }) {
         <span><h2 id="appearance-drawer-title">Display &amp; Theme</h2><p>Personalize your workspace</p></span>
         <button type="button" className="icon-button appearance-close" onClick={onClose} aria-label="Close appearance settings"><X size={19} /></button>
       </header>
-      <div className="appearance-drawer-body"><AppearanceControls /></div>
+      <div className="appearance-drawer-body"><AppearanceControls /><DashboardStudio /></div>
     </aside>
   </div>
 }
