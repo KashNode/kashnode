@@ -1125,8 +1125,17 @@ body { min-height: 100dvh; overflow-x: hidden; }
 }
 :root[data-studio-grid="2-column"] .page-content .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 :root[data-studio-grid="3-column"] .page-content .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-:root[data-dashboard-studio="true"] .page-content :is(.metric-amount,.wallet-balance,.chart-total > strong) {
-  font-size: calc(1em * var(--studio-metric-scale));
+:root[data-dashboard-studio="true"] .page-content .metric-amount {
+  font-size: calc(clamp(1.875rem, 2.35vw, 2.125rem) * var(--studio-metric-scale));
+}
+:root[data-dashboard-studio="true"] .page-content .wallet-balance {
+  font-size: calc(2.125rem * var(--studio-metric-scale));
+}
+:root[data-dashboard-studio="true"] .page-content .chart-total > strong {
+  font-size: calc(1.875rem * var(--studio-metric-scale));
+}
+:root[data-dashboard-studio="true"] .page-content .dashboard-grid {
+  align-items: start;
 }
 :root[data-dashboard-studio="true"] .page-content .page-intro h1 {
   font-size: calc(clamp(1.75rem, 2.2vw, 2rem) * var(--studio-heading-scale));
