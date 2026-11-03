@@ -1176,3 +1176,78 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .studio-file-actions { flex-direction: column; }
   .studio-file-actions button { width: 100%; }
 }
+
+
+/* Balanced mobile app frame: branded header, stable card grids and safe-area navigation */
+@media (max-width: 680px) {
+  html, body, #root, .app-frame, .main-column { width: 100%; min-width: 0; max-width: 100%; }
+  body { overflow-x: hidden; }
+  .main-column { margin: 0; padding: 0; }
+  .topbar {
+    width: 100%; height: 68px; min-height: 68px; gap: 8px;
+    padding: 0 14px; overflow: hidden;
+  }
+  .topbar-branding {
+    min-width: 0; flex: 1 1 auto; display: flex; align-items: center; gap: 7px;
+  }
+  .topbar-branding .workspace-breadcrumb { display: none; }
+  .mobile-header-brand {
+    min-width: 0; display: inline-flex; flex: 0 0 auto; align-items: center;
+    color: var(--color-text); text-decoration: none;
+  }
+  .mobile-header-brand .kn-logo-lockup { gap: 5px; animation: none; transform: none; }
+  .mobile-header-brand .kn-logo-mark { width: 31px; height: 33px; filter: none; animation: none; }
+  .mobile-header-brand .kn-logo-wording { gap: 0; }
+  .mobile-header-brand .kn-logo-wording strong { color: var(--color-text); font-size: 1rem; letter-spacing: -.45px; text-shadow: none; }
+  .mobile-header-brand .kn-logo-wording .kn-word-bold,
+  .mobile-header-brand .kn-logo-wording .kn-word-light { color: var(--color-text); }
+  .mobile-header-brand .kn-logo-wording small { display: none; }
+  .topbar-section-title { min-width: 0; overflow: hidden; color: var(--color-muted); font: 600 .75rem/1.2 var(--app-font-body); text-overflow: ellipsis; white-space: nowrap; }
+  .topbar-actions { min-width: 0; flex: 0 0 auto; gap: 5px; }
+  .topbar-actions .live-pill { display: none; }
+  .topbar-actions .notification-button { width: 34px; height: 36px; }
+  .topbar-actions .appearance-trigger { width: 36px; height: 36px; min-height: 36px; padding: 0; }
+  .topbar-actions .appearance-trigger span { display: none; }
+  .topbar-actions .top-avatar { width: 32px; height: 32px; }
+  .page-content {
+    width: 100%; min-width: 0; max-width: none; margin: 0;
+    padding: 20px 16px calc(92px + env(safe-area-inset-bottom, 0px));
+    overflow-x: clip;
+  }
+  .page-intro { display: flex; align-items: flex-start; flex-direction: column; gap: 8px; margin-bottom: 17px; }
+  .page-intro > div { width: 100%; min-width: 0; }
+  .page-intro h1 { max-width: 100%; font-size: clamp(1.55rem, 7vw, 1.9rem); line-height: 1.18; letter-spacing: -.03em; }
+  .page-intro p { max-width: 100%; font-size: .875rem !important; }
+  .page-intro > .secondary-button, .page-intro > .primary-button { align-self: flex-start; min-height: 38px; font-size: .8125rem; }
+  :root[data-dashboard-studio="true"] #root .page-content .metric-grid,
+  :root[data-studio-grid="2-column"] #root .page-content .metric-grid,
+  :root[data-studio-grid="3-column"] #root .page-content .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  :root[data-dashboard-studio="true"] #root .page-content .metric-grid > :first-child { grid-column: 1 / -1; }
+  :root[data-dashboard-studio="true"] #root .page-content :is(.dashboard-grid,.lower-grid,.call-log-grid,.settings-grid) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  :root[data-dashboard-studio="true"] #root .page-content :is(.metric-card,.panel,.wallet-card,.support-card,[class*="-card"],[class*="-panel"]) {
+    min-width: 0; max-width: 100%;
+  }
+  .metric-card { min-height: 136px; }
+  .metric-card:first-child { min-height: 126px; }
+  .metric-amount, .wallet-balance, .chart-total > strong { font-size: clamp(1.45rem, 7vw, 1.85rem); }
+  .dashboard-grid, .lower-grid, .module-grid, .call-log-grid, .settings-grid { min-width: 0; }
+  .dashboard-grid > *, .lower-grid > *, .module-grid > *, .call-log-grid > *, .settings-grid > * { min-width: 0; }
+  .mobile-nav {
+    height: calc(72px + env(safe-area-inset-bottom, 0px));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: stretch; gap: 4px;
+    padding: 5px 8px max(7px, env(safe-area-inset-bottom, 0px));
+  }
+  .mobile-nav-item {
+    min-width: 0; min-height: 54px; gap: 4px; padding: 4px 2px;
+    font-size: .6875rem; line-height: 1.15; white-space: nowrap;
+  }
+  .mobile-nav-item svg { width: 21px; height: 21px; flex: 0 0 auto; }
+  .mobile-nav-item.active { border-radius: 11px; }
+  .toast { bottom: calc(82px + env(safe-area-inset-bottom, 0px)); }
+}
