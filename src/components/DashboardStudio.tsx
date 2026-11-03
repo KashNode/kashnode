@@ -1,6 +1,6 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Download, RotateCcw, Upload } from 'lucide-react'
-import { DEFAULT_APPEARANCE, FONT_PAIRINGS, normalizeAppearanceConfig, normalizeStudioConfig, useAppearance, type DashboardStudioConfig } from '../lib/appearance'
+import { FONT_PAIRINGS, normalizeAppearanceConfig, normalizeStudioConfig, useAppearance, type DashboardStudioConfig } from '../lib/appearance'
 
 const GOOGLE_FONTS = [
   'DM Sans', 'Inter', 'Manrope', 'Merriweather', 'Newsreader', 'Nunito Sans',
@@ -16,7 +16,7 @@ function Slider({ label, value, min, max, step, unit = '', onChange }: {
   return <label className="studio-slider">
     <span><strong>{label}</strong><output>{Math.round(value * (unit === '%' ? 100 : 1))}{unit}</output></span>
     <input type="range" min={min} max={max} step={step} value={value} onChange={event => onChange(Number(event.target.value))} />
-    <small>{min}{unit} – {max}{unit}</small>
+    <small>{unit === '%' ? Math.round(min * 100) : min}{unit} – {unit === '%' ? Math.round(max * 100) : max}{unit}</small>
   </label>
 }
 
