@@ -1021,3 +1021,15 @@ body { min-height: 100dvh; overflow-x: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .km-login *, .km-login *::before, .km-login *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
 }
+
+
+@media (max-width: 1023px) {
+  .km-login, .km-visual, .km-auth, .km-auth-content, .km-form,
+  .km-input-wrap, .km-prompt { min-width: 0; max-width: 100%; }
+  .km-login { width: 100%; }
+  .km-prompt > span { display: block; width: 100%; min-width: 0; overflow-wrap: anywhere; }
+  .km-form, .km-input-wrap { width: 100%; }
+  .km-input-wrap input { min-width: 0; }
+  .km-auth-content { justify-content: space-between; }
+  .km-footer { margin-top: 1rem; }
+}
