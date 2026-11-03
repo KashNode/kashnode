@@ -1120,8 +1120,8 @@ body { min-height: 100dvh; overflow-x: hidden; }
 :root[data-dashboard-studio="true"] #root .page-content :is(small,.eyebrow,.health-footer,.panel-footnote,.monitor-note,.field-counter,.appearance-control label small,.studio-helper,.studio-slider small,.studio-status) {
   color: var(--text-muted) !important;
 }
-:root[data-dashboard-studio="true"] .page-content .metric-grid {
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min-width)), 1fr));
+:root[data-dashboard-studio="true"] .page-content :is(.metric-grid,.dashboard-grid,.lower-grid) {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--card-min-width)), 1fr));
 }
 :root[data-studio-grid="2-column"] .page-content .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 :root[data-studio-grid="3-column"] .page-content .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -1140,6 +1140,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
   border-color: var(--color-primary);
   background-color: var(--color-primary);
 }
+:root[data-dashboard-studio="true"] .side-nav-item.active { color: var(--color-primary); }
 :root[data-dashboard-studio="true"] .text-link,
 :root[data-dashboard-studio="true"] .subtle-link,
 :root[data-dashboard-studio="true"] .support-card button,
