@@ -1134,11 +1134,20 @@ body { min-height: 100dvh; overflow-x: hidden; }
 :root[data-dashboard-studio="true"] .page-content :is(.panel-heading h2,.sim-title-wrap h2) {
   font-size: calc(1.2rem * var(--app-heading-scale, 1) * var(--studio-heading-scale));
 }
-:root[data-dashboard-studio="true"] .side-nav-item.active,
-:root[data-dashboard-studio="true"] .primary-button,
+:root[data-dashboard-studio="true"] .primary-button {
+  border-color: var(--color-primary);
+  color: #fff;
+  background-color: var(--color-primary);
+}
+:root[data-dashboard-studio="true"] .side-nav-item.active {
+  border-color: transparent;
+  color: var(--color-primary);
+  background-color: var(--color-primary-soft);
+}
 :root[data-dashboard-studio="true"] .recharge-button:hover {
   border-color: var(--color-primary);
-  background-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: var(--color-primary-soft);
 }
 :root[data-dashboard-studio="true"] .side-nav-item.active { color: var(--color-primary); }
 :root[data-dashboard-studio="true"] .text-link,
@@ -1250,4 +1259,24 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .mobile-nav-item svg { width: 21px; height: 21px; flex: 0 0 auto; }
   .mobile-nav-item.active { border-radius: 11px; }
   .toast { bottom: calc(82px + env(safe-area-inset-bottom, 0px)); }
+}
+
+
+/* Keep the semantic wallet accent and prevent duplicate desktop branding */
+.mobile-header-brand { display: none; }
+:root[data-dashboard-studio="true"] #root .app-frame .wallet-card {
+  color: #fff;
+  border-color: color-mix(in srgb, var(--color-primary) 70%, white);
+  background-color: var(--color-primary);
+}
+:root[data-dashboard-studio="true"] #root .app-frame .wallet-card :is(.wallet-label,.wallet-balance,.wallet-foot,.wallet-foot > span,.recharge-button) {
+  color: #fff;
+}
+:root[data-dashboard-studio="true"] #root .app-frame .wallet-card .recharge-button {
+  border-color: rgba(255,255,255,.62);
+  color: var(--color-primary);
+  background-color: #fff;
+}
+@media (max-width: 680px) {
+  .mobile-header-brand { display: inline-flex; }
 }
