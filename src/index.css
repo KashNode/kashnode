@@ -858,7 +858,7 @@ body, .app-frame { background: var(--color-canvas); }
 
 
 /* User-adjustable type scale and app-wide font pairings */
-:root { font-size: calc(100% * var(--app-text-scale, 1)); }
+:root { font-size: calc(100% * var(--app-text-scale, 1) * var(--studio-ui-scale, 1)); }
 body, .app-frame, .page-content { font-family: var(--app-font-body, Inter, ui-sans-serif, system-ui, sans-serif); }
 .page-content h1, .page-content h2, .page-content h3 {
   font-family: var(--app-font-heading, "Playfair Display", Georgia, serif);
@@ -1069,4 +1069,109 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .km-form { width: 100%; }
   .km-signup { max-width: 47.5rem; margin: .8125rem auto 0; }
   .km-footer { max-width: 61.25rem; margin: 1.125rem auto 0; }
+}
+
+
+/* User-configurable dashboard visual studio */
+:root[data-dashboard-studio="true"] {
+  --studio-ui-scale: 1;
+  --studio-heading-scale: 1;
+  --studio-metric-scale: 1;
+  --bg-page: #f5f7f4;
+  --text-heading: #24342e;
+  --text-body: #46564f;
+  --text-muted: #788781;
+  --card-bg: #fff;
+  --card-opacity: 1;
+  --card-border: #e8ede9;
+  --card-border-style: solid;
+  --card-border-width: 1px;
+  --card-radius: 13px;
+  --card-shadow: 0 2px 8px rgba(25,45,35,.06);
+  --card-padding: 18px;
+  --card-min-width: 260px;
+}
+:root[data-dashboard-studio="true"] body,
+:root[data-dashboard-studio="true"] #root,
+:root[data-dashboard-studio="true"] .app-frame,
+:root[data-dashboard-studio="true"] .main-column {
+  color: var(--text-body);
+  background-color: var(--bg-page);
+}
+:root[data-dashboard-studio="true"] .sidebar,
+:root[data-dashboard-studio="true"] .topbar {
+  color: var(--text-body);
+  border-color: var(--card-border);
+  background-color: var(--color-surface);
+}
+:root[data-dashboard-studio="true"] #root .app-frame :is(.panel,.metric-card,.wallet-card,.support-card,.workspace-switch,[class*="-card"],[class*="-panel"]) {
+  padding: var(--card-padding);
+  border: var(--card-border-width) var(--card-border-style) var(--card-border);
+  border-radius: var(--card-radius);
+  background-color: color-mix(in srgb, var(--card-bg) calc(var(--card-opacity) * 100%), transparent);
+  box-shadow: var(--card-shadow);
+}
+:root[data-dashboard-studio="true"] #root .page-content :is(h1,h2,h3,h4,.panel-heading strong) {
+  color: var(--text-heading) !important;
+}
+:root[data-dashboard-studio="true"] #root .page-content :is(p,.device-copy strong,.metric-bottom strong,.table-person strong,label,td,th,.toggle-copy strong) {
+  color: var(--text-body) !important;
+}
+:root[data-dashboard-studio="true"] #root .page-content :is(small,.eyebrow,.health-footer,.panel-footnote,.monitor-note,.field-counter,.appearance-control label small,.studio-helper,.studio-slider small,.studio-status) {
+  color: var(--text-muted) !important;
+}
+:root[data-dashboard-studio="true"] .page-content .metric-grid {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--card-min-width)), 1fr));
+}
+:root[data-studio-grid="2-column"] .page-content .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+:root[data-studio-grid="3-column"] .page-content .metric-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+:root[data-dashboard-studio="true"] .page-content :is(.metric-amount,.wallet-balance,.chart-total > strong) {
+  font-size: calc(1em * var(--studio-metric-scale));
+}
+:root[data-dashboard-studio="true"] .page-content .page-intro h1 {
+  font-size: calc(clamp(1.75rem, 2.2vw, 2rem) * var(--studio-heading-scale));
+}
+:root[data-dashboard-studio="true"] .page-content :is(.panel-heading h2,.sim-title-wrap h2) {
+  font-size: calc(1.2rem * var(--app-heading-scale, 1) * var(--studio-heading-scale));
+}
+:root[data-dashboard-studio="true"] .side-nav-item.active,
+:root[data-dashboard-studio="true"] .primary-button,
+:root[data-dashboard-studio="true"] .recharge-button:hover {
+  border-color: var(--color-primary);
+  background-color: var(--color-primary);
+}
+:root[data-dashboard-studio="true"] .text-link,
+:root[data-dashboard-studio="true"] .subtle-link,
+:root[data-dashboard-studio="true"] .support-card button,
+:root[data-dashboard-studio="true"] .appearance-control input[type="range"] {
+  accent-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.dashboard-studio-panel { margin-top: 1rem; }
+.studio-section { padding-top: 1.1rem; margin-top: 1.1rem; border-top: 1px solid var(--card-border); }
+.studio-section h3 { margin: 0 0 .8rem; color: var(--text-heading); font: 700 1rem/1.4 var(--app-font-heading); }
+.studio-helper { margin: -.35rem 0 .8rem; font-size: .82rem; line-height: 1.5; }
+.studio-color-grid,.studio-slider-grid,.studio-select-grid,.studio-font-grid {
+  display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: .85rem 1rem;
+}
+.studio-color-control,.studio-select-control,.studio-slider {
+  min-width: 0; display: flex; flex-direction: column; gap: .45rem; color: var(--text-body); font-size: .875rem; font-weight: 600;
+}
+.studio-color-control { flex-direction: row; align-items: center; justify-content: space-between; min-height: 2.8rem; padding: .4rem .65rem; border: 1px solid var(--card-border); border-radius: .6rem; background: var(--color-surface); }
+.studio-color-control input[type="color"] { width: 2.4rem; height: 2rem; padding: .15rem; border: 1px solid var(--card-border); border-radius: .4rem; background: transparent; cursor: pointer; }
+.studio-select-control .text-field,.studio-font-grid .text-field { width: 100%; min-height: 2.65rem; color: var(--text-body); }
+.studio-slider { gap: .35rem; }
+.studio-slider > span { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.studio-slider output { color: var(--color-primary); font-variant-numeric: tabular-nums; }
+.studio-slider input[type="range"] { width: 100%; accent-color: var(--color-primary); }
+.studio-slider small { font-size: .75rem; font-weight: 400; }
+.studio-file-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin-top: 1.25rem; }
+.studio-file-actions .secondary-button { min-height: 2.6rem; }
+.studio-status { min-height: 1.4rem; margin-top: .7rem; font-size: .8rem; }
+@media (max-width: 640px) {
+  :root[data-studio-grid="2-column"] .page-content .metric-grid,
+  :root[data-studio-grid="3-column"] .page-content .metric-grid { grid-template-columns: 1fr; }
+  .studio-color-grid,.studio-slider-grid,.studio-select-grid,.studio-font-grid { grid-template-columns: 1fr; }
+  .studio-file-actions { flex-direction: column; }
+  .studio-file-actions button { width: 100%; }
 }
