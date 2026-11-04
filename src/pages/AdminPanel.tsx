@@ -20,7 +20,6 @@ import {
   Truck,
   Users,
   Wallet,
-  Wifi,
   X,
 } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
