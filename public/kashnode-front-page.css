@@ -472,3 +472,11 @@ footer.site{border-top:1px solid var(--line);padding:56px 0 34px;background:var(
     --line: rgba(13,58,82,.14);
   }
 }
+
+/* Background fix only: the React app paints #root with the dashboard canvas
+   (#f5f7f4), which showed through the landing page's transparent middle
+   sections. Paint the landing mount itself with the reference page
+   background (#05080f in Dark) so the middle matches the hero and footer. */
+.kashnode-reference-landing {
+  background: var(--bg);
+}
