@@ -50,8 +50,7 @@ export function createWooCommerceWebhookHandler({ pool }) {
          customer_name=EXCLUDED.customer_name,
          total_amount=EXCLUDED.total_amount,
          payment_method=EXCLUDED.payment_method,
-         customer_trx_id=EXCLUDED.customer_trx_id,
-         updated_at=NOW()
+         customer_trx_id=EXCLUDED.customer_trx_id
        RETURNING id, payment_status, delivery_status`,
       [merchantId, platformOrderId, phone, name, totalAmount, 'unpaid', isCod ? 'cod' : paymentMethod, customerTrxId]);
     return res.status(202).json({ status: 'success', order_id: result.rows[0].id, payment_status: result.rows[0].payment_status, idempotent: true });
