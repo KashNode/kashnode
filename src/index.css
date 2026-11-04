@@ -1746,3 +1746,14 @@ body { min-height: 100dvh; overflow-x: hidden; }
 .cd-page .cd-rail-brand .kn-logo-wording i{color:#f07880!important}
 @media(max-width:900px){.cd-page .cd-nav button.active{box-shadow:0 6px 16px rgba(217,79,90,.18)}}
 @media(prefers-reduced-motion:reduce){.cd-page .cd-ticker-track,.cd-page .cd-wave i,.cd-page .cd-network-links line{animation:none!important}}
+
+
+/* Final palette cleanup: neutral rails/glows and no inherited green chart accents. */
+.cd-page:after{
+  background:radial-gradient(900px 480px at 88% -12%,rgba(255,255,255,.045),transparent 62%),radial-gradient(700px 460px at -12% 34%,rgba(255,255,255,.025),transparent 60%),radial-gradient(640px 640px at 58% 115%,rgba(240,120,128,.035),transparent 62%);
+}
+.cd-page .cd-rail{background:linear-gradient(165deg,rgba(25,25,28,.96),rgba(5,5,6,.98) 58%);}
+.cd-page .cd-chart defs stop:first-child{stop-color:#f07880!important}
+.cd-page .cd-chart defs stop:last-child{stop-color:#f07880!important}
+.cd-page .cd-table tr:hover td{background:rgba(240,120,128,.035)}
+.cd-page .cd-search-btn:focus-visible,.cd-page .cd-top-link:focus-visible,.cd-page .cd-action:focus-visible,.cd-page .cd-nav button:focus-visible{outline:2px solid #ff9ba2;outline-offset:3px}
