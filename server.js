@@ -175,6 +175,12 @@ app.post('/api/auth/signup', requireOrigin, registerLimiter, asyncRoute(authCont
 // This prevents legacy clients from bypassing email verification.
 app.post('/api/auth/register', requireOrigin, registerLimiter, asyncRoute(authController.signup))
 app.post('/api/auth/verify-otp', requireOrigin, otpLimiter, asyncRoute(authController.verifyOtp))
+app.post('/api/auth/google/nonce', requireOrigin, googleLimiter, asyncRoute(async (req, res) => {
+  if (!SESSION_SECRET) return res.status(503).json({ status: 'error', message: 'Authentication is not configured on this server.' })
+  req.session.googleNonce = crypto.randomBytes(32).toString('base64url')
+  await new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()))
+  res.json({ status: 'success', nonce: req.session.googleNonce })
+}))
 app.post('/api/auth/google', requireOrigin, googleLimiter, asyncRoute(authController.google))
 
 app.get('/api/auth/session', (req, res) => {
