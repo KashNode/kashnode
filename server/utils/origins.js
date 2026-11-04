@@ -26,11 +26,16 @@ export function createAllowedOrigins(env = process.env) {
     ? []
     : ['http://localhost:5173', 'http://127.0.0.1:5173'];
 
-  return new Set(
-    [...CUSTOM_DOMAIN_ORIGINS, ...configuredOrigins, ...developmentOrigins]
-      .map(normalizeOrigin)
-      .filter(Boolean),
-  );
+  const origins = [...CUSTOM_DOMAIN_ORIGINS, ...configuredOrigins, ...developmentOrigins]
+    .map(normalizeOrigin)
+    .filter(Boolean);
+
+  // Never re-enable localhost as a production browser origin via stale env vars.
+  const productionSafeOrigins = env.NODE_ENV === 'production'
+    ? origins.filter(origin => !['localhost', '127.0.0.1', '[::1]'].includes(new URL(origin).hostname))
+    : origins;
+
+  return new Set(productionSafeOrigins);
 }
 
 export function isAllowedOrigin(origin, allowedOrigins, { allowMissing = false } = {}) {
