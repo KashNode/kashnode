@@ -31,9 +31,9 @@ const providerNames = {
 function normalizeProvider(sender) {
   const normalized = String(sender || '').replace(/[^a-z0-9]/gi, '').toLowerCase();
   if (normalized.includes('bkash')) return 'bkash';
-  if (normalized.includes('nagad') || normalized === '16167') return 'nagad';
+  if (normalized.includes('nagad')) return 'nagad';
   if (normalized.includes('rocket') || normalized.includes('dbbl') || normalized === '16216') return 'rocket';
-  if (normalized.includes('upay') || normalized === '16268') return 'upay';
+  if (normalized.includes('upay')) return 'upay';
   return null;
 }
 
