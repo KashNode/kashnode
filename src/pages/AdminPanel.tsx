@@ -6,10 +6,9 @@ import {
   Box,
   Check,
   CircleDollarSign,
+  Clock3,
   LayoutDashboard,
   LogOut,
-  Monitor,
-  Moon,
   Package,
   Pause,
   Phone,
@@ -18,11 +17,9 @@ import {
   ShieldCheck,
   Signal,
   Store,
-  Sun,
   Truck,
   Users,
   Wallet,
-  Wifi,
   X,
 } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
@@ -42,7 +39,6 @@ type Section =
 type PackageId = 'free' | 'basic' | 'standard' | 'premium'
 type MerchantStatus = 'active' | 'trial' | 'suspended'
 type Voice = 'male' | 'female'
-type ThemeChoice = 'dark' | 'system'
 
 type PackageInfo = { id: PackageId; name: string; price: number; orders: number; minutes: number; note: string }
 
@@ -140,7 +136,7 @@ const SECTIONS: { id: Section; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'merchants', label: 'Merchants', icon: Store },
   { id: 'minutes', label: 'Minutes & Billing', icon: Wallet },
   { id: 'verifications', label: 'Verifications', icon: ShieldCheck },
-  { id: 'calls', label: 'Kash AI Calls', icon: Phone },
+  { id: 'calls', label: 'Voice Calls', icon: Phone },
   { id: 'courier', label: 'Courier', icon: Truck },
   { id: 'hardware', label: 'Hardware Boxes', icon: Box },
   { id: 'licensing', label: 'Licensing & Packages', icon: Package },
@@ -201,8 +197,6 @@ function SignalBars({ level }: { level: number }) {
 
 export default function AdminPanel({ user, onSignOut }: Props) {
   const [section, setSection] = useState<Section>('overview')
-  const [themeChoice, setThemeChoice] = useState<ThemeChoice>('dark')
-  const [systemIsLight, setSystemIsLight] = useState(false)
   const [merchants, setMerchants] = useState<Merchant[]>(INITIAL_MERCHANTS)
   const [boxes] = useState<HardwareBox[]>(INITIAL_BOXES)
   const [search, setSearch] = useState('')
@@ -217,7 +211,6 @@ export default function AdminPanel({ user, onSignOut }: Props) {
   const [auditLog, setAuditLog] = useState<string[]>(['Panel opened in command-deck layout (sample data).'])
   const paletteInputRef = useRef<HTMLInputElement>(null)
 
-  const effectiveTheme = themeChoice === 'system' ? (systemIsLight ? 'light' : 'dark') : 'dark'
   const activeMerchants = merchants.filter((item) => item.status === 'active')
   const totalRevenue = activeMerchants.reduce((sum, item) => sum + packageById(item.packageId).price, 0)
   const connectedBoxes = boxes.filter((item) => item.online).length
@@ -234,14 +227,6 @@ export default function AdminPanel({ user, onSignOut }: Props) {
   useEffect(() => {
     const timer = window.setInterval(() => setFeedIndex((value) => (value + 1) % LIVE_FEED.length), 4600)
     return () => window.clearInterval(timer)
-  }, [])
-
-  useEffect(() => {
-    const media = window.matchMedia('(prefers-color-scheme: light)')
-    const update = () => setSystemIsLight(media.matches)
-    update()
-    media.addEventListener('change', update)
-    return () => media.removeEventListener('change', update)
   }, [])
 
   useEffect(() => {
@@ -311,75 +296,38 @@ export default function AdminPanel({ user, onSignOut }: Props) {
   }
 
   return (
-    <div className={`cd-page ${effectiveTheme === 'light' ? 'cd-light' : ''}`}>
-      {/* Live operations ticker */}
-      <div className="cd-ticker" role="status">
-        <span className="cd-ticker-label">● LIVE</span>
-        <span className="cd-ticker-text">{LIVE_FEED[feedIndex]}</span>
-        <span className="cd-ticker-clock">Dhaka {dhakaTime}</span>
-      </div>
-
-      <div className="cd-shell">
-        {/* Floating glass command rail — numbered navigation, no sidebar table layout */}
-        <motion.aside
-          className="cd-rail"
-          initial={{ y: 18, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.35 }}
-          aria-label="Command deck navigation"
-        >
-          <div className="cd-rail-brand">
-            <KashNodeLogo />
-            <span className="cd-admin-badge">SUPER ADMIN</span>
-          </div>
-          <div className="cd-wave" aria-hidden="true" title="Kash voice">
-            {[10, 18, 26, 14, 22, 12, 24, 16].map((height, index) => (
-              <i key={index} style={{ height: `${height}px`, animationDelay: `${index * 0.12}s` }} />
-            ))}
-            <span>Kash is listening</span>
-          </div>
-          <nav className="cd-nav">
-            {SECTIONS.map((item, index) => {
-              const Icon = item.icon
-              return (
-                <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => setSection(item.id)} aria-current={section === item.id ? 'page' : undefined}>
-                  <span className="cd-nav-num">{String(index + 1).padStart(2, '0')}</span>
-                  <Icon size={18} />
-                  <span>{item.label}</span>
-                  {item.id === 'verifications' && reviewQueue.length > 0 && <b className="cd-count">{reviewQueue.length}</b>}
-                </button>
-              )
-            })}
-          </nav>
-          <p className="cd-keys">Press <kbd>1–9</kbd> to jump sections · <kbd>⌘K</kbd> to search</p>
-          <div className="cd-theme" role="group" aria-label="Theme">
-            <button type="button" className={themeChoice === 'dark' ? 'active' : ''} onClick={() => setThemeChoice('dark')} aria-pressed={themeChoice === 'dark'}><Moon size={15} /> Dark</button>
-            <button type="button" className={themeChoice === 'system' ? 'active' : ''} onClick={() => setThemeChoice('system')} aria-pressed={themeChoice === 'system'}><Monitor size={15} /> System{themeChoice === 'system' ? ` · ${systemIsLight ? 'Light' : 'Dark'}` : ''}</button>
-          </div>
-          <div className="cd-rail-user">
-            <span className="cd-avatar">{(user.name?.[0] || user.email[0] || 'A').toUpperCase()}</span>
-            <span className="cd-user-lines"><strong>{user.name || user.email}</strong><small>{user.email}</small></span>
-          </div>
-          <button type="button" className="cd-signout" onClick={onSignOut}><LogOut size={16} /> Sign out</button>
-        </motion.aside>
-
-        <div className="cd-main">
-          <header className="cd-topbar">
-            <div>
-              <p className="cd-eyebrow">KashNode · Super Admin · Command Deck</p>
-              <h1>{sectionTitle}</h1>
-            </div>
-            <div className="cd-top-actions">
-              <button type="button" className="cd-search-btn" onClick={() => setPaletteOpen(true)}><Search size={16} /> Search <kbd>⌘K</kbd></button>
-              <a className="cd-top-link" href="/dashboard">View merchant dashboard <ArrowUpRight size={15} /></a>
-              <span className="cd-theme-inline"><Sun size={15} /> {effectiveTheme === 'light' ? 'Light (System)' : 'Dark'}</span>
-            </div>
-          </header>
-
-          <div className="cd-demo-banner" role="note">
-            <ShieldCheck size={18} />
-            <span><strong>Layout preview · sample data.</strong> Merchants, packages, calls, parcels and boxes below are sample data for this design preview. Package, suspend, voice and review actions update only this browser view until a super-admin API is added — no real merchant is changed.</span>
-          </div>
+    <div className="cd-page">
+        <div className="cd-ticker" aria-label="KashNode operations preview ticker">
+          <div className="cd-ticker-brand"><strong>KashNode</strong><span>Super Admin · visual console</span></div>
+          <div className="cd-ticker-marquee" aria-hidden="true"><div className="cd-ticker-track">
+            {['KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample','KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample'].map((item,index)=><span key={index}>{item}</span>)}
+          </div></div>
+          <span className="cd-preview-tag">Layout preview · sample data</span>
+        </div>
+        <div className="cd-shell">
+          <motion.aside className="cd-rail" initial={{ y: 18, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.35 }} aria-label="Command deck navigation">
+            <div className="cd-rail-brand"><KashNodeLogo /><span className="cd-admin-badge">SUPER ADMIN</span></div>
+            <div className="cd-rail-clock"><strong>{dhakaTime || '--:--:--'}</strong><span>Dhaka · GMT+6</span><div className="cd-wave" aria-hidden="true">{[7,13,9,14,6].map((height,index)=><i key={index} style={{height:`${height}px`,animationDelay:`${index*.12}s`}} />)}</div></div>
+            <nav className="cd-nav" aria-label="Admin sections">
+              <div className="cd-nav-group"><div className="cd-nav-label">Operations</div>
+                {SECTIONS.slice(0,4).map((item,index)=>{const Icon=item.icon;return <button key={item.id} type="button" className={section===item.id?'active':''} onClick={()=>setSection(item.id)} aria-current={section===item.id?'page':undefined}><Icon size={18}/><span>{item.label}</span><span className="cd-nav-num">{String(index+1).padStart(2,'0')}</span>{item.id==='verifications'&&reviewQueue.length>0&&<b className="cd-count">{reviewQueue.length}</b>}</button>})}
+              </div>
+              <div className="cd-nav-group"><div className="cd-nav-label">Voice &amp; Delivery</div>
+                {SECTIONS.slice(4,6).map((item,index)=>{const Icon=item.icon;return <button key={item.id} type="button" className={section===item.id?'active':''} onClick={()=>setSection(item.id)} aria-current={section===item.id?'page':undefined}><Icon size={18}/><span>{item.label}</span><span className="cd-nav-num">{String(index+5).padStart(2,'0')}</span></button>})}
+              </div>
+              <div className="cd-nav-group"><div className="cd-nav-label">Platform</div>
+                {SECTIONS.slice(6).map((item,index)=>{const Icon=item.icon;return <button key={item.id} type="button" className={section===item.id?'active':''} onClick={()=>setSection(item.id)} aria-current={section===item.id?'page':undefined}><Icon size={18}/><span>{item.label}</span><span className="cd-nav-num">{String(index+7).padStart(2,'0')}</span></button>})}
+              </div>
+            </nav>
+            <p className="cd-keys">Keyboard: <kbd>1–9</kbd> sections · <kbd>⌘K</kbd> search</p>
+            <div className="cd-rail-foot"><strong><i/> Preview mode</strong><p>Sample metrics and browser-only actions. Production records are not changed here.</p></div>
+            <div className="cd-rail-user"><span className="cd-avatar">{(user.name?.[0]||user.email[0]||'A').toUpperCase()}</span><span className="cd-user-lines"><strong>{user.name||user.email}</strong><small>{user.email}</small></span></div>
+            <button type="button" className="cd-signout" onClick={onSignOut}><LogOut size={16}/> Sign out</button>
+          </motion.aside>
+          <div className="cd-main">
+            <header className="cd-topbar"><div><p className="cd-eyebrow">Command deck · KashNode platform</p><h1>{sectionTitle}</h1><p className="cd-page-subtitle">The whole business at a glance — merchants, payments, voice operations, courier and connected boxes.</p></div>
+              <div className="cd-top-actions"><button type="button" className="cd-search-btn" onClick={()=>setPaletteOpen(true)}><Search size={16}/> Search <kbd>⌘K</kbd></button><a className="cd-top-link" href="/dashboard">Merchant dashboard <ArrowUpRight size={15}/></a></div>
+            </header>
           {!isAdmin && (
             <div className="cd-role-banner" role="note">You are signed in as “{user.role || 'user'}”, not as a super-admin. Real admin actions must be enforced server-side for role <code>admin</code> before they go live.</div>
           )}
@@ -391,74 +339,66 @@ export default function AdminPanel({ user, onSignOut }: Props) {
             <motion.div key={section} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}>
               {section === 'overview' && (
                 <section className="cd-section" aria-label="Overview">
-                  <div className="cd-stats">
-                    <TiltCard ghost="৳">
-                      <span className="cd-stat-icon"><CircleDollarSign size={22} /></span>
-                      <small>Total Revenue</small>
-                      <strong>{formatBdt(totalRevenue)}<span>/month</span></strong>
-                      <p>Monthly packages of active merchants in this demo set.</p>
-                    </TiltCard>
-                    <TiltCard ghost="6">
-                      <span className="cd-stat-icon"><Users size={22} /></span>
-                      <small>Active Merchants</small>
-                      <strong>{activeMerchants.length}<span> / {merchants.length} total</span></strong>
-                      <p>{merchants.filter((item) => item.status === 'trial').length} on free trial · {merchants.filter((item) => item.status === 'suspended').length} suspended.</p>
-                    </TiltCard>
-                    <TiltCard ghost="AI">
-                      <span className="cd-stat-icon"><Wifi size={22} /></span>
-                      <small>AI Minutes Left</small>
-                      <strong>{merchants.reduce((sum, item) => sum + item.minutesLeft, 0).toLocaleString('en-US')}<span> min</span></strong>
-                      <p>Across all merchants in this demo set.</p>
-                    </TiltCard>
-                    <TiltCard ghost="5">
-                      <span className="cd-stat-icon"><Box size={22} /></span>
-                      <small>Connected Boxes</small>
-                      <strong>{connectedBoxes}<span> / {boxes.length} online</span></strong>
-                      <p>KN-BOX-04 is offline in this demo set.</p>
-                    </TiltCard>
-                  </div>
-
-                  <div className="cd-deck">
-                    <div className="cd-panel cd-gauges">
-                      <h2>Command gauges</h2>
-                      <div className="cd-gauge-row">
-                        <Gauge label="Margin on minutes" value={40} display="40%" />
-                        <Gauge label="MFS TrxID match" value={96.4} display="96.4%" />
-                        <Gauge label="Parcel delivery" value={78} display="78%" />
+                  <div className="cd-hero">
+                    <div className="cd-hero-main">
+                      <div className="cd-hero-eyebrow"><i/> November cycle · package value</div>
+                      <div className="cd-hero-revenue">{formatBdt(totalRevenue)}<small> /month</small></div>
+                      <p className="cd-hero-copy">Estimated monthly package value from <strong>{activeMerchants.length} active merchants</strong>. All figures are sample preview data, not live financial reporting.</p>
+                      <div className="cd-hero-gauges">
+                        <Gauge label="Active merchant share" value={Math.round(activeMerchants.length/Math.max(merchants.length,1)*100)} display={`${Math.round(activeMerchants.length/Math.max(merchants.length,1)*100)}%`}/>
+                        <Gauge label="MFS match sample" value={96.4} display="96.4%"/>
+                        <Gauge label="Parcel delivery sample" value={78} display="78%"/>
                       </div>
-                      <p className="cd-panel-note">Sample rates for this preview — not live platform metrics.</p>
                     </div>
-                    <div className="cd-panel cd-network">
-                      <h2>Kash network — 1 brain, 6 boxes</h2>
-                      <svg viewBox="0 0 600 200" className="cd-network-svg" role="img" aria-label="Kash AI brain connected to six KashNode Boxes, one offline">
-                        {[
-                          { x: 80, y: 30, unit: 'KN-BOX-01', online: true },
-                          { x: 80, y: 170, unit: 'KN-BOX-02', online: true },
-                          { x: 240, y: 20, unit: 'KN-BOX-03', online: true },
-                          { x: 240, y: 180, unit: 'KN-BOX-04', online: false },
-                          { x: 500, y: 40, unit: 'KN-BOX-05', online: true },
-                          { x: 500, y: 160, unit: 'KN-BOX-06', online: true },
-                        ].map((box) => (
-                          <g key={box.unit}>
-                            <line x1="300" y1="100" x2={box.x} y2={box.y} className={box.online ? 'cd-net-line' : 'cd-net-line off'} />
-                            <circle cx={box.x} cy={box.y} r="10" className={box.online ? 'cd-net-node' : 'cd-net-node off'} />
-                          </g>
-                        ))}
-                        <circle cx="300" cy="100" r="30" className="cd-net-brain" />
-                        <text x="300" y="105" textAnchor="middle" className="cd-net-text">KASH</text>
+                    <div className="cd-hero-network">
+                      <h2>The Kash network <span>6 BOXES · {merchants.length} STORES · 1 CORE</span></h2>
+                      <svg viewBox="0 0 340 214" role="img" aria-label="Sample network diagram showing six KashNode Boxes, one offline">
+                        <g className="cd-network-links"><line x1="170" y1="105" x2="52" y2="38"/><line x1="170" y1="105" x2="170" y2="24"/><line x1="170" y1="105" x2="288" y2="38"/><line x1="170" y1="105" x2="46" y2="172"/><line className="offline" x1="170" y1="105" x2="170" y2="188"/><line className="idle" x1="170" y1="105" x2="292" y2="170"/></g>
+                        <circle cx="170" cy="105" r="27" className="cd-network-core"/><circle cx="170" cy="105" r="38" className="cd-network-ring"/>
+                        <text x="170" y="101" textAnchor="middle" className="cd-network-brand">KASHNODE</text><text x="170" y="117" textAnchor="middle" className="cd-network-caption">CORE</text>
+                        <g className="cd-network-nodes"><circle cx="52" cy="38" r="6"/><text x="52" y="20">KN-BOX-01</text><circle cx="170" cy="24" r="6"/><text x="170" y="10">KN-BOX-02</text><circle cx="288" cy="38" r="6"/><text x="288" y="20">KN-BOX-03</text><circle cx="46" cy="172" r="6"/><text x="46" y="194">KN-BOX-05</text><circle className="offline" cx="170" cy="188" r="6"/><text className="offline-text" x="170" y="208">KN-BOX-04 · OFFLINE</text><circle className="idle" cx="292" cy="170" r="6"/><text className="idle-text" x="292" y="192">KN-BOX-06 · IDLE</text></g>
                       </svg>
-                      <p className="cd-panel-note">KN-BOX-04 (Khulna Beauty Store) shows offline in red — the other five boxes are online.</p>
+                      <p className="cd-panel-note">Box status shown from the sample preview set. Live telemetry must come from registered device records.</p>
+                      <div className="cd-live-line"><small>HAPPENING NOW · SAMPLE FEED</small><p>{LIVE_FEED[feedIndex]}</p></div>
                     </div>
                   </div>
 
-                  <div className="cd-panel cd-feed">
-                    <h2>Happening now</h2>
-                    <p className="cd-feed-item">{LIVE_FEED[feedIndex]}</p>
-                    <div className="cd-quick-actions">
-                      <button type="button" onClick={() => setSection('verifications')}>Review verifications ({reviewQueue.length}) <ArrowUpRight size={15} /></button>
-                      <button type="button" onClick={() => setSection('merchants')}>Manage merchants <ArrowUpRight size={15} /></button>
-                      <button type="button" onClick={() => setSection('hardware')}>Check hardware boxes <ArrowUpRight size={15} /></button>
+                  <div className="cd-stats">
+                    <TiltCard ghost="৳"><span className="cd-stat-icon"><CircleDollarSign size={22}/></span><small>Monthly package value</small><strong>{formatBdt(totalRevenue)}<span> /month</span></strong><p>Sum of active merchant package prices in this preview.</p></TiltCard>
+                    <TiltCard ghost="08"><span className="cd-stat-icon cyan"><Users size={22}/></span><small>Active merchants</small><strong>{activeMerchants.length}<span> / {merchants.length} total</span></strong><p>{merchants.filter((item)=>item.status==='trial').length} on trial · {merchants.filter((item)=>item.status==='suspended').length} suspended.</p></TiltCard>
+                    <TiltCard ghost="V"><span className="cd-stat-icon pink"><Wallet size={22}/></span><small>Voice minutes remaining</small><strong>{merchants.reduce((sum,item)=>sum+item.minutesLeft,0).toLocaleString('en-US')}<span> min</span></strong><p>Combined available minutes across sample merchants.</p></TiltCard>
+                    <TiltCard ghost="KN"><span className="cd-stat-icon amber"><Box size={22}/></span><small>Connected boxes</small><strong>{connectedBoxes}<span> / {boxes.length} online</span></strong><p>{boxes.length-connectedBoxes} offline or inactive in this sample set.</p></TiltCard>
+                  </div>
+
+                  <div className="cd-overview-grid">
+                    <div className="cd-panel cd-chart-panel">
+                      <div className="cd-card-heading"><div><h2>Revenue &amp; voice usage · last 14 days</h2><p>Illustrative trend only — no live transaction series is connected to this screen.</p></div><span className="cd-preview-chip">SAMPLE CHART</span></div>
+                      <svg className="cd-chart" viewBox="0 0 640 240" role="img" aria-label="Illustrative sample revenue and voice usage trend">
+                        <defs><linearGradient id="cdChartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f07880" stopOpacity=".28"/><stop offset="100%" stopColor="#f07880" stopOpacity="0"/></linearGradient></defs>
+                        <g className="cd-chart-grid"><line x1="44" y1="30" x2="620" y2="30"/><line x1="44" y1="85" x2="620" y2="85"/><line x1="44" y1="140" x2="620" y2="140"/><line x1="44" y1="195" x2="620" y2="195"/></g>
+                        <g className="cd-chart-labels"><text x="6" y="34">৳4k</text><text x="6" y="89">৳3k</text><text x="6" y="144">৳2k</text><text x="6" y="199">৳1k</text><text x="44" y="222">Oct 23</text><text x="230" y="222">Oct 29</text><text x="420" y="222">Nov 2</text><text x="580" y="222">Nov 5</text></g>
+                        <path d="M44 139 L88 113 L132 148 L176 91 L220 126 L264 65 L308 109 L352 139 L396 78 L440 122 L484 47 L528 100 L572 131 L620 83 L620 205 L44 205 Z" fill="url(#cdChartFill)"/>
+                        <path className="cd-chart-revenue" d="M44 139 L88 113 L132 148 L176 91 L220 126 L264 65 L308 109 L352 139 L396 78 L440 122 L484 47 L528 100 L572 131 L620 83"/>
+                        <path className="cd-chart-minutes" d="M44 179 L88 168 L132 182 L176 159 L220 173 L264 149 L308 166 L352 179 L396 154 L440 172 L484 142 L528 163 L572 175 L620 156"/>
+                      </svg>
+                      <div className="cd-chart-legend"><span><i/> Revenue (sample)</span><span><i/> Voice minutes (sample)</span></div>
                     </div>
+                    <div className="cd-panel cd-attention-panel">
+                      <div className="cd-card-heading"><div><h2>Needs attention</h2><p>Items derived from current sample records.</p></div><span className="cd-preview-chip warn">{boxes.filter((item)=>!item.online).length+reviewQueue.length} OPEN</span></div>
+                      <ul className="cd-attention-list">
+                        {boxes.filter((item)=>!item.online).map((box)=><li key={box.unit} className="bad"><span className="cd-attention-mark"><Signal size={16}/></span><span><strong>{box.unit} offline</strong><small>{box.merchant} · last sync {box.lastSync}</small></span></li>)}
+                        {reviewQueue.length>0&&<li className="warn"><span className="cd-attention-mark"><ShieldCheck size={16}/></span><span><strong>{reviewQueue.length} reviews waiting</strong><small>Manual payment / verification review in sample queue.</small></span></li>}
+                        {merchants.filter((item)=>item.status==='trial'&&item.minutesLeft<=10).map((merchant)=><li key={merchant.id} className="warn"><span className="cd-attention-mark"><Clock3 size={16}/></span><span><strong>{merchant.name} · trial nearly used</strong><small>{merchant.minutesLeft} minutes remain in the sample plan.</small></span></li>)}
+                        {CALL_ROWS.filter((call)=>call.outcome.toLowerCase().includes('failed')).map((call)=><li key={call.id} className="info"><span className="cd-attention-mark"><Phone size={16}/></span><span><strong>{call.id} · call follow-up</strong><small>{call.merchant} · {call.outcome}</small></span></li>)}
+                      </ul>
+                      <div className="cd-quick-actions"><button type="button" onClick={()=>setSection('verifications')}>Review verifications ({reviewQueue.length}) <ArrowUpRight size={15}/></button><button type="button" onClick={()=>setSection('hardware')}>Inspect hardware boxes <ArrowUpRight size={15}/></button></div>
+                    </div>
+                  </div>
+
+                  <div className="cd-mini-grid">
+                    <div className="cd-panel"><h2>Merchant lifecycle</h2><div className="cd-row-between"><span>Active</span><strong>{activeMerchants.length}</strong></div><div className="cd-meter"><i style={{width:`${activeMerchants.length/Math.max(merchants.length,1)*100}%`}}/></div><div className="cd-row-between"><span>Trial</span><strong>{merchants.filter((item)=>item.status==='trial').length}</strong></div><div className="cd-meter warn"><i style={{width:`${merchants.filter((item)=>item.status==='trial').length/Math.max(merchants.length,1)*100}%`}}/></div><div className="cd-row-between"><span>Suspended</span><strong>{merchants.filter((item)=>item.status==='suspended').length}</strong></div><div className="cd-meter bad"><i style={{width:`${merchants.filter((item)=>item.status==='suspended').length/Math.max(merchants.length,1)*100}%`}}/></div></div>
+                    <div className="cd-panel"><h2>Box connectivity</h2><div className="cd-row-between"><span>Online now (sample)</span><strong>{connectedBoxes} / {boxes.length}</strong></div><div className="cd-meter"><i style={{width:`${connectedBoxes/Math.max(boxes.length,1)*100}%`}}/></div><div className="cd-box-summary"><span><i className="online"/> Online <strong>{connectedBoxes}</strong></span><span><i className="offline"/> Offline <strong>{boxes.length-connectedBoxes}</strong></span></div><p className="cd-panel-note">Signal, SIM balance and last sync are preview values until live device telemetry is wired in.</p></div>
+                    <div className="cd-panel"><h2>Minutes at risk</h2>{merchants.slice().sort((x,y)=>x.minutesLeft-y.minutesLeft).slice(0,3).map((merchant)=>{const total=packageById(merchant.packageId).minutes;const pct=total>0?Math.max(0,Math.min(100,merchant.minutesLeft/total*100)):0;return <div className="cd-risk-row" key={merchant.id}><div className="cd-row-between"><span>{merchant.name}</span><strong>{merchant.minutesLeft.toLocaleString('en-US')} min left</strong></div><div className="cd-meter warn"><i style={{width:`${pct}%`}}/></div></div>})}</div>
                   </div>
                 </section>
               )}
@@ -555,9 +495,9 @@ export default function AdminPanel({ user, onSignOut }: Props) {
               )}
 
               {section === 'calls' && (
-                <section className="cd-section" aria-label="Kash AI calls">
+                <section className="cd-section" aria-label="Voice calls">
                   <div className="cd-stats cd-stats-3">
-                    <TiltCard ghost="37"><small>Kash AI calls today</small><strong>37</strong><p>Sample count for this preview.</p></TiltCard>
+                    <TiltCard ghost="37"><small>Voice calls today</small><strong>37</strong><p>Sample count for this preview.</p></TiltCard>
                     <TiltCard ghost="✓"><small>Confirmed by call</small><strong>31</strong><p>Orders confirmed after a Kash phone call.</p></TiltCard>
                     <TiltCard ghost="!"><small>Failed calls</small><strong>6</strong><p>No answer or call dropped in this sample set.</p></TiltCard>
                   </div>
@@ -634,7 +574,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                         <strong className="cd-package-price">{formatBdt(item.price)}<span>/month</span></strong>
                         <ul>
                           <li>{item.orders.toLocaleString('en-US')} orders / month</li>
-                          <li>{item.minutes.toLocaleString('en-US')} AI minutes included</li>
+                          <li>{item.minutes.toLocaleString('en-US')} Voice minutes included</li>
                           <li>Overage: flat ৳7 / minute</li>
                           <li>{merchants.filter((merchant) => merchant.packageId === item.id).length} merchants on this package (demo)</li>
                         </ul>
@@ -652,7 +592,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                     <h2>Service health (sample)</h2>
                     <ul className="cd-list">
                       <li><span><strong>Central Server</strong><small>Node.js + Asterisk</small></span><span className="cd-status active">Operational</span></li>
-                      <li><span><strong>AI API (STT / LLM / TTS)</strong><small>Kash voice brain</small></span><span className="cd-status active">Operational</span></li>
+                      <li><span><strong>Speech services</strong><small>Transcription, language and voice synthesis</small></span><span className="cd-status active">Operational</span></li>
                       <li><span><strong>Supabase database</strong><small>Orders, merchants, calls</small></span><span className="cd-status active">Operational</span></li>
                       <li><span><strong>Edge WebSocket</strong><small>KashNode Box connections</small></span><span className="cd-status suspended">Degraded — 1 box offline</span></li>
                     </ul>
