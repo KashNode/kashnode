@@ -136,7 +136,7 @@ ALTER TABLE public.merchants
   ADD COLUMN IF NOT EXISTS owner_user_id UUID;
 ALTER TABLE public.merchants ALTER COLUMN webhook_secret SET DEFAULT encode(gen_random_bytes(32), 'hex');
 
-DO $
+DO $merchants$
 BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'merchants_owner_user_id_fkey' AND conrelid = 'public.merchants'::regclass) THEN
     ALTER TABLE public.merchants ADD CONSTRAINT merchants_owner_user_id_fkey FOREIGN KEY (owner_user_id) REFERENCES public.users(id) ON DELETE SET NULL;
@@ -151,7 +151,7 @@ BEGIN
     ALTER TABLE public.merchants ADD CONSTRAINT merchants_overage_rate_nonnegative_check CHECK (overage_rate_per_min >= 0);
   END IF;
 END
-$;
+$merchants$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS merchants_webhook_secret_uidx ON public.merchants (webhook_secret);
 CREATE UNIQUE INDEX IF NOT EXISTS merchants_owner_user_uidx ON public.merchants (owner_user_id) WHERE owner_user_id IS NOT NULL;
