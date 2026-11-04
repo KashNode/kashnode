@@ -124,7 +124,7 @@ async function createUserSession(req, user) {
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
-app.post('/api/v1/edge/sms', asyncRoute(async (req, res) => {\n  const handler = createEdgeSmsHandler({ pool });\n  await handler(req, { ...res, status: res.status.bind(res), json: (body) => { res.json(body); if (body?.success && body.id) req.smsId = body.id; return res; } });\n  if (req.smsId) await reconcileSms({ pool, smsId: req.smsId });\n}))\napp.post('/api/v1/webhooks/woocommerce/orders', asyncRoute(createWooCommerceWebhookHandler({ pool })))
+app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({\n  pool,\n  onPersist: smsId => reconcileSms({ pool, smsId }),\n})))\napp.post('/api/v1/webhooks/woocommerce/orders', asyncRoute(createWooCommerceWebhookHandler({ pool })))
 
 app.post('/api/auth/login', requireOrigin, loginLimiter, asyncRoute(async (req, res) => {
   if (!SESSION_SECRET) return res.status(503).json({ status: 'error', message: 'Authentication is not configured on this server.' })
