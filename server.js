@@ -14,6 +14,10 @@ import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
+import { createAuthController } from './server/controllers/authController.js'
+import { isDisposableEmail } from './server/services/disposableEmail.js'
+import { sendSignupOtpEmail } from './server/services/emailService.js'
+import { verifyGoogleIdToken } from './server/services/googleIdToken.js'
 
 const { Pool } = pg
 const app = express()
@@ -117,12 +121,23 @@ function requireDevice(req, res, next) {
 
 const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many sign-in attempts. Try again later.' } })
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many account creation attempts. Try again later.' } })
+const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many verification attempts. Try again later.' } })
+const googleLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many Google sign-in attempts. Try again later.' } })
 
 async function createUserSession(req, user) {
   await new Promise((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()))
   req.session.user = user
   await new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()))
 }
+
+const authController = createAuthController({
+  pool,
+  createUserSession,
+  sendOtpEmail: sendSignupOtpEmail,
+  checkDisposableEmail: isDisposableEmail,
+  verifyGoogleCredential: credential => verifyGoogleIdToken(credential, { clientId: process.env.GOOGLE_CLIENT_ID }),
+  otpSecret: process.env.AUTH_OTP_SECRET || '',
+})
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
@@ -142,8 +157,12 @@ app.post('/api/auth/login', requireOrigin, loginLimiter, asyncRoute(async (req, 
   if (!email || !password || email.length > 254 || password.length > 1024) return res.status(400).json({ status: 'error', message: 'Email and password are required.' })
   if (!pool) return res.status(503).json({ status: 'error', message: 'Authentication database is unavailable.' })
   let user = null
-  const found = await pool.query('SELECT id, email, name, role, password_hash FROM users WHERE email = $1 LIMIT 1', [email])
-  if (found.rows[0] && await bcrypt.compare(password, found.rows[0].password_hash).catch(() => false)) user = { id: String(found.rows[0].id), email: found.rows[0].email, name: found.rows[0].name || found.rows[0].email, role: found.rows[0].role }
+  const found = await pool.query(`SELECT u.id, u.email, u.name, u.role, u.password_hash, m.id AS merchant_id
+    FROM public.users u LEFT JOIN public.merchants m ON m.owner_user_id = u.id
+    WHERE lower(u.email) = lower($1) LIMIT 1`, [email])
+  if (found.rows[0]?.password_hash && await bcrypt.compare(password, found.rows[0].password_hash).catch(() => false)) {
+    user = { id: String(found.rows[0].id), email: found.rows[0].email, name: found.rows[0].name || found.rows[0].email, role: found.rows[0].role, ...(found.rows[0].merchant_id ? { merchantId: String(found.rows[0].merchant_id) } : {}) }
+  }
   if (!user) return res.status(401).json({ status: 'error', message: 'Invalid email or password.' })
   await createUserSession(req, user)
   if (req.body?.rememberMe === true) req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000
@@ -151,26 +170,18 @@ app.post('/api/auth/login', requireOrigin, loginLimiter, asyncRoute(async (req, 
   res.json({ status: 'success', user: req.session.user })
 }))
 
-app.post('/api/auth/register', requireOrigin, registerLimiter, asyncRoute(async (req, res) => {
-  if (!SESSION_SECRET || !pool) return res.status(503).json({ status: 'error', message: 'Account creation is not configured on this server.' })
-  const name = typeof req.body?.name === 'string' ? req.body.name.trim().replace(/\s+/g, ' ') : ''
-  const email = typeof req.body?.email === 'string' ? req.body.email.trim().toLowerCase() : ''
-  const password = typeof req.body?.password === 'string' ? req.body.password : ''
-  if (name.length < 2 || name.length > 80 || !/^\S+@\S+\.\S+$/.test(email) || email.length > 254) return res.status(400).json({ status: 'error', message: 'Enter a valid name and email address.' })
-  if (password.length < 12 || password.length > 128) return res.status(400).json({ status: 'error', message: 'Password must be between 12 and 128 characters.' })
-  const passwordHash = await bcrypt.hash(password, 12)
-  let user
-  try {
-    const result = await pool.query('INSERT INTO users (email, name, password_hash, role) VALUES ($1, $2, $3, $4) RETURNING id, email, name, role', [email, name, passwordHash, 'user'])
-    const row = result.rows[0]
-    user = { id: String(row.id), email: row.email, name: row.name, role: row.role }
-  } catch (error) {
-    if (error?.code === '23505') return res.status(409).json({ status: 'error', message: 'An account with this email already exists. Sign in instead.' })
-    throw error
-  }
-  await createUserSession(req, user)
-  res.status(201).json({ status: 'success', user })
+app.post('/api/auth/signup', requireOrigin, registerLimiter, asyncRoute(authController.signup))
+// Retain the previous frontend endpoint, but route it through the same OTP flow.
+// This prevents legacy clients from bypassing email verification.
+app.post('/api/auth/register', requireOrigin, registerLimiter, asyncRoute(authController.signup))
+app.post('/api/auth/verify-otp', requireOrigin, otpLimiter, asyncRoute(authController.verifyOtp))
+app.post('/api/auth/google/nonce', requireOrigin, googleLimiter, asyncRoute(async (req, res) => {
+  if (!SESSION_SECRET) return res.status(503).json({ status: 'error', message: 'Authentication is not configured on this server.' })
+  req.session.googleNonce = crypto.randomBytes(32).toString('base64url')
+  await new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()))
+  res.json({ status: 'success', nonce: req.session.googleNonce })
 }))
+app.post('/api/auth/google', requireOrigin, googleLimiter, asyncRoute(authController.google))
 
 app.get('/api/auth/session', (req, res) => {
   if (!req.session?.user) return res.status(401).json({ status: 'error', message: 'No active session.' })

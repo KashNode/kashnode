@@ -1,4 +1,4 @@
-export type AuthUser = { id: string; email: string; name?: string }
+export type AuthUser = { id: string; email: string; name?: string; role?: string; merchantId?: string }
 
 /**
  * The API should verify the password and set a Secure, HttpOnly, SameSite=Lax
@@ -17,15 +17,53 @@ export async function signIn(email: string, password: string, rememberMe = false
   return payload.user as AuthUser
 }
 
-export async function signUp(name: string, email: string, password: string): Promise<AuthUser> {
-  const response = await fetch('/api/auth/register', {
+export async function requestSignupOtp(name: string, email: string, password: string): Promise<void> {
+  const response = await fetch('/api/auth/signup', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({ name, email, password }),
   })
   const payload = await response.json().catch(() => ({}))
-  if (!response.ok) throw new Error(payload.message || 'Could not create your account.')
+  if (!response.ok) throw new Error(payload.message || 'Could not send the verification code.')
+}
+
+export async function verifySignupOtp(email: string, otp: string): Promise<AuthUser> {
+  const response = await fetch('/api/auth/verify-otp', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ email, otp }),
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload.message || 'Could not verify the code.')
+  if (!payload.user?.id || !payload.user?.email) throw new Error('The authentication server returned an invalid response.')
+  return payload.user as AuthUser
+}
+
+
+export async function getGoogleSignInNonce(): Promise<string> {
+  const response = await fetch('/api/auth/google/nonce', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok || typeof payload.nonce !== 'string') {
+    throw new Error(payload.message || 'Could not start Google sign-in securely.')
+  }
+  return payload.nonce
+}
+
+export async function signInWithGoogleCredential(credential: string): Promise<AuthUser> {
+  const response = await fetch('/api/auth/google', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ credential }),
+  })
+  const payload = await response.json().catch(() => ({}))
+  if (!response.ok) throw new Error(payload.message || 'Could not sign in with Google.')
   if (!payload.user?.id || !payload.user?.email) throw new Error('The authentication server returned an invalid response.')
   return payload.user as AuthUser
 }

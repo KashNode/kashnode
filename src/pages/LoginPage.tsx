@@ -2,17 +2,18 @@ import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Mic, ShieldCheck, Volume2, VolumeX } from 'lucide-react'
 import KashNodeMotionScene from '../components/KashNodeMotionScene'
 import KashNodeLogo from '../components/KashNodeLogo'
-import { signIn, signUp, type AuthUser } from '../lib/auth'
+import { signIn, requestSignupOtp, verifySignupOtp, type AuthUser } from '../lib/auth'
 
 type Props = { onLogin: (user: AuthUser) => void; sessionError?: string }
 type Mode = 'login' | 'signup'
-type Step = 'name' | 'email' | 'password'
+type Step = 'name' | 'email' | 'password' | 'otp'
 
 const getPrompt = (mode: Mode, step: Step) => {
   if (mode === 'signup') {
     if (step === 'name') return "Welcome to KashNode, your AI commerce command center. What should I call you?"
     if (step === 'email') return "Great to meet you. What's your email address?"
-    return 'Create a strong password for your new KashNode account.'
+    if (step === 'password') return 'Create a strong password for your new KashNode account.'
+    return 'I sent a six-digit code to your email. Enter it here to verify your account.'
   }
   return step === 'email' ? "Hi, I'm Kash, your AI commerce co-pilot. Sign in to manage payments, orders, customer calls, and daily operations from one command center. What's your email?" : 'Welcome back. Your commerce command center is ready. Enter your password to continue.'
 }
@@ -23,6 +24,7 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [otp, setOtp] = useState('')
   const [prompt, setPrompt] = useState(getPrompt('login', 'email'))
   const [visibleChars, setVisibleChars] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
@@ -140,7 +142,7 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
   }, [])
 
   const changeMode = (next: Mode) => {
-    setMode(next); setStep(next === 'signup' ? 'name' : 'email'); setError(''); setPassword(''); setShowPassword(false)
+    setMode(next); setStep(next === 'signup' ? 'name' : 'email'); setError(''); setPassword(''); setOtp(''); setShowPassword(false)
     setPrompt(getPrompt(next, next === 'signup' ? 'name' : 'email'))
   }
   const ask = (next: Step, message?: string) => { setStep(next); setPrompt(message || getPrompt(mode, next)); setError('') }
@@ -156,29 +158,49 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
       if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError('Enter a valid email address to continue.'); return }
       setEmail(email.trim()); ask('password'); return
     }
+    if (step === 'otp') {
+      if (!/^\d{6}$/.test(otp.trim())) { setError('Enter the six-digit code from your email.'); return }
+      void completeAuth(); return
+    }
     if (mode === 'signup' && password.length < 12) { setError('Use at least 12 characters for a stronger password.'); return }
     if (!password) { setError('Enter your password to continue.'); return }
     void completeAuth()
   }
 
   async function completeAuth() {
-    setBusy(true); setError(''); setPrompt(mode === 'signup' ? 'Creating your secure KashNode account…' : 'Checking your secure session…')
+    setBusy(true); setError('')
+    setPrompt(mode === 'signup' && step === 'password' ? 'Sending your secure verification code…' : mode === 'signup' ? 'Verifying your email and creating your workspace…' : 'Checking your secure session…')
     try {
-      const user = mode === 'signup' ? await signUp(name.trim(), email.trim(), password) : await signIn(email.trim(), password, keepSignedIn)
+      if (mode === 'signup' && step === 'password') {
+        await requestSignupOtp(name.trim(), email.trim(), password)
+        setBusy(false); setOtp('')
+        ask('otp', 'Check your inbox and enter the six-digit KashNode verification code.')
+        return
+      }
+      const user = mode === 'signup'
+        ? await verifySignupOtp(email.trim(), otp.trim())
+        : await signIn(email.trim(), password, keepSignedIn)
       setDone(true); setPrompt(mode === 'signup' ? 'Your account is ready. Welcome to KashNode.' : "You're in. Opening your command center.")
       window.setTimeout(() => onLogin(user), 650)
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : mode === 'signup' ? 'Account creation failed. Please try again.' : 'Sign in failed. Please check your details.'
-      setBusy(false); setError(message); setPrompt(mode === 'signup' ? 'I could not create that account. Please check the details.' : "I couldn't verify those details. Let's try your password again."); setStep('password')
+      const message = cause instanceof Error ? cause.message : mode === 'signup' ? 'Account verification failed. Please try again.' : 'Sign in failed. Please check your details.'
+      setBusy(false); setError(message)
+      if (mode === 'signup' && step === 'otp') {
+        setPrompt('I could not verify that code. Check it and try again.')
+      } else {
+        setPrompt(mode === 'signup' ? 'I could not start account verification. Please check your details.' : "I couldn't verify those details. Let's try your password again.")
+        setStep('password')
+      }
     }
   }
 
   const isPassword = step === 'password'
+  const isOtp = step === 'otp'
   const promptSpeaking = visibleChars < prompt.length || busy || done
-  const fieldLabel = step === 'name' ? 'Your name' : isPassword ? 'Password' : 'Email address'
-  const stepNumber = mode === 'signup' ? (step === 'name' ? 1 : step === 'email' ? 2 : 3) : (isPassword ? 2 : 1)
-  const stepTotal = mode === 'signup' ? 3 : 2
-  const goBack = () => ask(mode === 'signup' ? (step === 'password' ? 'email' : 'name') : 'email')
+  const fieldLabel = step === 'name' ? 'Your name' : isPassword ? 'Password' : isOtp ? 'Email verification code' : 'Email address'
+  const stepNumber = mode === 'signup' ? (step === 'name' ? 1 : step === 'email' ? 2 : step === 'password' ? 3 : 4) : (isPassword ? 2 : 1)
+  const stepTotal = mode === 'signup' ? 4 : 2
+  const goBack = () => ask(mode === 'signup' ? (step === 'otp' ? 'password' : step === 'password' ? 'email' : 'name') : 'email')
 
   return <main className="km-login">
     <section className="km-visual" aria-label="KashNode animated AI guide">
@@ -197,7 +219,7 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
         <form className="km-form" onSubmit={handleSubmit}>
           <label className="sr-only" htmlFor="km-login-input">{fieldLabel}</label>
           <div className={`km-input-wrap ${focused ? 'focused' : ''}`}>
-            <input ref={inputRef} id="km-login-input" key={`${mode}-${step}`} type={step === 'name' ? 'text' : isPassword ? (showPassword ? 'text' : 'password') : 'email'} inputMode={step === 'email' ? 'email' : undefined} autoComplete={step === 'name' ? 'name' : step === 'email' ? 'email' : mode === 'signup' ? 'new-password' : 'current-password'} aria-label={fieldLabel} placeholder={step === 'name' ? 'Your name' : isPassword ? (mode === 'signup' ? 'At least 12 characters' : 'Enter your password') : 'you@company.com'} value={step === 'name' ? name : isPassword ? password : email} onChange={event => step === 'name' ? setName(event.target.value) : isPassword ? setPassword(event.target.value) : setEmail(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} disabled={busy || done} required minLength={isPassword && mode === 'signup' ? 12 : undefined} />
+            <input ref={inputRef} id="km-login-input" key={`${mode}-${step}`} type={step === 'name' ? 'text' : isPassword ? (showPassword ? 'text' : 'password') : isOtp ? 'text' : 'email'} inputMode={step === 'email' ? 'email' : isOtp ? 'numeric' : undefined} autoComplete={step === 'name' ? 'name' : step === 'email' ? 'email' : isOtp ? 'one-time-code' : mode === 'signup' ? 'new-password' : 'current-password'} aria-label={fieldLabel} placeholder={step === 'name' ? 'Your name' : isPassword ? (mode === 'signup' ? 'At least 12 characters' : 'Enter your password') : isOtp ? 'Six-digit code' : 'you@company.com'} value={step === 'name' ? name : isPassword ? password : isOtp ? otp : email} onChange={event => step === 'name' ? setName(event.target.value) : isPassword ? setPassword(event.target.value) : isOtp ? setOtp(event.target.value.replace(/\D/g, '').slice(0, 6)) : setEmail(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} disabled={busy || done} required minLength={isPassword && mode === 'signup' ? 12 : undefined} maxLength={isOtp ? 6 : undefined} />
             {isPassword && <button type="button" className="km-eye" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button>}
             <button className="km-submit" type="submit" disabled={busy || done} aria-label={isPassword ? mode === 'signup' ? 'Create account' : 'Sign in' : 'Continue'}>{busy ? <Loader2 size={19} className="km-spinner" /> : <ArrowRight size={21} />}</button>
           </div>
