@@ -1,0 +1,118 @@
+/* Mobile-first Super Admin layout and 3D Licensing cards. Scoped to the command deck. */
+.cd-page{width:100%;max-width:100%;overflow-x:clip}
+.cd-page .cd-shell,.cd-page .cd-main,.cd-page .cd-section{min-width:0;max-width:100%}
+.cd-page .cd-package-grid{grid-template-columns:repeat(4,minmax(0,1fr));gap:17px;perspective:1400px}
+.cd-page .cd-package-card{
+  --plan-accent:#d5d8df;--plan-glow:rgba(213,216,223,.13);
+  position:relative;isolation:isolate;display:flex;min-width:0;flex-direction:column;overflow:hidden;
+  padding:22px 20px 20px;border:1px solid color-mix(in srgb,var(--plan-accent) 38%,transparent);
+  border-radius:22px;
+  background:radial-gradient(110% 65% at 100% 0%,var(--plan-glow),transparent 72%),linear-gradient(155deg,#19191c 0%,#0d0d10 58%,#070708 100%);
+  box-shadow:0 24px 42px rgba(0,0,0,.45),0 5px 0 rgba(255,255,255,.025),inset 0 1px 0 rgba(255,255,255,.1);
+  transform-style:preserve-3d;will-change:transform;transition:border-color .2s,box-shadow .2s
+}
+.cd-page .cd-package-card:before{content:"";position:absolute;inset:0 0 auto;height:4px;background:linear-gradient(90deg,var(--plan-accent),transparent)}
+.cd-page .cd-package-card:after{
+  content:"";position:absolute;z-index:-1;width:160px;height:160px;right:-84px;top:76px;
+  border:1px solid color-mix(in srgb,var(--plan-accent) 22%,transparent);border-radius:50%;
+  box-shadow:0 0 0 16px color-mix(in srgb,var(--plan-accent) 5%,transparent),0 0 0 34px color-mix(in srgb,var(--plan-accent) 3%,transparent)
+}
+.cd-page .cd-package-card:nth-child(1){--plan-accent:#d5d8df;--plan-glow:rgba(213,216,223,.14)}
+.cd-page .cd-package-card:nth-child(2){--plan-accent:#72b7ff;--plan-glow:rgba(72,151,242,.18)}
+.cd-page .cd-package-card:nth-child(3){--plan-accent:#ff858e;--plan-glow:rgba(240,90,105,.19)}
+.cd-page .cd-package-card:nth-child(4){--plan-accent:#f2c36f;--plan-glow:rgba(226,166,67,.19)}
+.cd-page .cd-package-card>*{transform:translateZ(16px)}
+.cd-page .cd-package-note{position:relative;z-index:1;display:block;margin-top:14px;color:var(--plan-accent);font-size:9px;letter-spacing:.11em}
+.cd-page .cd-package-card h2{position:relative;z-index:1;margin:9px 0 5px;color:#f7f7f8;font:700 24px/1.1 "Bricolage Grotesque",sans-serif}
+.cd-page .cd-package-price{position:relative;z-index:1;display:block;margin-top:5px;color:#fff;font:800 clamp(27px,2.3vw,34px)/1.1 "Bricolage Grotesque",sans-serif;letter-spacing:-.03em}
+.cd-page .cd-package-price span{margin-left:4px;color:#a2a2aa;font:600 10px "Manrope",sans-serif;letter-spacing:0}
+.cd-page .cd-package-card ul{position:relative;z-index:1;display:grid;gap:11px;margin:20px 0 22px;padding:0;color:#d3d3d8;font-size:11px;line-height:1.45;list-style:none}
+.cd-page .cd-package-card li{position:relative;padding-left:18px}
+.cd-page .cd-package-card li:before{content:"✓";position:absolute;left:0;top:0;color:var(--plan-accent);font-size:12px;font-weight:900}
+.cd-page .cd-package-card button{
+  position:relative;z-index:2;display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  width:100%;min-height:46px;margin-top:auto;padding:0 13px;border:1px solid color-mix(in srgb,var(--plan-accent) 82%,white);
+  border-radius:12px;color:#121216;background:linear-gradient(120deg,var(--plan-accent),color-mix(in srgb,var(--plan-accent) 72%,white));
+  box-shadow:0 9px 20px color-mix(in srgb,var(--plan-accent) 19%,transparent),inset 0 1px 0 rgba(255,255,255,.4);
+  font-size:11px;font-weight:800;cursor:pointer;touch-action:manipulation;transition:transform .18s,filter .18s,box-shadow .18s
+}
+.cd-page .cd-package-card:nth-child(2) button{color:#071525}
+.cd-page .cd-package-card:nth-child(3) button{color:#25090d}
+.cd-page .cd-package-card:nth-child(4) button{color:#211605}
+.cd-page .cd-package-card button:hover{transform:translateY(-2px);filter:brightness(1.07);box-shadow:0 13px 24px color-mix(in srgb,var(--plan-accent) 25%,transparent)}
+.cd-page .cd-package-card button:focus-visible{outline:2px solid var(--plan-accent);outline-offset:3px}
+@media(hover:hover) and (min-width:901px){
+  .cd-page .cd-package-card:hover{border-color:var(--plan-accent);box-shadow:0 32px 54px rgba(0,0,0,.55),0 0 28px var(--plan-glow),inset 0 1px 0 rgba(255,255,255,.12)}
+}
+@media(max-width:1180px){.cd-page .cd-package-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:900px){
+  .cd-page .cd-shell{grid-template-columns:minmax(0,1fr);gap:12px;padding:10px 12px 32px}
+  .cd-page .cd-rail{
+    position:sticky;top:0;z-index:40;display:flex;gap:10px;max-height:none;overflow:hidden;
+    padding:11px 12px;border-radius:15px;background:rgba(12,12,14,.97);
+    box-shadow:0 10px 28px rgba(0,0,0,.48);backdrop-filter:blur(16px)
+  }
+  .cd-page .cd-rail-brand{display:flex;flex-direction:row;align-items:center;justify-content:space-between;gap:12px}
+  .cd-page .cd-admin-badge{margin:0;white-space:nowrap}
+  .cd-page .cd-rail-clock,.cd-page .cd-keys,.cd-page .cd-rail-foot,.cd-page .cd-rail-user{display:none}
+  .cd-page .cd-nav{
+    display:flex;width:100%;flex-direction:row;flex-wrap:nowrap;gap:7px;overflow-x:auto;overflow-y:hidden;
+    padding:1px 1px 5px;scrollbar-width:thin;scrollbar-color:rgba(240,120,128,.45) transparent;
+    overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch
+  }
+  .cd-page .cd-nav-group{display:contents}
+  .cd-page .cd-nav-label,.cd-page .cd-nav-num{display:none}
+  .cd-page .cd-nav button{flex:0 0 auto;width:auto;min-height:42px;padding:0 12px;gap:7px;border:1px solid rgba(255,255,255,.1);border-radius:10px;white-space:nowrap;font-size:11px}
+  .cd-page .cd-nav button svg{width:15px;height:15px}
+  .cd-page .cd-nav button:hover{transform:none}
+  .cd-page .cd-signout{display:inline-flex;width:100%;min-height:38px;justify-content:center;border-radius:10px;font-size:11px}
+  .cd-page .cd-main{min-width:0;width:100%}
+  .cd-page .cd-topbar{align-items:flex-start}
+  .cd-page .cd-section{margin-top:16px}
+}
+@media(max-width:680px){
+  .cd-page .cd-ticker{min-height:42px;gap:8px;padding:7px 10px}
+  .cd-page .cd-ticker-brand strong{font-size:12px}
+  .cd-page .cd-ticker-brand span{display:none}
+  .cd-page .cd-preview-tag{margin-left:auto;font-size:8px;white-space:nowrap}
+  .cd-page .cd-shell{padding:8px 9px 28px}
+  .cd-page .cd-rail{padding:10px}
+  .cd-page .cd-rail-brand .kn-logo-wording{display:none}
+  .cd-page .cd-admin-badge{font-size:8px;padding:4px 7px}
+  .cd-page .cd-nav button{min-height:40px;padding:0 11px}
+  .cd-page .cd-topbar{flex-direction:column;gap:10px}
+  .cd-page .cd-topbar h1{font-size:clamp(24px,7vw,32px)}
+  .cd-page .cd-page-subtitle{font-size:11px}
+  .cd-page .cd-top-actions{width:100%;justify-content:flex-start}
+  .cd-page .cd-search-btn,.cd-page .cd-top-link{min-height:40px;padding:0 11px;font-size:10px}
+  .cd-page .cd-stats,.cd-page .cd-stats-3{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .cd-page .cd-tilt{padding:15px;border-radius:16px}
+  .cd-page .cd-tilt strong{font-size:24px}
+  .cd-page .cd-stat-icon{width:36px;height:36px;margin-bottom:10px}
+  .cd-page .cd-hero-main{padding:19px 16px}
+  .cd-page .cd-hero-network{padding:16px 12px}
+  .cd-page .cd-panel{padding:16px 13px;border-radius:16px}
+  .cd-page .cd-overview-grid,.cd-page .cd-mini-grid{grid-template-columns:minmax(0,1fr);gap:10px}
+  .cd-page .cd-package-grid{grid-template-columns:minmax(0,1fr);gap:13px}
+  .cd-page .cd-package-card{min-height:0;padding:21px 18px 18px;border-radius:19px}
+  .cd-page .cd-package-card h2{font-size:25px}
+  .cd-page .cd-package-price{font-size:32px}
+  .cd-page .cd-package-card ul{gap:9px;margin:17px 0 19px}
+  .cd-page .cd-package-card button{min-height:48px;font-size:12px}
+  .cd-page .cd-filters{align-items:stretch}
+  .cd-page .cd-search,.cd-page .cd-filter{min-width:100%}
+  .cd-page .cd-table-wrap{max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  .cd-page .cd-table{min-width:720px}
+  .cd-page .cd-list li{align-items:flex-start;flex-wrap:wrap}
+  .cd-page .cd-row-actions{width:100%;flex-wrap:wrap}
+  .cd-page .cd-row-actions .cd-action{flex:1 1 auto;justify-content:center}
+}
+@media(max-width:380px){
+  .cd-page .cd-stats,.cd-page .cd-stats-3{grid-template-columns:minmax(0,1fr)}
+  .cd-page .cd-top-link{white-space:nowrap}
+}
+@media(hover:none){.cd-page .cd-package-card button:hover{transform:none;filter:none}}
+@media(prefers-reduced-motion:reduce){
+  .cd-page .cd-package-card,.cd-page .cd-package-card button{transition:none!important}
+  .cd-page .cd-package-card button:hover{transform:none!important}
+}
