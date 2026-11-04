@@ -13,6 +13,7 @@ import path from 'node:path'
 import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
+import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 
 const { Pool } = pg
 const app = express()
@@ -20,8 +21,7 @@ const PORT = Number(process.env.PORT || 4892)
 const HOST = '0.0.0.0'
 const NODE_ENV = process.env.NODE_ENV || 'development'
 const IS_PRODUCTION = NODE_ENV === 'production'
-const FRONTEND_ORIGIN = process.env.FRONTEND_ORIGIN || 'http://localhost:5173'
-const RENDER_ORIGIN = process.env.RENDER_EXTERNAL_URL || ''
+const ALLOWED_ORIGINS = createAllowedOrigins(process.env)
 const SESSION_SECRET = process.env.SESSION_SECRET || ''
 const ADMIN_EMAIL = (process.env.KASHNODE_ADMIN_EMAIL || '').trim().toLowerCase()
 const ADMIN_PASSWORD_HASH = process.env.KASHNODE_ADMIN_PASSWORD_HASH || ''
@@ -51,7 +51,7 @@ app.use((_req, res, next) => { res.setHeader('Cache-Control', 'no-store'); next(
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'same-site' } }))
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || origin === FRONTEND_ORIGIN || origin === RENDER_ORIGIN) return callback(null, true)
+    if (!origin || isAllowedOrigin(origin, ALLOWED_ORIGINS)) return callback(null, true)
     return callback(new Error('Origin is not allowed by CORS.'))
   },
   credentials: true,
@@ -85,7 +85,7 @@ function asyncRoute(handler) {
 
 function requireOrigin(req, res, next) {
   const origin = req.get('origin')
-  if (origin === FRONTEND_ORIGIN || (IS_PRODUCTION && origin === RENDER_ORIGIN) || (!IS_PRODUCTION && !origin)) return next()
+  if (isAllowedOrigin(origin, ALLOWED_ORIGINS, { allowMissing: !IS_PRODUCTION })) return next()
   return res.status(403).json({ status: 'error', message: 'Request origin is not allowed.' })
 }
 

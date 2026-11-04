@@ -1,5 +1,3 @@
-const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4892').replace(/\/$/, '')
-
 export type SimStatus = {
   deviceId: string
   balance: number
@@ -41,7 +39,7 @@ export type SimUssdSettings = {
 }
 
 async function apiRequest<T>(path: string): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(path, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
@@ -51,7 +49,7 @@ async function apiRequest<T>(path: string): Promise<T> {
 }
 
 async function apiWrite<T>(path: string, method: 'PUT' | 'POST', body: unknown): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
+  const response = await fetch(path, {
     method,
     credentials: 'include',
     headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
