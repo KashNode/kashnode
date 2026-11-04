@@ -136,7 +136,7 @@ const SECTIONS: { id: Section; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'merchants', label: 'Merchants', icon: Store },
   { id: 'minutes', label: 'Minutes & Billing', icon: Wallet },
   { id: 'verifications', label: 'Verifications', icon: ShieldCheck },
-  { id: 'calls', label: 'Kash AI Calls', icon: Phone },
+  { id: 'calls', label: 'Voice Calls', icon: Phone },
   { id: 'courier', label: 'Courier', icon: Truck },
   { id: 'hardware', label: 'Hardware Boxes', icon: Box },
   { id: 'licensing', label: 'Licensing & Packages', icon: Package },
@@ -300,7 +300,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
         <div className="cd-ticker" aria-label="KashNode operations preview ticker">
           <div className="cd-ticker-brand"><strong>KashNode</strong><span>Super Admin · visual console</span></div>
           <div className="cd-ticker-marquee" aria-hidden="true"><div className="cd-ticker-track">
-            {['KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 KashNode Boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample','KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 KashNode Boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample'].map((item,index)=><span key={index}>{item}</span>)}
+            {['KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample','KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample'].map((item,index)=><span key={index}>{item}</span>)}
           </div></div>
           <span className="cd-preview-tag">Layout preview · sample data</span>
         </div>
@@ -312,7 +312,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
               <div className="cd-nav-group"><div className="cd-nav-label">Operations</div>
                 {SECTIONS.slice(0,4).map((item,index)=>{const Icon=item.icon;return <button key={item.id} type="button" className={section===item.id?'active':''} onClick={()=>setSection(item.id)} aria-current={section===item.id?'page':undefined}><Icon size={18}/><span>{item.label}</span><span className="cd-nav-num">{String(index+1).padStart(2,'0')}</span>{item.id==='verifications'&&reviewQueue.length>0&&<b className="cd-count">{reviewQueue.length}</b>}</button>})}
               </div>
-              <div className="cd-nav-group"><div className="cd-nav-label">AI &amp; Delivery</div>
+              <div className="cd-nav-group"><div className="cd-nav-label">Voice &amp; Delivery</div>
                 {SECTIONS.slice(4,6).map((item,index)=>{const Icon=item.icon;return <button key={item.id} type="button" className={section===item.id?'active':''} onClick={()=>setSection(item.id)} aria-current={section===item.id?'page':undefined}><Icon size={18}/><span>{item.label}</span><span className="cd-nav-num">{String(index+5).padStart(2,'0')}</span></button>})}
               </div>
               <div className="cd-nav-group"><div className="cd-nav-label">Platform</div>
@@ -325,7 +325,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
             <button type="button" className="cd-signout" onClick={onSignOut}><LogOut size={16}/> Sign out</button>
           </motion.aside>
           <div className="cd-main">
-            <header className="cd-topbar"><div><p className="cd-eyebrow">Command deck · KashNode platform</p><h1>{sectionTitle}</h1><p className="cd-page-subtitle">The whole business at a glance — merchants, payments, AI, courier and connected boxes.</p></div>
+            <header className="cd-topbar"><div><p className="cd-eyebrow">Command deck · KashNode platform</p><h1>{sectionTitle}</h1><p className="cd-page-subtitle">The whole business at a glance — merchants, payments, voice operations, courier and connected boxes.</p></div>
               <div className="cd-top-actions"><button type="button" className="cd-search-btn" onClick={()=>setPaletteOpen(true)}><Search size={16}/> Search <kbd>⌘K</kbd></button><a className="cd-top-link" href="/dashboard">Merchant dashboard <ArrowUpRight size={15}/></a></div>
             </header>
           {!isAdmin && (
@@ -351,11 +351,11 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                       </div>
                     </div>
                     <div className="cd-hero-network">
-                      <h2>The Kash network <span>6 BOXES · {merchants.length} MERCHANTS · 1 BRAIN</span></h2>
+                      <h2>The Kash network <span>6 BOXES · {merchants.length} STORES · 1 CORE</span></h2>
                       <svg viewBox="0 0 340 214" role="img" aria-label="Sample network diagram showing six KashNode Boxes, one offline">
                         <g className="cd-network-links"><line x1="170" y1="105" x2="52" y2="38"/><line x1="170" y1="105" x2="170" y2="24"/><line x1="170" y1="105" x2="288" y2="38"/><line x1="170" y1="105" x2="46" y2="172"/><line className="offline" x1="170" y1="105" x2="170" y2="188"/><line className="idle" x1="170" y1="105" x2="292" y2="170"/></g>
                         <circle cx="170" cy="105" r="27" className="cd-network-core"/><circle cx="170" cy="105" r="38" className="cd-network-ring"/>
-                        <text x="170" y="101" textAnchor="middle" className="cd-network-brand">KASH</text><text x="170" y="117" textAnchor="middle" className="cd-network-caption">AI BRAIN</text>
+                        <text x="170" y="101" textAnchor="middle" className="cd-network-brand">KASHNODE</text><text x="170" y="117" textAnchor="middle" className="cd-network-caption">CORE</text>
                         <g className="cd-network-nodes"><circle cx="52" cy="38" r="6"/><text x="52" y="20">KN-BOX-01</text><circle cx="170" cy="24" r="6"/><text x="170" y="10">KN-BOX-02</text><circle cx="288" cy="38" r="6"/><text x="288" y="20">KN-BOX-03</text><circle cx="46" cy="172" r="6"/><text x="46" y="194">KN-BOX-05</text><circle className="offline" cx="170" cy="188" r="6"/><text className="offline-text" x="170" y="208">KN-BOX-04 · OFFLINE</text><circle className="idle" cx="292" cy="170" r="6"/><text className="idle-text" x="292" y="192">KN-BOX-06 · IDLE</text></g>
                       </svg>
                       <p className="cd-panel-note">Box status shown from the sample preview set. Live telemetry must come from registered device records.</p>
@@ -366,14 +366,14 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                   <div className="cd-stats">
                     <TiltCard ghost="৳"><span className="cd-stat-icon"><CircleDollarSign size={22}/></span><small>Monthly package value</small><strong>{formatBdt(totalRevenue)}<span> /month</span></strong><p>Sum of active merchant package prices in this preview.</p></TiltCard>
                     <TiltCard ghost="08"><span className="cd-stat-icon cyan"><Users size={22}/></span><small>Active merchants</small><strong>{activeMerchants.length}<span> / {merchants.length} total</span></strong><p>{merchants.filter((item)=>item.status==='trial').length} on trial · {merchants.filter((item)=>item.status==='suspended').length} suspended.</p></TiltCard>
-                    <TiltCard ghost="AI"><span className="cd-stat-icon pink"><Wallet size={22}/></span><small>AI minutes remaining</small><strong>{merchants.reduce((sum,item)=>sum+item.minutesLeft,0).toLocaleString('en-US')}<span> min</span></strong><p>Combined available minutes across sample merchants.</p></TiltCard>
+                    <TiltCard ghost="V"><span className="cd-stat-icon pink"><Wallet size={22}/></span><small>Voice minutes remaining</small><strong>{merchants.reduce((sum,item)=>sum+item.minutesLeft,0).toLocaleString('en-US')}<span> min</span></strong><p>Combined available minutes across sample merchants.</p></TiltCard>
                     <TiltCard ghost="KN"><span className="cd-stat-icon amber"><Box size={22}/></span><small>Connected boxes</small><strong>{connectedBoxes}<span> / {boxes.length} online</span></strong><p>{boxes.length-connectedBoxes} offline or inactive in this sample set.</p></TiltCard>
                   </div>
 
                   <div className="cd-overview-grid">
                     <div className="cd-panel cd-chart-panel">
-                      <div className="cd-card-heading"><div><h2>Revenue &amp; AI minutes · last 14 days</h2><p>Illustrative trend only — no live transaction series is connected to this screen.</p></div><span className="cd-preview-chip">SAMPLE CHART</span></div>
-                      <svg className="cd-chart" viewBox="0 0 640 240" role="img" aria-label="Illustrative sample revenue and AI usage trend">
+                      <div className="cd-card-heading"><div><h2>Revenue &amp; voice usage · last 14 days</h2><p>Illustrative trend only — no live transaction series is connected to this screen.</p></div><span className="cd-preview-chip">SAMPLE CHART</span></div>
+                      <svg className="cd-chart" viewBox="0 0 640 240" role="img" aria-label="Illustrative sample revenue and voice usage trend">
                         <defs><linearGradient id="cdChartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#1ce8ab" stopOpacity=".28"/><stop offset="100%" stopColor="#1ce8ab" stopOpacity="0"/></linearGradient></defs>
                         <g className="cd-chart-grid"><line x1="44" y1="30" x2="620" y2="30"/><line x1="44" y1="85" x2="620" y2="85"/><line x1="44" y1="140" x2="620" y2="140"/><line x1="44" y1="195" x2="620" y2="195"/></g>
                         <g className="cd-chart-labels"><text x="6" y="34">৳4k</text><text x="6" y="89">৳3k</text><text x="6" y="144">৳2k</text><text x="6" y="199">৳1k</text><text x="44" y="222">Oct 23</text><text x="230" y="222">Oct 29</text><text x="420" y="222">Nov 2</text><text x="580" y="222">Nov 5</text></g>
@@ -381,7 +381,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                         <path className="cd-chart-revenue" d="M44 139 L88 113 L132 148 L176 91 L220 126 L264 65 L308 109 L352 139 L396 78 L440 122 L484 47 L528 100 L572 131 L620 83"/>
                         <path className="cd-chart-minutes" d="M44 179 L88 168 L132 182 L176 159 L220 173 L264 149 L308 166 L352 179 L396 154 L440 172 L484 142 L528 163 L572 175 L620 156"/>
                       </svg>
-                      <div className="cd-chart-legend"><span><i/> Revenue (sample)</span><span><i/> AI minutes (sample)</span></div>
+                      <div className="cd-chart-legend"><span><i/> Revenue (sample)</span><span><i/> Voice minutes (sample)</span></div>
                     </div>
                     <div className="cd-panel cd-attention-panel">
                       <div className="cd-card-heading"><div><h2>Needs attention</h2><p>Items derived from current sample records.</p></div><span className="cd-preview-chip warn">{boxes.filter((item)=>!item.online).length+reviewQueue.length} OPEN</span></div>
@@ -495,9 +495,9 @@ export default function AdminPanel({ user, onSignOut }: Props) {
               )}
 
               {section === 'calls' && (
-                <section className="cd-section" aria-label="Kash AI calls">
+                <section className="cd-section" aria-label="Voice calls">
                   <div className="cd-stats cd-stats-3">
-                    <TiltCard ghost="37"><small>Kash AI calls today</small><strong>37</strong><p>Sample count for this preview.</p></TiltCard>
+                    <TiltCard ghost="37"><small>Voice calls today</small><strong>37</strong><p>Sample count for this preview.</p></TiltCard>
                     <TiltCard ghost="✓"><small>Confirmed by call</small><strong>31</strong><p>Orders confirmed after a Kash phone call.</p></TiltCard>
                     <TiltCard ghost="!"><small>Failed calls</small><strong>6</strong><p>No answer or call dropped in this sample set.</p></TiltCard>
                   </div>
@@ -574,7 +574,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                         <strong className="cd-package-price">{formatBdt(item.price)}<span>/month</span></strong>
                         <ul>
                           <li>{item.orders.toLocaleString('en-US')} orders / month</li>
-                          <li>{item.minutes.toLocaleString('en-US')} AI minutes included</li>
+                          <li>{item.minutes.toLocaleString('en-US')} Voice minutes included</li>
                           <li>Overage: flat ৳7 / minute</li>
                           <li>{merchants.filter((merchant) => merchant.packageId === item.id).length} merchants on this package (demo)</li>
                         </ul>
@@ -592,7 +592,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                     <h2>Service health (sample)</h2>
                     <ul className="cd-list">
                       <li><span><strong>Central Server</strong><small>Node.js + Asterisk</small></span><span className="cd-status active">Operational</span></li>
-                      <li><span><strong>AI API (STT / LLM / TTS)</strong><small>Kash voice brain</small></span><span className="cd-status active">Operational</span></li>
+                      <li><span><strong>Speech services</strong><small>Transcription, language and voice synthesis</small></span><span className="cd-status active">Operational</span></li>
                       <li><span><strong>Supabase database</strong><small>Orders, merchants, calls</small></span><span className="cd-status active">Operational</span></li>
                       <li><span><strong>Edge WebSocket</strong><small>KashNode Box connections</small></span><span className="cd-status suspended">Degraded — 1 box offline</span></li>
                     </ul>
