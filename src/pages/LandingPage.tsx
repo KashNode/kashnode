@@ -251,6 +251,9 @@ export default function LandingPage() {
   const [systemDark, setSystemDark] = useState(true)
   const [voice, setVoice] = useState<'Female' | 'Male'>('Female')
   const [minutes, setMinutes] = useState(184)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [waitlistEmail, setWaitlistEmail] = useState('')
+  const [waitlistJoined, setWaitlistJoined] = useState(false)
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)')
@@ -283,12 +286,12 @@ export default function LandingPage() {
       </div>
 
       <header className={`sticky top-0 z-40 border-b backdrop-blur ${header}`}>
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-5 py-4">
-          <Link to="/" className="flex items-center gap-2 font-extrabold tracking-tight">
+        <div className="mx-auto flex max-w-7xl flex-nowrap items-center justify-between gap-2 px-4 py-3 lg:px-5">
+          <Link to="/" className="flex shrink-0 items-center gap-2 font-extrabold tracking-tight">
             <img src={LOGO_KASHNODE} alt="KashNode logo" className="h-9 w-9 rounded-lg object-cover" />
             KashNode
           </Link>
-          <nav className={`hidden items-center gap-4 text-sm lg:flex ${muted}`}>
+          <nav className={`hidden items-center gap-3 whitespace-nowrap text-[13px] xl:flex ${muted}`}>
             <a href="#platform">Platform</a>
             <a href="#how">Automation</a>
             <a href="#verify">Verification</a>
@@ -299,20 +302,42 @@ export default function LandingPage() {
             <a href="#pricing">Pricing</a>
             <a href="#faq">FAQ</a>
           </nav>
-          <div className="flex flex-wrap items-center gap-3">
-            <div className={`flex rounded-full p-1 text-xs font-bold ${isLight ? 'bg-slate-100' : 'bg-white/10'}`} title="Theme is not saved — a reload returns to Dark">
+          <div className="flex shrink-0 items-center gap-2">
+            <div className={`hidden rounded-full p-1 text-xs font-bold sm:flex ${isLight ? 'bg-slate-100' : 'bg-white/10'}`} title="Theme is not saved — a reload returns to Dark">
               {(['dark', 'system', 'custom'] as Theme[]).map((t) => (
-                <button key={t} onClick={() => setTheme(t)} aria-pressed={theme === t} className={`rounded-full px-3 py-1 capitalize ${theme === t ? 'bg-emerald-400 text-slate-950' : ''}`}>{t}</button>
+                <button key={t} onClick={() => setTheme(t)} aria-pressed={theme === t} className={`rounded-full px-2 py-1 capitalize ${theme === t ? 'bg-emerald-400 text-slate-950' : ''}`}>{t}</button>
               ))}
             </div>
-            <Link to="/login" className={`hidden text-sm sm:inline ${muted}`}>Sign in</Link>
-            <Link to="/login" className="rounded-full bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">Get Started</Link>
+            <Link to="/login" className={`hidden text-sm md:inline ${muted}`}>Sign in</Link>
+            <Link to="/login" className="whitespace-nowrap rounded-full bg-emerald-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-emerald-300">Get Started</Link>
+            <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Toggle menu" className="rounded-lg border border-white/20 px-3 py-2 text-lg xl:hidden">☰</button>
           </div>
         </div>
+        {menuOpen && (
+          <nav className={`mx-auto flex max-w-7xl flex-col gap-1 px-5 pb-4 text-sm xl:hidden ${muted}`}>
+            <a href="#platform" onClick={() => setMenuOpen(false)}>Platform</a>
+            <a href="#how" onClick={() => setMenuOpen(false)}>Automation</a>
+            <a href="#verify" onClick={() => setMenuOpen(false)}>Verification</a>
+            <a href="#mfs" onClick={() => setMenuOpen(false)}>Payments</a>
+            <a href="#kash" onClick={() => setMenuOpen(false)}>Kash AI</a>
+            <a href="#edge" onClick={() => setMenuOpen(false)}>KashNode Box</a>
+            <a href="#app" onClick={() => setMenuOpen(false)}>Owner App</a>
+            <a href="#pricing" onClick={() => setMenuOpen(false)}>Pricing</a>
+            <a href="#faq" onClick={() => setMenuOpen(false)}>FAQ</a>
+            <div className="mt-2 flex gap-2 sm:hidden">
+              {(['dark', 'system', 'custom'] as Theme[]).map((t) => (
+                <button key={t} onClick={() => setTheme(t)} className={`rounded-full px-3 py-1 text-xs font-bold capitalize ${theme === t ? 'bg-emerald-400 text-slate-950' : 'bg-white/10'}`}>{t}</button>
+              ))}
+            </div>
+          </nav>
+        )}
       </header>
 
       <main>
         <section className="relative overflow-hidden">
+          <div className="pointer-events-none absolute inset-0 opacity-40" style={{ backgroundImage: 'linear-gradient(rgba(16,185,129,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(16,185,129,0.12) 1px, transparent 1px)', backgroundSize: '56px 56px', maskImage: 'radial-gradient(ellipse 90% 70% at 50% 0%, black 40%, transparent 100%)', WebkitMaskImage: 'radial-gradient(ellipse 90% 70% at 50% 0%, black 40%, transparent 100%)' }} />
+          <div className="pointer-events-none absolute -left-40 top-20 h-96 w-96 rounded-full bg-emerald-500/20 blur-3xl" />
+          <div className="pointer-events-none absolute -right-40 top-40 h-96 w-96 rounded-full bg-teal-400/15 blur-3xl" />
           <div className="pointer-events-none absolute -top-32 left-1/2 h-96 w-[42rem] -translate-x-1/2 rounded-full bg-emerald-500/20 blur-3xl" />
           <div className="relative mx-auto max-w-6xl px-5 pb-16 pt-16 text-center md:pt-20">
             <motion.p initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto flex w-fit items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-1.5 text-xs font-semibold tracking-widest text-emerald-300">
@@ -380,7 +405,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="terminal" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="terminal" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <motion.div initial={{ opacity: 0, y: 24 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} className="overflow-hidden rounded-3xl border border-white/10 bg-slate-950/80">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 px-5 py-4 text-slate-100">
               <p className="text-sm font-semibold">Kash AI Terminal <span className="ml-2 rounded-full bg-white/10 px-2 py-0.5 text-[11px] text-slate-300">DEMO LOG — SAMPLE DATA</span></p>
@@ -397,7 +422,7 @@ export default function LandingPage() {
           </motion.div>
         </section>
 
-        <section id="platform" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="platform" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">The Platform</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Everything your store needs. One KashNode platform.</h2>
           <p className={`mt-3 max-w-2xl ${muted}`}>Like a cloud platform, but built for online commerce. Each KashNode service runs on its own, scales on its own, and works together out of the box — no glue code, no manual routine.</p>
@@ -414,7 +439,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="how" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="how" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">How It Works</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Order in. Verified. Parcel out. Nothing in between is manual.</h2>
           <p className={`mt-3 max-w-2xl ${muted}`}>One order travels through four automated stages — from the Order Now button to a verified customer and a booked parcel — without your team touching it.</p>
@@ -430,7 +455,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="verify" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="verify" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">The Verification System</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Real customers get verified. Fake orders stop at the door.</h2>
           <p className={`mt-3 max-w-2xl ${muted}`}>KashNode verifies people, not just payments. Your own SIM, sitting inside the KashNode Box at your home or office, is what talks to the customer — so every check comes from a number your customers already trust.</p>
@@ -460,7 +485,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="mfs" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="mfs" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">MFS Payments</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Paid by bKash, Nagad, Rocket or Upay? Verified the same way.</h2>
           <p className={`mt-3 max-w-2xl ${muted}`}>Your customers pay the way they already pay. The payment SMS lands on your own SIM inside the KashNode Box, and KashNode matches the verification code, TrxID and amount to the exact order — before anything ships. No screenshots, no manual checking.</p>
@@ -480,7 +505,7 @@ export default function LandingPage() {
           <p className={`mt-4 text-xs font-bold ${faint}`}>PAYMENT SMS ARRIVES ON YOUR SIM, INSIDE THE KASHNODE BOX · CASH ON DELIVERY STAYS FULLY SUPPORTED</p>
         </section>
 
-        <section id="kash" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="kash" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">Meet Kash — The KashNode AI</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Kash doesn’t just read messages. Kash talks to your customers.</h2>
           <p className={`mt-3 max-w-2xl ${muted}`}>Most stores lose orders because nobody picked up the phone. Kash answers every call, confirms the order, checks the payment — and speaks natural Bangla while doing it.</p>
@@ -501,7 +526,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="app" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="app" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">The Owner App</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">You stay in control — from one dashboard.</h2>
           <p className={`mt-3 max-w-2xl ${muted}`}>Every KashNode owner gets the app and dashboard. Watch whether the AI is actually working, listen to what it handled, change its voice, and top up minutes before they run out — no calling anyone, no waiting.</p>
@@ -528,7 +553,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="edge" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="edge" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <div className={`grid gap-6 rounded-3xl border p-6 md:grid-cols-2 md:p-8 ${card}`}>
             <div>
               <p className="flex items-center gap-2 text-xs font-semibold tracking-widest text-emerald-500"><Radio size={14} /> KASHNODE BOX — UNIT 01 ● ONLINE</p>
@@ -556,7 +581,7 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="pricing" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="pricing" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">Pricing</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">One monthly package. Minutes included. No surprises.</h2>
           <p className={`mt-3 max-w-2xl ${muted}`}>Not per-minute alone, and not per-order alone. You buy a simple monthly package sized by your orders — the AI minutes your store needs are already inside it.</p>
@@ -584,7 +609,7 @@ export default function LandingPage() {
           <p className={`mt-2 text-sm ${faint}`}>Effective rates: Basic ≈ ৳6.67/min, Standard ≈ ৳5.50/min, Premium ≈ ৳4.67/min. Package prices cover service and minutes; a separate KashNode Box device price is not stated on this page.</p>
         </section>
 
-        <section id="faq" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="faq" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <p className="text-xs font-semibold tracking-widest text-emerald-500">FAQ</p>
           <h2 className="mt-2 text-3xl font-extrabold tracking-tight md:text-4xl">Questions store owners ask first</h2>
           <div className="mt-10 space-y-3">
@@ -597,11 +622,18 @@ export default function LandingPage() {
           </div>
         </section>
 
-        <section id="cta" className="mx-auto max-w-6xl px-5 pb-20">
+        <section id="cta" className="scroll-mt-24 mx-auto max-w-6xl px-5 pb-20">
           <div className="rounded-3xl bg-emerald-400 p-8 text-center text-slate-950 md:p-12">
             <h2 className="text-3xl font-extrabold tracking-tight md:text-4xl">Let KashNode run the routine. You run the business.</h2>
             <p className="mx-auto mt-3 max-w-xl text-slate-800">Join the waitlist and be first to put payment verification, customer calls and courier booking on autopilot.</p>
-            <Link to="/login" className="mt-6 inline-flex items-center gap-2 rounded-full bg-slate-950 px-6 py-3 font-bold text-white hover:bg-slate-800">Join the Waitlist <ArrowRight size={18} /></Link>
+            {waitlistJoined ? (
+              <p className="mx-auto mt-6 w-fit rounded-full bg-slate-950 px-6 py-3 font-bold text-emerald-300">✓ You are on the waitlist — we will email {waitlistEmail} first.</p>
+            ) : (
+              <form className="mx-auto mt-6 flex max-w-md flex-col gap-3 sm:flex-row" onSubmit={(e) => { e.preventDefault(); if (waitlistEmail.trim()) setWaitlistJoined(true) }}>
+                <input type="email" required value={waitlistEmail} onChange={(e) => setWaitlistEmail(e.target.value)} placeholder="Your work email" aria-label="Your work email" className="flex-1 rounded-full border border-slate-950/20 bg-white px-5 py-3 text-slate-950 placeholder:text-slate-500" />
+                <button type="submit" className="inline-flex items-center justify-center gap-2 rounded-full bg-slate-950 px-6 py-3 font-bold text-white hover:bg-slate-800">Join the Waitlist <ArrowRight size={18} /></button>
+              </form>
+            )}
             <p className="mt-4 text-xs text-slate-700">ONBOARDING OPENS IN COHORTS — WAITLIST MEMBERS GO FIRST</p>
           </div>
         </section>
