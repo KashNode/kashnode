@@ -7,7 +7,9 @@ import { createEdgeSmsHandler } from '../server/routes/edgeSms.js'
 describe('MFS SMS parser', () => {
   it('parses the bKash received amount and transaction ID without using fee or balance', () => {
     const parsed = parseMfsSms('bKash', 'You have received Tk 1,500.00 from 01712345678. Fee Tk 0.00. Balance Tk 45,200.00. TrxID 9J82KL091 at 04/11/2026 17:30')
-    assert.equal(parsed.amount, 1500)\n    assert.equal(parsed.trxId, '9J82KL091')\n    assert.equal(parsed.provider, 'bKash')
+    assert.equal(parsed.amount, 1500)
+    assert.equal(parsed.trxId, '9J82KL091')
+    assert.equal(parsed.provider, 'bKash')
   })
 
   it('parses Nagad amount labels and TxnID', () => {
