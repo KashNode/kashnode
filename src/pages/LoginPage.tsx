@@ -1,234 +1,434 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
-import { ArrowLeft, ArrowRight, Eye, EyeOff, Loader2, Mic, ShieldCheck, Volume2, VolumeX } from 'lucide-react'
-import KashNodeMotionScene from '../components/KashNodeMotionScene'
+import { useEffect, useState, type FormEvent } from 'react'
+import { ArrowLeft, Eye, EyeOff, Loader2, Mail, ShieldCheck } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
-import { signIn, requestSignupOtp, verifySignupOtp, type AuthUser } from '../lib/auth'
+import {
+  getGoogleSignInNonce,
+  requestSignupOtp,
+  signIn,
+  signInWithGoogleCredential,
+  verifySignupOtp,
+  type AuthUser,
+} from '../lib/auth'
 
 type Props = { onLogin: (user: AuthUser) => void; sessionError?: string }
 type Mode = 'login' | 'signup'
-type Step = 'name' | 'email' | 'password' | 'otp'
+type SignupStep = 'details' | 'otp'
 
-const getPrompt = (mode: Mode, step: Step) => {
-  if (mode === 'signup') {
-    if (step === 'name') return "Welcome to KashNode, your AI commerce command center. What should I call you?"
-    if (step === 'email') return "Great to meet you. What's your email address?"
-    if (step === 'password') return 'Create a strong password for your new KashNode account.'
-    return 'I sent a six-digit code to your email. Enter it here to verify your account.'
+/**
+ * Google sign-in uses the backend that already exists in this repo:
+ * POST /api/auth/google/nonce, then Google Identity Services returns an
+ * ID token, then POST /api/auth/google verifies it server-side.
+ * The browser client id must be the same Google web OAuth client as the
+ * server's GOOGLE_CLIENT_ID, exposed to Vite as VITE_GOOGLE_CLIENT_ID.
+ * No client id is committed here, so without that env var the button
+ * explains the missing configuration instead of pretending to work.
+ */
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined
+
+type GooglePromptNotification = {
+  isDisplayed: () => boolean
+  isNotDisplayed: () => boolean
+  isSkippedMoment: () => boolean
+  isDismissedMoment: () => boolean
+  getNotDisplayedReason: () => string
+  getSkippedReason: () => string
+  getDismissedReason: () => string
+}
+
+type GoogleId = {
+  initialize: (config: {
+    client_id: string
+    callback: (response: { credential?: string }) => void
+    nonce?: string
+    auto_select?: boolean
+    cancel_on_tap_outside?: boolean
+  }) => void
+  prompt: (callback?: (notification: GooglePromptNotification) => void) => void
+}
+
+declare global {
+  interface Window {
+    google?: { accounts: { id: GoogleId } }
   }
-  return step === 'email' ? "Hi, I'm Kash, your AI commerce co-pilot. Sign in to manage payments, orders, customer calls, and daily operations from one command center. What's your email?" : 'Welcome back. Your commerce command center is ready. Enter your password to continue.'
+}
+
+function loadGoogleIdentityServices(): Promise<GoogleId> {
+  if (window.google?.accounts?.id) return Promise.resolve(window.google.accounts.id)
+  return new Promise((resolve, reject) => {
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = () => {
+      if (window.google?.accounts?.id) resolve(window.google.accounts.id)
+      else reject(new Error('Google sign-in could not be loaded.'))
+    }
+    script.onerror = () => reject(new Error('Google sign-in could not be loaded. Check your connection and try again.'))
+    document.head.appendChild(script)
+  })
+}
+
+function GoogleMark() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="#4285F4" d="M23.49 12.27c0-.79-.07-1.54-.19-2.27H12v4.51h6.47a5.53 5.53 0 0 1-2.4 3.58v3h3.86c2.26-2.09 3.56-5.17 3.56-8.82Z" />
+      <path fill="#34A853" d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.86-3c-1.08.72-2.45 1.16-4.07 1.16-3.13 0-5.78-2.11-6.73-4.96H1.29v3.09A12 12 0 0 0 12 24Z" />
+      <path fill="#FBBC05" d="M5.27 14.29A7.2 7.2 0 0 1 4.89 12c0-.8.14-1.57.38-2.29H1.29a12 12 0 0 0 0 10.58l3.98-3Z" />
+      <path fill="#EA4335" d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42A11.97 11.97 0 0 0 12 0 12 12 0 0 0 1.29 7.2l3.98 3.09C6.22 6.86 8.87 4.75 12 4.75Z" />
+    </svg>
+  )
 }
 
 export default function LoginPage({ onLogin, sessionError }: Props) {
   const [mode, setMode] = useState<Mode>('login')
-  const [step, setStep] = useState<Step>('email')
+  const [signupStep, setSignupStep] = useState<SignupStep>('details')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [otp, setOtp] = useState('')
-  const [prompt, setPrompt] = useState(getPrompt('login', 'email'))
-  const [visibleChars, setVisibleChars] = useState(0)
   const [showPassword, setShowPassword] = useState(false)
   const [keepSignedIn, setKeepSignedIn] = useState(true)
-  const [focused, setFocused] = useState(false)
   const [busy, setBusy] = useState(false)
-  const [done, setDone] = useState(false)
-  const [voiceSpeaking, setVoiceSpeaking] = useState(false)
-  const [voiceStatus, setVoiceStatus] = useState('')
+  const [googleBusy, setGoogleBusy] = useState(false)
   const [error, setError] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const voiceStartTimer = useRef<number | null>(null)
-  const voiceWatchdog = useRef<number | null>(null)
-  const autoVoiceStarted = useRef(false)
-  const autoGestureCleanup = useRef<(() => void) | null>(null)
-  const activeUtterance = useRef<SpeechSynthesisUtterance | null>(null)
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { setVisibleChars(prompt.length); return }
-    setVisibleChars(0)
-    let index = 0
-    const timer = window.setInterval(() => { index += 1; setVisibleChars(index); if (index >= prompt.length) window.clearInterval(timer) }, 20)
-    return () => window.clearInterval(timer)
-  }, [prompt])
-
-  useEffect(() => { inputRef.current?.focus() }, [step, mode])
-  useEffect(() => () => {
-    activeUtterance.current = null
-    autoGestureCleanup.current?.()
-    window.speechSynthesis?.cancel()
-    if (voiceStartTimer.current !== null) window.clearTimeout(voiceStartTimer.current)
-    if (voiceWatchdog.current !== null) window.clearTimeout(voiceWatchdog.current)
+    document.title = 'KashNode — Sign in'
   }, [])
 
-  const toggleVoiceIntro = () => {
-    autoGestureCleanup.current?.()
-    autoGestureCleanup.current = null
-    autoVoiceStarted.current = true
-    const speech = window.speechSynthesis
-    if (!speech) { setVoiceStatus('This browser does not support voice playback. Try the latest Chrome or Edge.'); return }
-    if (voiceSpeaking) {
-      activeUtterance.current = null
-      speech.cancel()
-      if (voiceStartTimer.current !== null) window.clearTimeout(voiceStartTimer.current)
-      if (voiceWatchdog.current !== null) window.clearTimeout(voiceWatchdog.current)
-      setVoiceSpeaking(false); setVoiceStatus('Voice intro stopped.'); return
-    }
-    activeUtterance.current = null
-    speech.cancel()
-    setVoiceStatus('Starting Kash voice…')
-    const line = "Hi, I'm Kash, your AI commerce operations partner. I help bring payments, orders, customer calls, and everyday workflows together in one command center. Sign in and let's get started."
-    const utterance = new SpeechSynthesisUtterance(line)
-    activeUtterance.current = utterance
-    utterance.lang = 'en-US'
-    utterance.rate = .88
-    utterance.pitch = 1
-    const chooseVoice = () => speech.getVoices().find(item => /^en-US$/i.test(item.lang)) || speech.getVoices().find(item => item.lang.toLowerCase().startsWith('en'))
-    const voice = chooseVoice()
-    if (voice) utterance.voice = voice
-    let hasStarted = false
-    utterance.onstart = () => { hasStarted = true; setVoiceSpeaking(true); setVoiceStatus('Kash is speaking.') }
-    utterance.onend = () => {
-      if (voiceWatchdog.current !== null) window.clearTimeout(voiceWatchdog.current)
-      activeUtterance.current = null
-      setVoiceSpeaking(false); setVoiceStatus('')
-    }
-    utterance.onerror = event => {
-      if (activeUtterance.current !== utterance) return
-      if (voiceWatchdog.current !== null) window.clearTimeout(voiceWatchdog.current)
-      activeUtterance.current = null
-      setVoiceSpeaking(false)
-      if (event.error === 'not-allowed') {
-        setVoiceStatus('Chrome blocks sound before interaction. Kash will speak when you click or type anywhere on this page.')
-        const resumeOnGesture = (gesture: Event) => {
-          const target = gesture.target
-          if (target instanceof Element && target.closest('.km-voice-preview')) return
-          autoGestureCleanup.current?.()
-          autoGestureCleanup.current = null
-          activeUtterance.current = null
-          setVoiceSpeaking(false)
-          window.setTimeout(() => toggleVoiceIntro(), 0)
-        }
-        document.addEventListener('pointerdown', resumeOnGesture)
-        document.addEventListener('keydown', resumeOnGesture)
-        autoGestureCleanup.current = () => {
-          document.removeEventListener('pointerdown', resumeOnGesture)
-          document.removeEventListener('keydown', resumeOnGesture)
-        }
-      } else {
-        setVoiceStatus(`Voice playback failed (${event.error}). Check Windows sound output and browser speech settings.`)
-      }
-    }
-    setVoiceSpeaking(true)
-    voiceStartTimer.current = window.setTimeout(() => {
-      if (!chooseVoice()) speech.getVoices()
-      speech.resume()
-      try { speech.speak(utterance) } catch { setVoiceSpeaking(false); setVoiceStatus('Voice playback could not start. Check browser speech support.') }
-    }, 180)
-    voiceWatchdog.current = window.setTimeout(() => {
-      if (hasStarted) return
-      activeUtterance.current = null
-      speech.cancel()
-      setVoiceSpeaking(false)
-      setVoiceStatus('No voice started. Check Windows sound output and available English voices.')
-    }, 6000)
+  const switchMode = (next: Mode) => {
+    setMode(next)
+    setSignupStep('details')
+    setError('')
+    setNotice('')
+    setOtp('')
   }
 
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      if (autoVoiceStarted.current) return
-      autoVoiceStarted.current = true
-      toggleVoiceIntro()
-    }, 900)
-    return () => window.clearTimeout(timer)
-  }, [])
+  const validEmail = /^\S+@\S+\.\S+$/.test(email.trim())
 
-  const changeMode = (next: Mode) => {
-    setMode(next); setStep(next === 'signup' ? 'name' : 'email'); setError(''); setPassword(''); setOtp(''); setShowPassword(false)
-    setPrompt(getPrompt(next, next === 'signup' ? 'name' : 'email'))
-  }
-  const ask = (next: Step, message?: string) => { setStep(next); setPrompt(message || getPrompt(mode, next)); setError('') }
-
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    if (busy || done) return
-    if (step === 'name') {
-      if (name.trim().length < 2) { setError('Enter your name to continue.'); return }
-      ask('email'); return
+  async function handleGoogle() {
+    if (googleBusy || busy) return
+    if (!GOOGLE_CLIENT_ID) {
+      setError(
+        'Google sign-in is not configured yet. Set VITE_GOOGLE_CLIENT_ID (the same Google web OAuth client as the server GOOGLE_CLIENT_ID) and try again.',
+      )
+      return
     }
-    if (step === 'email') {
-      if (!/^\S+@\S+\.\S+$/.test(email.trim())) { setError('Enter a valid email address to continue.'); return }
-      setEmail(email.trim()); ask('password'); return
-    }
-    if (step === 'otp') {
-      if (!/^\d{6}$/.test(otp.trim())) { setError('Enter the six-digit code from your email.'); return }
-      void completeAuth(); return
-    }
-    if (mode === 'signup' && password.length < 12) { setError('Use at least 12 characters for a stronger password.'); return }
-    if (!password) { setError('Enter your password to continue.'); return }
-    void completeAuth()
-  }
-
-  async function completeAuth() {
-    setBusy(true); setError('')
-    setPrompt(mode === 'signup' && step === 'password' ? 'Sending your secure verification code…' : mode === 'signup' ? 'Verifying your email and creating your workspace…' : 'Checking your secure session…')
+    setGoogleBusy(true)
+    setError('')
+    setNotice('')
     try {
-      if (mode === 'signup' && step === 'password') {
-        await requestSignupOtp(name.trim(), email.trim(), password)
-        setBusy(false); setOtp('')
-        ask('otp', 'Check your inbox and enter the six-digit KashNode verification code.')
-        return
-      }
-      const user = mode === 'signup'
-        ? await verifySignupOtp(email.trim(), otp.trim())
-        : await signIn(email.trim(), password, keepSignedIn)
-      setDone(true); setPrompt(mode === 'signup' ? 'Your account is ready. Welcome to KashNode.' : "You're in. Opening your command center.")
-      window.setTimeout(() => onLogin(user), 650)
+      const nonce = await getGoogleSignInNonce()
+      const googleId = await loadGoogleIdentityServices()
+      await new Promise<void>((resolve) => {
+        let settled = false
+        const finish = () => {
+          if (!settled) {
+            settled = true
+            setGoogleBusy(false)
+            resolve()
+          }
+        }
+        googleId.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          nonce,
+          auto_select: false,
+          cancel_on_tap_outside: true,
+          callback: async (response) => {
+            try {
+              if (!response.credential) throw new Error('Google did not return a sign-in credential.')
+              const user = await signInWithGoogleCredential(response.credential)
+              onLogin(user)
+            } catch (cause) {
+              setError(cause instanceof Error ? cause.message : 'Google sign-in failed. Please try again.')
+            } finally {
+              finish()
+            }
+          },
+        })
+        googleId.prompt((notification) => {
+          if (notification.isNotDisplayed() || notification.isSkippedMoment() || notification.isDismissedMoment()) {
+            const reason =
+              notification.getNotDisplayedReason?.() ||
+              notification.getSkippedReason?.() ||
+              notification.getDismissedReason?.() ||
+              'closed'
+            setError(`Google sign-in prompt was ${reason}. Try again, or sign in with email and password.`)
+            finish()
+          }
+        })
+      })
     } catch (cause) {
-      const message = cause instanceof Error ? cause.message : mode === 'signup' ? 'Account verification failed. Please try again.' : 'Sign in failed. Please check your details.'
-      setBusy(false); setError(message)
-      if (mode === 'signup' && step === 'otp') {
-        setPrompt('I could not verify that code. Check it and try again.')
-      } else {
-        setPrompt(mode === 'signup' ? 'I could not start account verification. Please check your details.' : "I couldn't verify those details. Let's try your password again.")
-        setStep('password')
-      }
+      setError(cause instanceof Error ? cause.message : 'Google sign-in failed. Please try again.')
+      setGoogleBusy(false)
     }
   }
 
-  const isPassword = step === 'password'
-  const isOtp = step === 'otp'
-  const promptSpeaking = visibleChars < prompt.length || busy || done
-  const fieldLabel = step === 'name' ? 'Your name' : isPassword ? 'Password' : isOtp ? 'Email verification code' : 'Email address'
-  const stepNumber = mode === 'signup' ? (step === 'name' ? 1 : step === 'email' ? 2 : step === 'password' ? 3 : 4) : (isPassword ? 2 : 1)
-  const stepTotal = mode === 'signup' ? 4 : 2
-  const goBack = () => ask(mode === 'signup' ? (step === 'otp' ? 'password' : step === 'password' ? 'email' : 'name') : 'email')
+  async function handleLogin(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (busy || googleBusy) return
+    if (!validEmail) {
+      setError('Enter a valid email address to continue.')
+      return
+    }
+    if (!password) {
+      setError('Enter your password to continue.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const user = await signIn(email.trim(), password, keepSignedIn)
+      onLogin(user)
+    } catch (cause) {
+      setBusy(false)
+      setError(cause instanceof Error ? cause.message : 'Sign in failed. Please check your details.')
+    }
+  }
 
-  return <main className="km-login">
-    <section className="km-visual" aria-label="KashNode animated AI guide">
-      <div className="km-visual-image" aria-hidden="true"><img src="/images/kashnode-ai-login.jpg" alt="" /></div>
-      <div className="km-visual-shade" aria-hidden="true" /><div className="km-visual-grid" aria-hidden="true" />
-      <KashNodeMotionScene speaking={promptSpeaking || voiceSpeaking} focused={focused} busy={busy || done} />
-      <header className="km-brand"><KashNodeLogo showTagline /><span className="km-brand-pill"><Mic size={12} /> AI VOICE OS</span></header>
-      <div className="km-scene-caption"><i /><span>YOUR AI COMMERCE COMPANION</span></div>
-    </section>
-    <section className="km-auth" aria-label={mode === 'signup' ? 'Create your KashNode account' : 'Sign in to KashNode'}>
-      <div className="km-auth-content">
-        <div className="km-progress-row"><div className="km-progress-dots" role="progressbar" aria-label={`${mode === 'signup' ? 'Sign-up' : 'Sign-in'} steps`} aria-valuemin={1} aria-valuemax={stepTotal} aria-valuenow={stepNumber}>{Array.from({ length: stepTotal }, (_, i) => <i key={i} className={i < stepNumber ? 'active' : ''} />)}</div><span>{mode === 'signup' ? 'Create account' : 'Sign in'}</span><button type="button" className="km-voice-preview" onClick={toggleVoiceIntro} aria-label={voiceSpeaking ? 'Stop Kash voice introduction' : 'Hear Kash voice introduction'}>{voiceSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}{voiceSpeaking ? 'Stop' : 'Hear Kash'}</button><span className="km-step-count">0{stepNumber}<i />0{stepTotal}</span></div>
-        {voiceStatus && <div className="km-voice-status" role="status" aria-live="polite">{voiceStatus}</div>}
-        <div className="km-prompt" aria-live="polite"><span className="km-prompt-full sr-only">{prompt}</span><span aria-hidden="true">{Array.from(prompt).slice(0, visibleChars).join('')}{promptSpeaking && <i className="km-caret" />}</span></div>
-        {(error || sessionError) && <div className="km-error" role="alert">{error || sessionError}</div>}
-        <form className="km-form" onSubmit={handleSubmit}>
-          <label className="sr-only" htmlFor="km-login-input">{fieldLabel}</label>
-          <div className={`km-input-wrap ${focused ? 'focused' : ''}`}>
-            <input ref={inputRef} id="km-login-input" key={`${mode}-${step}`} type={step === 'name' ? 'text' : isPassword ? (showPassword ? 'text' : 'password') : isOtp ? 'text' : 'email'} inputMode={step === 'email' ? 'email' : isOtp ? 'numeric' : undefined} autoComplete={step === 'name' ? 'name' : step === 'email' ? 'email' : isOtp ? 'one-time-code' : mode === 'signup' ? 'new-password' : 'current-password'} aria-label={fieldLabel} placeholder={step === 'name' ? 'Your name' : isPassword ? (mode === 'signup' ? 'At least 12 characters' : 'Enter your password') : isOtp ? 'Six-digit code' : 'you@company.com'} value={step === 'name' ? name : isPassword ? password : isOtp ? otp : email} onChange={event => step === 'name' ? setName(event.target.value) : isPassword ? setPassword(event.target.value) : isOtp ? setOtp(event.target.value.replace(/\D/g, '').slice(0, 6)) : setEmail(event.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} disabled={busy || done} required minLength={isPassword && mode === 'signup' ? 12 : undefined} maxLength={isOtp ? 6 : undefined} />
-            {isPassword && <button type="button" className="km-eye" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword(value => !value)}>{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button>}
-            <button className="km-submit" type="submit" disabled={busy || done} aria-label={isPassword ? mode === 'signup' ? 'Create account' : 'Sign in' : 'Continue'}>{busy ? <Loader2 size={19} className="km-spinner" /> : <ArrowRight size={21} />}</button>
+  async function handleSignupDetails(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (busy || googleBusy) return
+    if (name.trim().length < 2) {
+      setError('Enter your name to continue.')
+      return
+    }
+    if (!validEmail) {
+      setError('Enter a valid email address to continue.')
+      return
+    }
+    // The backend requires 12–128 characters before it will send an OTP.
+    if (password.length < 12) {
+      setError('Use at least 12 characters for a stronger password.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      await requestSignupOtp(name.trim(), email.trim(), password)
+      setOtp('')
+      setSignupStep('otp')
+      setNotice(`We sent a 6-digit code to ${email.trim()}. It expires in 10 minutes.`)
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not send the verification code.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleVerifyOtp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (busy || googleBusy) return
+    if (!/^\d{6}$/.test(otp.trim())) {
+      setError('Enter the six-digit code from your email.')
+      return
+    }
+    setBusy(true)
+    setError('')
+    try {
+      const user = await verifySignupOtp(email.trim(), otp.trim())
+      onLogin(user)
+    } catch (cause) {
+      setBusy(false)
+      setError(cause instanceof Error ? cause.message : 'Could not verify the code.')
+    }
+  }
+
+  return (
+    <main className="auth-page">
+      <section className="auth-card" aria-label={mode === 'login' ? 'Sign in to KashNode' : 'Create your free KashNode account'}>
+        <div className="auth-brand">
+          <KashNodeLogo showTagline />
+          <p>{mode === 'login' ? 'Welcome back to your AI commerce command center.' : 'Create your free account — no card required.'}</p>
+        </div>
+
+        <div className="auth-tabs" role="tablist" aria-label="Sign in or create an account">
+          <button type="button" role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')}>
+            Sign in
+          </button>
+          <button type="button" role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'active' : ''} onClick={() => switchMode('signup')}>
+            Create free account
+          </button>
+        </div>
+
+        <button type="button" className="auth-google" onClick={handleGoogle} disabled={googleBusy || busy}>
+          {googleBusy ? <Loader2 size={18} className="auth-spinner" /> : <GoogleMark />}
+          {googleBusy ? 'Connecting to Google…' : 'Continue with Google'}
+        </button>
+        <p className="auth-google-note">
+          {GOOGLE_CLIENT_ID
+            ? 'Google sign-in is verified by the KashNode server before a session is created.'
+            : 'Google sign-in needs VITE_GOOGLE_CLIENT_ID to be set — see the note below the form.'}
+        </p>
+
+        <div className="auth-divider" aria-hidden="true">
+          <span>or continue with email</span>
+        </div>
+
+        {(error || sessionError) && (
+          <div className="auth-error" role="alert">
+            {error || sessionError}
           </div>
-          {isPassword && mode === 'login' && <div className="km-password-options"><label className="km-remember"><input type="checkbox" checked={keepSignedIn} onChange={event => setKeepSignedIn(event.target.checked)} /><span>Keep me signed in</span></label><button type="button" className="km-forgot" onClick={() => { setError('Password reset is not configured yet.'); setPrompt('Password reset will be available soon.') }}>Forgot password?</button></div>}
-          {step !== (mode === 'signup' ? 'name' : 'email') && <button type="button" className="km-back" onClick={goBack} disabled={busy || done}><ArrowLeft size={15} /> Back</button>}
-        </form>
-        <div className="km-signup">{mode === 'login' ? <>New here? <button type="button" onClick={() => changeMode('signup')}>Create an account</button></> : <>Already have an account? <button type="button" onClick={() => changeMode('login')}>Sign in</button></>}</div>
-        <footer className="km-footer"><span><ShieldCheck size={14} /> Encrypted session · © {new Date().getFullYear()} KashNode</span><span><a href="#privacy">Privacy Policy</a><a href="#terms">Terms of Service</a></span></footer>
-      </div>
-    </section>
-  </main>
+        )}
+        {notice && (
+          <div className="auth-notice" role="status">
+            {notice}
+          </div>
+        )}
+
+        {mode === 'login' ? (
+          <form className="auth-form" onSubmit={handleLogin}>
+            <label>
+              <span>Email address</span>
+              <input type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={busy || googleBusy} required />
+            </label>
+            <label>
+              <span>Password</span>
+              <span className="auth-password-wrap">
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
+                  placeholder="Enter your password"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  disabled={busy || googleBusy}
+                  required
+                />
+                <button type="button" className="auth-eye" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </span>
+            </label>
+            <div className="auth-row">
+              <label className="auth-remember">
+                <input type="checkbox" checked={keepSignedIn} onChange={(event) => setKeepSignedIn(event.target.checked)} />
+                <span>Keep me signed in</span>
+              </label>
+              <button
+                type="button"
+                className="auth-link"
+                onClick={() => {
+                  setError('Password reset is not configured yet.')
+                  setNotice('')
+                }}
+              >
+                Forgot password?
+              </button>
+            </div>
+            <button type="submit" className="auth-submit" disabled={busy || googleBusy}>
+              {busy ? <Loader2 size={18} className="auth-spinner" /> : null}
+              {busy ? 'Signing you in…' : 'Sign in'}
+            </button>
+          </form>
+        ) : signupStep === 'details' ? (
+          <>
+            <ol className="auth-steps" aria-label="Free account signup steps">
+              <li className="current"><strong>1</strong><span>Enter email &amp; account details</span></li>
+              <li><strong>2</strong><span>Receive 6-digit OTP</span></li>
+              <li><strong>3</strong><span>Verify &amp; create account</span></li>
+            </ol>
+            <form className="auth-form" onSubmit={handleSignupDetails}>
+              <label>
+                <span>Your name</span>
+                <input type="text" autoComplete="name" placeholder="Your name" value={name} onChange={(event) => setName(event.target.value)} disabled={busy || googleBusy} required />
+              </label>
+              <label>
+                <span>Email address</span>
+                <input type="email" autoComplete="email" placeholder="you@company.com" value={email} onChange={(event) => setEmail(event.target.value)} disabled={busy || googleBusy} required />
+              </label>
+              <label>
+                <span>Password</span>
+                <span className="auth-password-wrap">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="new-password"
+                    placeholder="At least 12 characters"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    disabled={busy || googleBusy}
+                    required
+                    minLength={12}
+                  />
+                  <button type="button" className="auth-eye" aria-label={showPassword ? 'Hide password' : 'Show password'} onClick={() => setShowPassword((value) => !value)}>
+                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </span>
+              </label>
+              <p className="auth-hint">We will send a 6-digit OTP to this email. Your account is created only after you verify it.</p>
+              <button type="submit" className="auth-submit" disabled={busy || googleBusy}>
+                {busy ? <Loader2 size={18} className="auth-spinner" /> : <Mail size={18} />}
+                {busy ? 'Sending OTP…' : 'Send OTP & continue'}
+              </button>
+            </form>
+          </>
+        ) : (
+          <>
+            <ol className="auth-steps" aria-label="Free account signup steps">
+              <li className="done"><strong>✓</strong><span>Enter email &amp; account details</span></li>
+              <li className="current"><strong>2</strong><span>Receive 6-digit OTP</span></li>
+              <li><strong>3</strong><span>Verify &amp; create account</span></li>
+            </ol>
+            <form className="auth-form" onSubmit={handleVerifyOtp}>
+              <label>
+                <span>6-digit OTP sent to {email.trim()}</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  placeholder="123456"
+                  value={otp}
+                  onChange={(event) => setOtp(event.target.value.replace(/\D/g, '').slice(0, 6))}
+                  disabled={busy || googleBusy}
+                  required
+                  maxLength={6}
+                  className="auth-otp-input"
+                />
+              </label>
+              <button type="submit" className="auth-submit" disabled={busy || googleBusy}>
+                {busy ? <Loader2 size={18} className="auth-spinner" /> : <ShieldCheck size={18} />}
+                {busy ? 'Verifying…' : 'Verify & create free account'}
+              </button>
+              <div className="auth-row">
+                <button type="button" className="auth-link" onClick={() => setSignupStep('details')} disabled={busy || googleBusy}>
+                  <ArrowLeft size={15} /> Back to details
+                </button>
+                <button
+                  type="button"
+                  className="auth-link"
+                  disabled={busy || googleBusy}
+                  onClick={async () => {
+                    setBusy(true)
+                    setError('')
+                    try {
+                      await requestSignupOtp(name.trim(), email.trim(), password)
+                      setNotice(`A new 6-digit code was sent to ${email.trim()}. It expires in 10 minutes.`)
+                    } catch (cause) {
+                      setError(cause instanceof Error ? cause.message : 'Could not resend the code.')
+                    } finally {
+                      setBusy(false)
+                    }
+                  }}
+                >
+                  Resend code
+                </button>
+              </div>
+            </form>
+          </>
+        )}
+
+        <p className="auth-switch">
+          {mode === 'login' ? (
+            <>New here? <button type="button" onClick={() => switchMode('signup')}>Create a free account</button></>
+          ) : (
+            <>Already have an account? <button type="button" onClick={() => switchMode('login')}>Sign in</button></>
+          )}
+        </p>
+        <footer className="auth-footer">
+          <span><ShieldCheck size={14} /> Encrypted session · © {new Date().getFullYear()} KashNode</span>
+          <span><a href="/">Back to home</a></span>
+        </footer>
+      </section>
+    </main>
+  )
 }
