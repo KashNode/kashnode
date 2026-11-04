@@ -374,7 +374,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                     <div className="cd-panel cd-chart-panel">
                       <div className="cd-card-heading"><div><h2>Revenue &amp; voice usage · last 14 days</h2><p>Illustrative trend only — no live transaction series is connected to this screen.</p></div><span className="cd-preview-chip">SAMPLE CHART</span></div>
                       <svg className="cd-chart" viewBox="0 0 640 240" role="img" aria-label="Illustrative sample revenue and voice usage trend">
-                        <defs><linearGradient id="cdChartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#1ce8ab" stopOpacity=".28"/><stop offset="100%" stopColor="#1ce8ab" stopOpacity="0"/></linearGradient></defs>
+                        <defs><linearGradient id="cdChartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f07880" stopOpacity=".28"/><stop offset="100%" stopColor="#f07880" stopOpacity="0"/></linearGradient></defs>
                         <g className="cd-chart-grid"><line x1="44" y1="30" x2="620" y2="30"/><line x1="44" y1="85" x2="620" y2="85"/><line x1="44" y1="140" x2="620" y2="140"/><line x1="44" y1="195" x2="620" y2="195"/></g>
                         <g className="cd-chart-labels"><text x="6" y="34">৳4k</text><text x="6" y="89">৳3k</text><text x="6" y="144">৳2k</text><text x="6" y="199">৳1k</text><text x="44" y="222">Oct 23</text><text x="230" y="222">Oct 29</text><text x="420" y="222">Nov 2</text><text x="580" y="222">Nov 5</text></g>
                         <path d="M44 139 L88 113 L132 148 L176 91 L220 126 L264 65 L308 109 L352 139 L396 78 L440 122 L484 47 L528 100 L572 131 L620 83 L620 205 L44 205 Z" fill="url(#cdChartFill)"/>
