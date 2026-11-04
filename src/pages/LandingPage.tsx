@@ -10,7 +10,6 @@ import {
   Play,
   Radio,
   RefreshCw,
-  ShieldCheck,
   Smartphone,
   Sparkles,
 } from 'lucide-react'
