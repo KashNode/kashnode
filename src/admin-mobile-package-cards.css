@@ -116,3 +116,6 @@
   .cd-page .cd-package-card,.cd-page .cd-package-card button{transition:none!important}
   .cd-page .cd-package-card button:hover{transform:none!important}
 }
+
+/* Keep the horizontal mobile nav as a real scroll container inside the rail. */
+@media(max-width:900px){.cd-page .cd-nav{min-width:0;max-width:100%}}
