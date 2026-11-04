@@ -1,30 +1,48 @@
-import { useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
+  Activity,
   ArrowUpRight,
   Box,
-  ChevronLeft,
+  Check,
   CircleDollarSign,
-  Cpu,
   LayoutDashboard,
   LogOut,
+  Monitor,
+  Moon,
   Package,
   Pause,
+  Phone,
   Play,
   Search,
   ShieldCheck,
   Signal,
   Store,
+  Sun,
+  Truck,
   Users,
+  Wallet,
   Wifi,
+  X,
 } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
 
 type Props = { user: AuthUser; onSignOut: () => void }
-type Section = 'overview' | 'merchants' | 'licensing' | 'hardware'
+type Section =
+  | 'overview'
+  | 'merchants'
+  | 'minutes'
+  | 'verifications'
+  | 'calls'
+  | 'courier'
+  | 'hardware'
+  | 'licensing'
+  | 'system'
 type PackageId = 'free' | 'basic' | 'standard' | 'premium'
 type MerchantStatus = 'active' | 'trial' | 'suspended'
+type Voice = 'male' | 'female'
+type ThemeChoice = 'dark' | 'system'
 
 type PackageInfo = { id: PackageId; name: string; price: number; orders: number; minutes: number; note: string }
 
@@ -48,6 +66,7 @@ type Merchant = {
   minutesLeft: number
 }
 
+// Same demo merchants as PR #12, so the numbers on this deck reconcile with the old panel.
 const INITIAL_MERCHANTS: Merchant[] = [
   { id: 'M-1001', name: 'Dhaka Fashion Hub', email: 'hello@dhakafashion.example', packageId: 'standard', status: 'active', boxes: 3, minutesLeft: 612 },
   { id: 'M-1002', name: 'Chittagong Electronics', email: 'sales@ctg-electronics.example', packageId: 'premium', status: 'active', boxes: 5, minutesLeft: 1840 },
@@ -65,60 +84,187 @@ type HardwareBox = {
   online: boolean
   signal: number
   sim: string
+  simBalance: number
+  dataMb: number
   latencyMs: number
   smsToday: number
+  lastSync: string
 }
 
 const INITIAL_BOXES: HardwareBox[] = [
-  { unit: 'KN-BOX-01', merchant: 'Dhaka Fashion Hub', online: true, signal: 5, sim: 'Business SIM · GP', latencyMs: 38, smsToday: 112 },
-  { unit: 'KN-BOX-02', merchant: 'Chittagong Electronics', online: true, signal: 4, sim: 'Business SIM · Robi', latencyMs: 52, smsToday: 86 },
-  { unit: 'KN-BOX-03', merchant: 'Sylhet Grocery Mart', online: true, signal: 5, sim: 'Business SIM · GP', latencyMs: 41, smsToday: 44 },
-  { unit: 'KN-BOX-04', merchant: 'Khulna Beauty Store', online: false, signal: 0, sim: 'Business SIM · GP', latencyMs: 0, smsToday: 0 },
-  { unit: 'KN-BOX-05', merchant: 'Rajshahi Mobile Zone', online: true, signal: 4, sim: 'Business SIM · Robi', latencyMs: 63, smsToday: 57 },
-  { unit: 'KN-BOX-06', merchant: 'Rangpur Fashion Point', online: true, signal: 5, sim: 'Business SIM · GP', latencyMs: 35, smsToday: 93 },
+  { unit: 'KN-BOX-01', merchant: 'Dhaka Fashion Hub', online: true, signal: 5, sim: 'Business SIM', simBalance: 412, dataMb: 1840, latencyMs: 38, smsToday: 112, lastSync: '2 min ago' },
+  { unit: 'KN-BOX-02', merchant: 'Chittagong Electronics', online: true, signal: 4, sim: 'Business SIM', simBalance: 268, dataMb: 940, latencyMs: 52, smsToday: 86, lastSync: '4 min ago' },
+  { unit: 'KN-BOX-03', merchant: 'Sylhet Grocery Mart', online: true, signal: 5, sim: 'Business SIM', simBalance: 355, dataMb: 1210, latencyMs: 41, smsToday: 44, lastSync: '1 min ago' },
+  { unit: 'KN-BOX-04', merchant: 'Khulna Beauty Store', online: false, signal: 0, sim: 'Business SIM', simBalance: 96, dataMb: 0, latencyMs: 0, smsToday: 0, lastSync: '3 hrs ago' },
+  { unit: 'KN-BOX-05', merchant: 'Rajshahi Mobile Zone', online: true, signal: 4, sim: 'Business SIM', simBalance: 189, dataMb: 760, latencyMs: 63, smsToday: 57, lastSync: '6 min ago' },
+  { unit: 'KN-BOX-06', merchant: 'Rangpur Fashion Point', online: true, signal: 5, sim: 'Business SIM', simBalance: 521, dataMb: 2100, latencyMs: 35, smsToday: 93, lastSync: '3 min ago' },
+]
+
+type ReviewItem = { id: string; merchant: string; channel: string; amount: number; detail: string }
+const INITIAL_QUEUE: ReviewItem[] = [
+  { id: '#KN-8841', merchant: 'Dhaka Fashion Hub', channel: 'bKash', amount: 1850, detail: 'TrxID partially matched — needs a human check' },
+  { id: '#KN-8840', merchant: 'Sylhet Grocery Mart', channel: 'COD SMS', amount: 950, detail: 'SMS delivered, verification code not yet entered' },
+  { id: '#KN-8839', merchant: 'Rajshahi Mobile Zone', channel: 'Nagad', amount: 2400, detail: 'Amount matches, sender number differs from order phone' },
+]
+
+const CALL_ROWS = [
+  { id: 'C-221', merchant: 'Dhaka Fashion Hub', outcome: 'Confirmed', minutes: 3, voice: 'female' as Voice },
+  { id: 'C-220', merchant: 'Chittagong Electronics', outcome: 'Confirmed', minutes: 2, voice: 'male' as Voice },
+  { id: 'C-219', merchant: 'Sylhet Grocery Mart', outcome: 'Failed — no answer', minutes: 1, voice: 'female' as Voice },
+  { id: 'C-218', merchant: 'Rangpur Fashion Point', outcome: 'Confirmed', minutes: 4, voice: 'male' as Voice },
+]
+
+const COURIER_ROWS = [
+  { id: 'P-501', merchant: 'Dhaka Fashion Hub', courier: 'Steadfast', status: 'Delivered', pin: '4821' },
+  { id: 'P-500', merchant: 'Chittagong Electronics', courier: 'Pathao', status: 'In transit', pin: '9174' },
+  { id: 'P-499', merchant: 'Sylhet Grocery Mart', courier: 'Steadfast', status: 'Booked', pin: '—' },
+  { id: 'P-498', merchant: 'Rajshahi Mobile Zone', courier: 'Pathao', status: 'Delivery failed', pin: '—' },
+]
+
+const WALLET_ROWS = [
+  { date: 'Nov 4', merchant: 'Dhaka Fashion Hub', detail: '+150 min recharge', amount: '৳1,050' },
+  { date: 'Nov 3', merchant: 'Rangpur Fashion Point', detail: '+300 min recharge', amount: '৳2,100' },
+  { date: 'Nov 2', merchant: 'Sylhet Grocery Mart', detail: '+60 min recharge', amount: '৳420' },
+]
+
+const LIVE_FEED = [
+  'Kash just confirmed an order for Dhaka Fashion Hub by phone call.',
+  'A bKash TrxID matched for Chittagong Electronics — ৳1,850 verified.',
+  'Steadfast parcel P-501 marked delivered, PIN 4821 confirmed.',
+  'KN-BOX-04 is still offline — Khulna Beauty Store has no live box.',
+  'A COD SMS verification was sent from the Sylhet Grocery Mart box.',
 ]
 
 const SECTIONS: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'merchants', label: 'Merchants', icon: Store },
-  { id: 'licensing', label: 'Licensing & Packages', icon: Package },
+  { id: 'minutes', label: 'Minutes & Billing', icon: Wallet },
+  { id: 'verifications', label: 'Verifications', icon: ShieldCheck },
+  { id: 'calls', label: 'Kash AI Calls', icon: Phone },
+  { id: 'courier', label: 'Courier', icon: Truck },
   { id: 'hardware', label: 'Hardware Boxes', icon: Box },
+  { id: 'licensing', label: 'Licensing & Packages', icon: Package },
+  { id: 'system', label: 'System & Audit', icon: Activity },
 ]
 
-function TiltCard({ children, className = '' }: { children: ReactNode; className?: string }) {
+function TiltCard({ children, ghost, className = '' }: { children: ReactNode; ghost: string; className?: string }) {
   const [transform, setTransform] = useState('perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0px)')
   return (
     <motion.div
-      className={`sa-tilt ${className}`}
+      className={`cd-tilt ${className}`}
       style={{ transform }}
-      animate={{ y: [0, -8, 0] }}
+      animate={{ y: [0, -6, 0] }}
       transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
       onMouseMove={(event) => {
         const rect = event.currentTarget.getBoundingClientRect()
         const x = (event.clientX - rect.left) / rect.width - 0.5
         const y = (event.clientY - rect.top) / rect.height - 0.5
-        setTransform(`perspective(900px) rotateX(${(-y * 10).toFixed(2)}deg) rotateY(${(x * 12).toFixed(2)}deg) translateY(-4px)`)
+        setTransform(`perspective(900px) rotateX(${(-y * 8).toFixed(2)}deg) rotateY(${(x * 10).toFixed(2)}deg) translateY(-3px)`)
       }}
       onMouseLeave={() => setTransform('perspective(900px) rotateX(0deg) rotateY(0deg) translateY(0px)')}
     >
+      <span className="cd-ghost" aria-hidden="true">{ghost}</span>
       {children}
     </motion.div>
   )
 }
 
+function Gauge({ label, value, display }: { label: string; value: number; display: string }) {
+  const r = 34
+  const circumference = 2 * Math.PI * r
+  return (
+    <div className="cd-gauge">
+      <svg viewBox="0 0 84 84" role="img" aria-label={`${label} ${display}`}>
+        <circle cx="42" cy="42" r={r} className="cd-gauge-track" />
+        <circle
+          cx="42" cy="42" r={r} className="cd-gauge-value"
+          strokeDasharray={circumference}
+          strokeDashoffset={circumference * (1 - value / 100)}
+          transform="rotate(-90 42 42)"
+        />
+      </svg>
+      <strong>{display}</strong>
+      <small>{label}</small>
+    </div>
+  )
+}
+
+function SignalBars({ level }: { level: number }) {
+  return (
+    <span className="cd-signal" aria-label={`Signal ${level} of 5`}>
+      {[1, 2, 3, 4, 5].map((bar) => (
+        <i key={bar} className={bar <= level ? 'on' : ''} style={{ height: `${6 + bar * 3}px` }} />
+      ))}
+    </span>
+  )
+}
+
 export default function AdminPanel({ user, onSignOut }: Props) {
   const [section, setSection] = useState<Section>('overview')
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [themeChoice, setThemeChoice] = useState<ThemeChoice>('dark')
+  const [systemIsLight, setSystemIsLight] = useState(false)
   const [merchants, setMerchants] = useState<Merchant[]>(INITIAL_MERCHANTS)
   const [boxes] = useState<HardwareBox[]>(INITIAL_BOXES)
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | MerchantStatus>('all')
   const [notice, setNotice] = useState('')
+  const [feedIndex, setFeedIndex] = useState(0)
+  const [dhakaTime, setDhakaTime] = useState('')
+  const [paletteOpen, setPaletteOpen] = useState(false)
+  const [paletteQuery, setPaletteQuery] = useState('')
+  const [voices, setVoices] = useState<Record<string, Voice>>({ 'Dhaka Fashion Hub': 'female', 'Chittagong Electronics': 'male', 'Sylhet Grocery Mart': 'female', 'Rangpur Fashion Point': 'male' })
+  const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>(INITIAL_QUEUE)
+  const [auditLog, setAuditLog] = useState<string[]>(['Panel opened in command-deck layout (sample data).'])
+  const paletteInputRef = useRef<HTMLInputElement>(null)
 
+  const effectiveTheme = themeChoice === 'system' ? (systemIsLight ? 'light' : 'dark') : 'dark'
   const activeMerchants = merchants.filter((item) => item.status === 'active')
   const totalRevenue = activeMerchants.reduce((sum, item) => sum + packageById(item.packageId).price, 0)
   const connectedBoxes = boxes.filter((item) => item.online).length
   const isAdmin = user.role === 'admin'
+  const sectionTitle = SECTIONS.find((item) => item.id === section)?.label ?? 'Overview'
+
+  useEffect(() => {
+    const tick = () => setDhakaTime(new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Dhaka' }).format(new Date()))
+    tick()
+    const timer = window.setInterval(tick, 1000)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setFeedIndex((value) => (value + 1) % LIVE_FEED.length), 4600)
+    return () => window.clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    const media = window.matchMedia('(prefers-color-scheme: light)')
+    const update = () => setSystemIsLight(media.matches)
+    update()
+    media.addEventListener('change', update)
+    return () => media.removeEventListener('change', update)
+  }, [])
+
+  useEffect(() => {
+    if (paletteOpen) paletteInputRef.current?.focus()
+  }, [paletteOpen])
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null
+      const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT')
+      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setPaletteOpen((value) => !value)
+        return
+      }
+      if (event.key === 'Escape') { setPaletteOpen(false); return }
+      if (typing || paletteOpen) return
+      const index = Number.parseInt(event.key, 10)
+      if (index >= 1 && index <= SECTIONS.length) setSection(SECTIONS[index - 1].id)
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [paletteOpen])
 
   const filteredMerchants = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -129,296 +275,417 @@ export default function AdminPanel({ user, onSignOut }: Props) {
     })
   }, [merchants, search, statusFilter])
 
-  const sectionTitle = SECTIONS.find((item) => item.id === section)?.label ?? 'Overview'
+  const paletteMerchants = useMemo(() => {
+    const query = paletteQuery.trim().toLowerCase()
+    if (!query) return merchants.slice(0, 4)
+    return merchants.filter((item) => item.name.toLowerCase().includes(query))
+  }, [merchants, paletteQuery])
+
+  const addAudit = (text: string) => setAuditLog((current) => [text, ...current].slice(0, 12))
 
   const changePackage = (id: string, packageId: PackageId) => {
-    setMerchants((current) => current.map((item) => (item.id === id ? { ...item, packageId } : item)))
     const merchant = merchants.find((item) => item.id === id)
-    setNotice(
-      `Demo only: ${merchant?.name ?? 'Merchant'} moved to ${packageById(packageId).name} in this view. No real merchant was changed — that needs a super-admin API.`,
-    )
+    setMerchants((current) => current.map((item) => (item.id === id ? { ...item, packageId } : item)))
+    addAudit(`Package changed (browser only): ${merchant?.name ?? 'Merchant'} → ${packageById(packageId).name}.`)
+    setNotice(`Demo only: ${merchant?.name ?? 'Merchant'} moved to ${packageById(packageId).name} in this view. No real merchant was changed — that needs a super-admin API.`)
   }
 
   const toggleSuspend = (merchant: Merchant) => {
     const nextStatus: MerchantStatus = merchant.status === 'suspended' ? 'active' : 'suspended'
     setMerchants((current) => current.map((item) => (item.id === merchant.id ? { ...item, status: nextStatus } : item)))
-    setNotice(
-      `Demo only: ${merchant.name} is now ${nextStatus} in this view. No real merchant was changed — that needs a super-admin API.`,
-    )
+    addAudit(`Status changed (browser only): ${merchant.name} → ${nextStatus}.`)
+    setNotice(`Demo only: ${merchant.name} is now ${nextStatus} in this view. No real merchant was changed — that needs a super-admin API.`)
+  }
+
+  const reviewItem = (item: ReviewItem, decision: 'approved' | 'rejected') => {
+    setReviewQueue((current) => current.filter((entry) => entry.id !== item.id))
+    addAudit(`Review ${decision} (browser only): ${item.id} — ${item.merchant}.`)
+    setNotice(`Demo only: ${item.id} was ${decision} in this view.`)
+  }
+
+  const toggleVoice = (merchantName: string) => {
+    const next: Voice = (voices[merchantName] ?? 'female') === 'female' ? 'male' : 'female'
+    setVoices((current) => ({ ...current, [merchantName]: next }))
+    addAudit(`Kash voice changed (browser only): ${merchantName} → ${next}.`)
+    setNotice(`Demo only: Kash voice for ${merchantName} is now ${next} in this view.`)
   }
 
   return (
-    <div className="sa-page">
-      <motion.aside
-        className={`sa-sidebar ${sidebarCollapsed ? 'collapsed' : ''}`}
-        initial={{ x: -24, opacity: 0 }}
-        animate={{ x: 0, opacity: 1 }}
-        transition={{ duration: 0.35 }}
-        aria-label="Super admin navigation"
-      >
-        <div className="sa-sidebar-brand">
-          <KashNodeLogo />
-          <span className="sa-admin-badge">SUPER ADMIN</span>
-          <button type="button" className="sa-collapse" aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'} onClick={() => setSidebarCollapsed((value) => !value)}>
-            <ChevronLeft size={16} className={sidebarCollapsed ? 'flipped' : ''} />
-          </button>
-        </div>
-        <nav className="sa-nav">
-          {SECTIONS.map((item) => {
-            const Icon = item.icon
-            return (
-              <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => setSection(item.id)} aria-current={section === item.id ? 'page' : undefined}>
-                <Icon size={19} />
-                <span>{item.label}</span>
-                {section === item.id && <motion.i layoutId="sa-nav-glow" className="sa-nav-glow" />}
-              </button>
-            )
-          })}
-        </nav>
-        <div className="sa-sidebar-user">
-          <span className="sa-avatar">{(user.name?.[0] || user.email[0] || 'A').toUpperCase()}</span>
-          <span className="sa-user-lines">
-            <strong>{user.name || user.email}</strong>
-            <small>{user.email}</small>
-            <small>Role: {user.role || 'user'}</small>
-          </span>
-        </div>
-        <button type="button" className="sa-signout" onClick={onSignOut}>
-          <LogOut size={16} /> <span>Sign out</span>
-        </button>
-      </motion.aside>
+    <div className={`cd-page ${effectiveTheme === 'light' ? 'cd-light' : ''}`}>
+      {/* Live operations ticker */}
+      <div className="cd-ticker" role="status">
+        <span className="cd-ticker-label">● LIVE</span>
+        <span className="cd-ticker-text">{LIVE_FEED[feedIndex]}</span>
+        <span className="cd-ticker-clock">Dhaka {dhakaTime}</span>
+      </div>
 
-      <div className="sa-main">
-        <header className="sa-topbar">
-          <div>
-            <p className="sa-eyebrow">KashNode · Super Admin Panel</p>
-            <h1>{sectionTitle}</h1>
+      <div className="cd-shell">
+        {/* Floating glass command rail — numbered navigation, no sidebar table layout */}
+        <motion.aside
+          className="cd-rail"
+          initial={{ y: 18, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ duration: 0.35 }}
+          aria-label="Command deck navigation"
+        >
+          <div className="cd-rail-brand">
+            <KashNodeLogo />
+            <span className="cd-admin-badge">SUPER ADMIN</span>
           </div>
-          <div className="sa-top-actions">
-            <a className="sa-top-link" href="/dashboard">
-              View merchant dashboard <ArrowUpRight size={15} />
-            </a>
-            <span className="sa-live"><i /> Live preview</span>
+          <div className="cd-wave" aria-hidden="true" title="Kash voice">
+            {[10, 18, 26, 14, 22, 12, 24, 16].map((height, index) => (
+              <i key={index} style={{ height: `${height}px`, animationDelay: `${index * 0.12}s` }} />
+            ))}
+            <span>Kash is listening</span>
           </div>
-        </header>
+          <nav className="cd-nav">
+            {SECTIONS.map((item, index) => {
+              const Icon = item.icon
+              return (
+                <button key={item.id} type="button" className={section === item.id ? 'active' : ''} onClick={() => setSection(item.id)} aria-current={section === item.id ? 'page' : undefined}>
+                  <span className="cd-nav-num">{String(index + 1).padStart(2, '0')}</span>
+                  <Icon size={18} />
+                  <span>{item.label}</span>
+                  {item.id === 'verifications' && reviewQueue.length > 0 && <b className="cd-count">{reviewQueue.length}</b>}
+                </button>
+              )
+            })}
+          </nav>
+          <p className="cd-keys">Press <kbd>1–9</kbd> to jump sections · <kbd>⌘K</kbd> to search</p>
+          <div className="cd-theme" role="group" aria-label="Theme">
+            <button type="button" className={themeChoice === 'dark' ? 'active' : ''} onClick={() => setThemeChoice('dark')} aria-pressed={themeChoice === 'dark'}><Moon size={15} /> Dark</button>
+            <button type="button" className={themeChoice === 'system' ? 'active' : ''} onClick={() => setThemeChoice('system')} aria-pressed={themeChoice === 'system'}><Monitor size={15} /> System{themeChoice === 'system' ? ` · ${systemIsLight ? 'Light' : 'Dark'}` : ''}</button>
+          </div>
+          <div className="cd-rail-user">
+            <span className="cd-avatar">{(user.name?.[0] || user.email[0] || 'A').toUpperCase()}</span>
+            <span className="cd-user-lines"><strong>{user.name || user.email}</strong><small>{user.email}</small></span>
+          </div>
+          <button type="button" className="cd-signout" onClick={onSignOut}><LogOut size={16} /> Sign out</button>
+        </motion.aside>
 
-        <div className="sa-demo-banner" role="note">
-          <ShieldCheck size={18} />
-          <span>
-            <strong>Demo data.</strong> Merchants, packages and boxes below are sample data for the frontend panel. Package and suspend actions update only this
-            browser view until a super-admin API is added — no real merchant is changed.
-          </span>
-        </div>
-        {!isAdmin && (
-          <div className="sa-role-banner" role="note">
-            You are signed in as “{user.role || 'user'}”, not as a super-admin. This preview still renders for signed-in users, but real admin actions must be
-            enforced server-side for role <code>admin</code> before they go live.
-          </div>
-        )}
-        {notice && (
-          <div className="sa-notice" role="status">
-            {notice}
-            <button type="button" onClick={() => setNotice('')}>Dismiss</button>
-          </div>
-        )}
+        <div className="cd-main">
+          <header className="cd-topbar">
+            <div>
+              <p className="cd-eyebrow">KashNode · Super Admin · Command Deck</p>
+              <h1>{sectionTitle}</h1>
+            </div>
+            <div className="cd-top-actions">
+              <button type="button" className="cd-search-btn" onClick={() => setPaletteOpen(true)}><Search size={16} /> Search <kbd>⌘K</kbd></button>
+              <a className="cd-top-link" href="/dashboard">View merchant dashboard <ArrowUpRight size={15} /></a>
+              <span className="cd-theme-inline"><Sun size={15} /> {effectiveTheme === 'light' ? 'Light (System)' : 'Dark'}</span>
+            </div>
+          </header>
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={section}
-            initial={{ opacity: 0, y: 14 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.25 }}
-          >
-            {section === 'overview' && (
-              <section className="sa-section" aria-label="Overview">
-                <div className="sa-stats">
-                  <TiltCard>
-                    <span className="sa-stat-icon"><CircleDollarSign size={22} /></span>
-                    <small>Total Revenue</small>
-                    <strong>{formatBdt(totalRevenue)}<span>/month</span></strong>
-                    <p>Monthly packages of active merchants in this demo set.</p>
-                  </TiltCard>
-                  <TiltCard>
-                    <span className="sa-stat-icon"><Users size={22} /></span>
-                    <small>Active Merchants</small>
-                    <strong>{activeMerchants.length}<span> / {merchants.length} total</span></strong>
-                    <p>{merchants.filter((item) => item.status === 'trial').length} on free trial · {merchants.filter((item) => item.status === 'suspended').length} suspended.</p>
-                  </TiltCard>
-                  <TiltCard>
-                    <span className="sa-stat-icon"><Wifi size={22} /></span>
-                    <small>Connected KashNode Boxes</small>
-                    <strong>{connectedBoxes}<span> / {boxes.length} online</span></strong>
-                    <p>Boxes reporting online in this demo set.</p>
-                  </TiltCard>
-                </div>
-                <div className="sa-overview-grid">
-                  <div className="sa-panel">
-                    <h2>Packages at a glance</h2>
-                    <ul className="sa-package-list">
-                      {PACKAGES.map((item) => (
+          <div className="cd-demo-banner" role="note">
+            <ShieldCheck size={18} />
+            <span><strong>Layout preview · sample data.</strong> Merchants, packages, calls, parcels and boxes below are sample data for this design preview. Package, suspend, voice and review actions update only this browser view until a super-admin API is added — no real merchant is changed.</span>
+          </div>
+          {!isAdmin && (
+            <div className="cd-role-banner" role="note">You are signed in as “{user.role || 'user'}”, not as a super-admin. Real admin actions must be enforced server-side for role <code>admin</code> before they go live.</div>
+          )}
+          {notice && (
+            <div className="cd-notice" role="status">{notice}<button type="button" onClick={() => setNotice('')}>Dismiss</button></div>
+          )}
+
+          <AnimatePresence mode="wait">
+            <motion.div key={section} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.25 }}>
+              {section === 'overview' && (
+                <section className="cd-section" aria-label="Overview">
+                  <div className="cd-stats">
+                    <TiltCard ghost="৳">
+                      <span className="cd-stat-icon"><CircleDollarSign size={22} /></span>
+                      <small>Total Revenue</small>
+                      <strong>{formatBdt(totalRevenue)}<span>/month</span></strong>
+                      <p>Monthly packages of active merchants in this demo set.</p>
+                    </TiltCard>
+                    <TiltCard ghost="6">
+                      <span className="cd-stat-icon"><Users size={22} /></span>
+                      <small>Active Merchants</small>
+                      <strong>{activeMerchants.length}<span> / {merchants.length} total</span></strong>
+                      <p>{merchants.filter((item) => item.status === 'trial').length} on free trial · {merchants.filter((item) => item.status === 'suspended').length} suspended.</p>
+                    </TiltCard>
+                    <TiltCard ghost="AI">
+                      <span className="cd-stat-icon"><Wifi size={22} /></span>
+                      <small>AI Minutes Left</small>
+                      <strong>{merchants.reduce((sum, item) => sum + item.minutesLeft, 0).toLocaleString('en-US')}<span> min</span></strong>
+                      <p>Across all merchants in this demo set.</p>
+                    </TiltCard>
+                    <TiltCard ghost="5">
+                      <span className="cd-stat-icon"><Box size={22} /></span>
+                      <small>Connected Boxes</small>
+                      <strong>{connectedBoxes}<span> / {boxes.length} online</span></strong>
+                      <p>KN-BOX-04 is offline in this demo set.</p>
+                    </TiltCard>
+                  </div>
+
+                  <div className="cd-deck">
+                    <div className="cd-panel cd-gauges">
+                      <h2>Command gauges</h2>
+                      <div className="cd-gauge-row">
+                        <Gauge label="Margin on minutes" value={40} display="40%" />
+                        <Gauge label="MFS TrxID match" value={96.4} display="96.4%" />
+                        <Gauge label="Parcel delivery" value={78} display="78%" />
+                      </div>
+                      <p className="cd-panel-note">Sample rates for this preview — not live platform metrics.</p>
+                    </div>
+                    <div className="cd-panel cd-network">
+                      <h2>Kash network — 1 brain, 6 boxes</h2>
+                      <svg viewBox="0 0 600 200" className="cd-network-svg" role="img" aria-label="Kash AI brain connected to six KashNode Boxes, one offline">
+                        {[
+                          { x: 80, y: 30, unit: 'KN-BOX-01', online: true },
+                          { x: 80, y: 170, unit: 'KN-BOX-02', online: true },
+                          { x: 240, y: 20, unit: 'KN-BOX-03', online: true },
+                          { x: 240, y: 180, unit: 'KN-BOX-04', online: false },
+                          { x: 500, y: 40, unit: 'KN-BOX-05', online: true },
+                          { x: 500, y: 160, unit: 'KN-BOX-06', online: true },
+                        ].map((box) => (
+                          <g key={box.unit}>
+                            <line x1="300" y1="100" x2={box.x} y2={box.y} className={box.online ? 'cd-net-line' : 'cd-net-line off'} />
+                            <circle cx={box.x} cy={box.y} r="10" className={box.online ? 'cd-net-node' : 'cd-net-node off'} />
+                          </g>
+                        ))}
+                        <circle cx="300" cy="100" r="30" className="cd-net-brain" />
+                        <text x="300" y="105" textAnchor="middle" className="cd-net-text">KASH</text>
+                      </svg>
+                      <p className="cd-panel-note">KN-BOX-04 (Khulna Beauty Store) shows offline in red — the other five boxes are online.</p>
+                    </div>
+                  </div>
+
+                  <div className="cd-panel cd-feed">
+                    <h2>Happening now</h2>
+                    <p className="cd-feed-item">{LIVE_FEED[feedIndex]}</p>
+                    <div className="cd-quick-actions">
+                      <button type="button" onClick={() => setSection('verifications')}>Review verifications ({reviewQueue.length}) <ArrowUpRight size={15} /></button>
+                      <button type="button" onClick={() => setSection('merchants')}>Manage merchants <ArrowUpRight size={15} /></button>
+                      <button type="button" onClick={() => setSection('hardware')}>Check hardware boxes <ArrowUpRight size={15} /></button>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {section === 'merchants' && (
+                <section className="cd-section" aria-label="Merchants">
+                  <div className="cd-filters">
+                    <label className="cd-search"><Search size={17} /><input type="search" placeholder="Search merchant, email or ID…" value={search} onChange={(event) => setSearch(event.target.value)} /></label>
+                    <label className="cd-filter"><span>Status</span><select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | MerchantStatus)}><option value="all">All statuses</option><option value="active">Active</option><option value="trial">Trial</option><option value="suspended">Suspended</option></select></label>
+                    <span className="cd-count">{filteredMerchants.length} merchants</span>
+                  </div>
+                  <div className="cd-table-wrap">
+                    <table className="cd-table">
+                      <thead><tr><th>Merchant</th><th>Package</th><th>Status</th><th>Boxes</th><th>Minutes left</th><th>Actions</th></tr></thead>
+                      <tbody>
+                        <AnimatePresence>
+                          {filteredMerchants.map((merchant, index) => (
+                            <motion.tr key={merchant.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} transition={{ duration: 0.2, delay: index * 0.03 }}>
+                              <td><strong>{merchant.name}</strong><small>{merchant.email}</small><small>{merchant.id}</small></td>
+                              <td>
+                                <select className="cd-package-select" aria-label={`Package for ${merchant.name}`} value={merchant.packageId} onChange={(event) => changePackage(merchant.id, event.target.value as PackageId)}>
+                                  {PACKAGES.map((item) => (<option key={item.id} value={item.id}>{item.name} · {formatBdt(item.price)}/mo</option>))}
+                                </select>
+                              </td>
+                              <td><span className={`cd-status ${merchant.status}`}>{merchant.status}</span></td>
+                              <td>{merchant.boxes}</td>
+                              <td>{merchant.minutesLeft.toLocaleString('en-US')} min</td>
+                              <td><button type="button" className="cd-action" onClick={() => toggleSuspend(merchant)}>{merchant.status === 'suspended' ? <><Play size={14} /> Reactivate</> : <><Pause size={14} /> Suspend</>}</button></td>
+                            </motion.tr>
+                          ))}
+                        </AnimatePresence>
+                        {filteredMerchants.length === 0 && (<tr><td colSpan={6} className="cd-empty">No merchants match this search.</td></tr>)}
+                      </tbody>
+                    </table>
+                  </div>
+                </section>
+              )}
+
+              {section === 'minutes' && (
+                <section className="cd-section" aria-label="Minutes and billing">
+                  <div className="cd-table-wrap">
+                    <table className="cd-table">
+                      <thead><tr><th>Merchant</th><th>Package minutes</th><th>Used</th><th>Left</th><th>Overage</th></tr></thead>
+                      <tbody>
+                        {merchants.map((merchant) => {
+                          const total = packageById(merchant.packageId).minutes
+                          const used = Math.max(0, total - merchant.minutesLeft)
+                          return (
+                            <tr key={merchant.id}>
+                              <td><strong>{merchant.name}</strong><small>{packageById(merchant.packageId).name}</small></td>
+                              <td>{total.toLocaleString('en-US')} min</td>
+                              <td>{used.toLocaleString('en-US')} min</td>
+                              <td>{merchant.minutesLeft.toLocaleString('en-US')} min</td>
+                              <td>৳0 · flat ৳7/min overage when minutes run out</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="cd-panel cd-wallet">
+                    <h2>Wallet activity (sample)</h2>
+                    <ul className="cd-list">
+                      {WALLET_ROWS.map((row) => (<li key={`${row.date}-${row.merchant}`}><span><strong>{row.merchant}</strong><small>{row.detail}</small></span><span>{row.date}</span><strong>{row.amount}</strong></li>))}
+                    </ul>
+                    <p className="cd-panel-note">Overage is a flat ৳7/minute, with in-app minute recharge.</p>
+                  </div>
+                </section>
+              )}
+
+              {section === 'verifications' && (
+                <section className="cd-section" aria-label="Verifications">
+                  <div className="cd-stats cd-stats-3">
+                    <TiltCard ghost="✓"><small>COD SMS verified today</small><strong>128</strong><p>Sample count for this preview.</p></TiltCard>
+                    <TiltCard ghost="!"><small>Fake orders blocked</small><strong>17</strong><p>Failed or unverified COD attempts in this sample set.</p></TiltCard>
+                    <TiltCard ghost="96"><small>MFS TrxID matched</small><strong>96.4%</strong><p>bKash, Nagad, Rocket and Upay in this sample set.</p></TiltCard>
+                  </div>
+                  <div className="cd-panel">
+                    <h2>Manual review queue — {reviewQueue.length} waiting</h2>
+                    {reviewQueue.length === 0 && <p className="cd-panel-note">Queue cleared in this view (browser only).</p>}
+                    <ul className="cd-list">
+                      {reviewQueue.map((item) => (
                         <li key={item.id}>
-                          <span><strong>{item.name}</strong><small>{item.orders} orders · {item.minutes} minutes</small></span>
-                          <strong>{formatBdt(item.price)}/mo</strong>
-                          <small>{merchants.filter((merchant) => merchant.packageId === item.id).length} merchants</small>
+                          <span><strong>{item.id} · {item.merchant}</strong><small>{item.channel} · {formatBdt(item.amount)} · {item.detail}</small></span>
+                          <span className="cd-row-actions">
+                            <button type="button" className="cd-action" onClick={() => reviewItem(item, 'approved')}><Check size={14} /> Approve</button>
+                            <button type="button" className="cd-action danger" onClick={() => reviewItem(item, 'rejected')}><X size={14} /> Reject</button>
+                          </span>
                         </li>
                       ))}
                     </ul>
-                    <p className="sa-panel-note">Overage is a flat ৳7/minute, with in-app minute recharge.</p>
                   </div>
-                  <div className="sa-panel">
-                    <h2>Quick actions</h2>
-                    <div className="sa-quick-actions">
-                      <button type="button" onClick={() => setSection('merchants')}>Manage merchants <ArrowUpRight size={15} /></button>
-                      <button type="button" onClick={() => setSection('licensing')}>Review licensing &amp; packages <ArrowUpRight size={15} /></button>
-                      <button type="button" onClick={() => setSection('hardware')}>Check hardware boxes <ArrowUpRight size={15} /></button>
-                    </div>
-                    <p className="sa-panel-note">Start with Merchants to upgrade a package or suspend a store.</p>
-                  </div>
-                </div>
-              </section>
-            )}
+                </section>
+              )}
 
-            {section === 'merchants' && (
-              <section className="sa-section" aria-label="Merchants">
-                <div className="sa-filters">
-                  <label className="sa-search">
-                    <Search size={17} />
-                    <input type="search" placeholder="Search merchant, email or ID…" value={search} onChange={(event) => setSearch(event.target.value)} />
-                  </label>
-                  <label className="sa-filter">
-                    <span>Status</span>
-                    <select value={statusFilter} onChange={(event) => setStatusFilter(event.target.value as 'all' | MerchantStatus)}>
-                      <option value="all">All statuses</option>
-                      <option value="active">Active</option>
-                      <option value="trial">Trial</option>
-                      <option value="suspended">Suspended</option>
-                    </select>
-                  </label>
-                  <span className="sa-count">{filteredMerchants.length} merchants</span>
-                </div>
-                <div className="sa-table-wrap">
-                  <table className="sa-table">
-                    <thead>
-                      <tr>
-                        <th>Merchant</th>
-                        <th>Package</th>
-                        <th>Status</th>
-                        <th>Boxes</th>
-                        <th>Minutes left</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <AnimatePresence>
-                        {filteredMerchants.map((merchant, index) => (
-                          <motion.tr
-                            key={merchant.id}
-                            initial={{ opacity: 0, y: 8 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0 }}
-                            transition={{ duration: 0.2, delay: index * 0.03 }}
-                          >
-                            <td>
-                              <strong>{merchant.name}</strong>
-                              <small>{merchant.email}</small>
-                              <small>{merchant.id}</small>
-                            </td>
-                            <td>
-                              <select
-                                className="sa-package-select"
-                                aria-label={`Package for ${merchant.name}`}
-                                value={merchant.packageId}
-                                onChange={(event) => changePackage(merchant.id, event.target.value as PackageId)}
-                              >
-                                {PACKAGES.map((item) => (
-                                  <option key={item.id} value={item.id}>{item.name} · {formatBdt(item.price)}/mo</option>
-                                ))}
-                              </select>
-                            </td>
-                            <td><span className={`sa-status ${merchant.status}`}>{merchant.status}</span></td>
-                            <td>{merchant.boxes}</td>
-                            <td>{merchant.minutesLeft.toLocaleString('en-US')} min</td>
-                            <td>
-                              <button type="button" className="sa-action" onClick={() => toggleSuspend(merchant)}>
-                                {merchant.status === 'suspended' ? <><Play size={14} /> Reactivate</> : <><Pause size={14} /> Suspend</>}
-                              </button>
-                            </td>
-                          </motion.tr>
+              {section === 'calls' && (
+                <section className="cd-section" aria-label="Kash AI calls">
+                  <div className="cd-stats cd-stats-3">
+                    <TiltCard ghost="37"><small>Kash AI calls today</small><strong>37</strong><p>Sample count for this preview.</p></TiltCard>
+                    <TiltCard ghost="✓"><small>Confirmed by call</small><strong>31</strong><p>Orders confirmed after a Kash phone call.</p></TiltCard>
+                    <TiltCard ghost="!"><small>Failed calls</small><strong>6</strong><p>No answer or call dropped in this sample set.</p></TiltCard>
+                  </div>
+                  <div className="cd-table-wrap">
+                    <table className="cd-table">
+                      <thead><tr><th>Call</th><th>Merchant</th><th>Outcome</th><th>Minutes</th><th>Kash voice</th></tr></thead>
+                      <tbody>
+                        {CALL_ROWS.map((call) => (
+                          <tr key={call.id}>
+                            <td><strong>{call.id}</strong></td>
+                            <td>{call.merchant}</td>
+                            <td>{call.outcome}</td>
+                            <td>{call.minutes} min</td>
+                            <td><button type="button" className="cd-action" onClick={() => toggleVoice(call.merchant)}>{voices[call.merchant] ?? call.voice} voice · Switch</button></td>
+                          </tr>
                         ))}
-                      </AnimatePresence>
-                      {filteredMerchants.length === 0 && (
-                        <tr>
-                          <td colSpan={6} className="sa-empty">No merchants match this search.</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </section>
-            )}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="cd-panel-note">Voice changes here update only this browser view (demo only).</p>
+                </section>
+              )}
 
-            {section === 'licensing' && (
-              <section className="sa-section" aria-label="Licensing and packages">
-                <div className="sa-package-grid">
-                  {PACKAGES.map((item, index) => (
-                    <motion.article
-                      key={item.id}
-                      className="sa-package-card"
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.06 }}
-                      whileHover={{ y: -6, scale: 1.01 }}
-                    >
-                      <span className="sa-package-note">{item.note}</span>
-                      <h2>{item.name}</h2>
-                      <strong className="sa-package-price">{formatBdt(item.price)}<span>/month</span></strong>
-                      <ul>
-                        <li>{item.orders.toLocaleString('en-US')} orders / month</li>
-                        <li>{item.minutes.toLocaleString('en-US')} AI minutes included</li>
-                        <li>Overage: flat ৳7 / minute</li>
-                        <li>{merchants.filter((merchant) => merchant.packageId === item.id).length} merchants on this package (demo)</li>
-                      </ul>
-                      <button type="button" onClick={() => setSection('merchants')}>Assign in Merchants <ArrowUpRight size={15} /></button>
-                    </motion.article>
-                  ))}
-                </div>
-                <p className="sa-panel-note">Licensing model: a monthly order package with minutes included inside it — cost is per minute, but sellers budget per order.</p>
-              </section>
-            )}
+              {section === 'courier' && (
+                <section className="cd-section" aria-label="Courier">
+                  <div className="cd-table-wrap">
+                    <table className="cd-table">
+                      <thead><tr><th>Parcel</th><th>Merchant</th><th>Courier</th><th>Status</th><th>Rider PIN</th></tr></thead>
+                      <tbody>
+                        {COURIER_ROWS.map((row) => (
+                          <tr key={row.id}><td><strong>{row.id}</strong></td><td>{row.merchant}</td><td>{row.courier}</td><td>{row.status}</td><td>{row.pin}</td></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <p className="cd-panel-note">Steadfast and Pathao parcels in one place — sample rows for this preview.</p>
+                </section>
+              )}
 
-            {section === 'hardware' && (
-              <section className="sa-section" aria-label="Hardware boxes">
-                <div className="sa-box-grid">
-                  {INITIAL_BOXES.map((box, index) => (
-                    <motion.article
-                      key={box.unit}
-                      className="sa-box-card"
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
-                      whileHover={{ y: -6 }}
-                    >
-                      <div className="sa-box-head">
-                        <span className="sa-box-icon"><Cpu size={20} /></span>
-                        <span className={`sa-status ${box.online ? 'active' : 'suspended'}`}>{box.online ? 'Online' : 'Offline'}</span>
-                      </div>
-                      <h2>{box.unit}</h2>
-                      <p>{box.merchant}</p>
-                      <dl>
-                        <div><dt>SIM</dt><dd>{box.sim}</dd></div>
-                        <div><dt>Signal</dt><dd><Signal size={14} /> {box.signal}/5</dd></div>
-                        <div><dt>WebSocket</dt><dd>{box.online ? `${box.latencyMs} ms` : '—'}</dd></div>
-                        <div><dt>SMS today</dt><dd>{box.smsToday}</dd></div>
-                      </dl>
-                    </motion.article>
-                  ))}
-                </div>
-              </section>
-            )}
-          </motion.div>
-        </AnimatePresence>
+              {section === 'hardware' && (
+                <section className="cd-section" aria-label="Hardware boxes">
+                  <div className="cd-box-grid">
+                    {boxes.map((box, index) => (
+                      <motion.article key={box.unit} className="cd-box-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.05 }} whileHover={{ y: -6 }}>
+                        <div className="cd-box-head">
+                          <span className="cd-box-icon"><Signal size={20} /></span>
+                          <span className={`cd-status ${box.online ? 'active' : 'suspended'}`}>{box.online ? 'Online' : 'Offline'}</span>
+                        </div>
+                        <h2>{box.unit}</h2>
+                        <p>{box.merchant}</p>
+                        <dl>
+                          <div><dt>SIM</dt><dd>{box.sim}</dd></div>
+                          <div><dt>SIM balance</dt><dd>{formatBdt(box.simBalance)}</dd></div>
+                          <div><dt>Signal</dt><dd><SignalBars level={box.signal} /> {box.signal}/5</dd></div>
+                          <div><dt>Data</dt><dd>{box.dataMb.toLocaleString('en-US')} MB</dd></div>
+                          <div><dt>WebSocket</dt><dd>{box.online ? `${box.latencyMs} ms` : '—'}</dd></div>
+                          <div><dt>SMS today</dt><dd>{box.smsToday}</dd></div>
+                          <div><dt>Last sync</dt><dd>{box.lastSync}</dd></div>
+                        </dl>
+                        {!box.online && <p className="cd-offline-alert">Offline alert: this box has not synced for 3 hours in this sample set.</p>}
+                      </motion.article>
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {section === 'licensing' && (
+                <section className="cd-section" aria-label="Licensing and packages">
+                  <div className="cd-package-grid">
+                    {PACKAGES.map((item, index) => (
+                      <motion.article key={item.id} className="cd-package-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.06 }} whileHover={{ y: -6, scale: 1.01 }}>
+                        <span className="cd-package-note">{item.note}</span>
+                        <h2>{item.name}</h2>
+                        <strong className="cd-package-price">{formatBdt(item.price)}<span>/month</span></strong>
+                        <ul>
+                          <li>{item.orders.toLocaleString('en-US')} orders / month</li>
+                          <li>{item.minutes.toLocaleString('en-US')} AI minutes included</li>
+                          <li>Overage: flat ৳7 / minute</li>
+                          <li>{merchants.filter((merchant) => merchant.packageId === item.id).length} merchants on this package (demo)</li>
+                        </ul>
+                        <button type="button" onClick={() => setSection('merchants')}>Assign in Merchants <ArrowUpRight size={15} /></button>
+                      </motion.article>
+                    ))}
+                  </div>
+                  <p className="cd-panel-note">Licensing model: a monthly order package with minutes included inside it — cost is per minute, but sellers budget per order.</p>
+                </section>
+              )}
+
+              {section === 'system' && (
+                <section className="cd-section" aria-label="System and audit">
+                  <div className="cd-panel">
+                    <h2>Service health (sample)</h2>
+                    <ul className="cd-list">
+                      <li><span><strong>Central Server</strong><small>Node.js + Asterisk</small></span><span className="cd-status active">Operational</span></li>
+                      <li><span><strong>AI API (STT / LLM / TTS)</strong><small>Kash voice brain</small></span><span className="cd-status active">Operational</span></li>
+                      <li><span><strong>Supabase database</strong><small>Orders, merchants, calls</small></span><span className="cd-status active">Operational</span></li>
+                      <li><span><strong>Edge WebSocket</strong><small>KashNode Box connections</small></span><span className="cd-status suspended">Degraded — 1 box offline</span></li>
+                    </ul>
+                  </div>
+                  <div className="cd-panel">
+                    <h2>Admin action log (this browser session)</h2>
+                    <ul className="cd-list">
+                      {auditLog.map((entry, index) => (<li key={`${index}-${entry}`}><span>{entry}</span></li>))}
+                    </ul>
+                    <p className="cd-panel-note">Package, suspend, voice and review actions above are appended here in this view only — no server audit trail exists yet.</p>
+                  </div>
+                </section>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
+
+      {paletteOpen && (
+        <div className="cd-palette-backdrop" onClick={() => setPaletteOpen(false)}>
+          <div className="cd-palette" role="dialog" aria-label="Command search" onClick={(event) => event.stopPropagation()}>
+            <label className="cd-search"><Search size={17} /><input ref={paletteInputRef} type="search" placeholder="Search sections or merchants… (Esc to close)" value={paletteQuery} onChange={(event) => setPaletteQuery(event.target.value)} /></label>
+            <div className="cd-palette-list">
+              {SECTIONS.map((item, index) => (
+                <button key={item.id} type="button" onClick={() => { setSection(item.id); setPaletteOpen(false) }}><span>{index + 1}</span> {item.label}</button>
+              ))}
+              {paletteMerchants.map((merchant) => (
+                <button key={merchant.id} type="button" onClick={() => { setSearch(merchant.name); setSection('merchants'); setPaletteOpen(false) }}>Merchant · {merchant.name} ({merchant.id})</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
