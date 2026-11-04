@@ -19,7 +19,7 @@ const amountPatterns = {
 
 const genericAmountPattern = /\b(?:Tk|BDT)\s*([\d,]+(?:\.\d{1,2})?)/i;
 const transactionIdPattern = /\b(?:Trx\s*ID|Txn\s*ID|Transaction\s*(?:ID|No\.?|Number))\s*[:#=-]?\s*([A-Z0-9-]+)\b/i;
-const payerPhonePattern = /\b(?:from|sender(?:\s+number)?|payer(?:\s+number)?|mobile(?:\s+number)?|msisdn)\b\s*[:#=-]?\s*((?:\+?88)?0?1[3-9](?:[\s-]?\d){8})\b/i;
+const payerPhonePattern = /\b(?:from|sender(?:\s+number)?|payer(?:\s+number)?|mobile(?:\s+number)?|msisdn)\b\s*[:#=-]?\s*(\+?\d(?:[\d\s-]{6,18}\d))/i;
 
 const providerNames = {
   bkash: 'bKash',
