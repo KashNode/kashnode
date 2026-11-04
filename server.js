@@ -10,7 +10,9 @@ import rateLimit from 'express-rate-limit'
 import pg from 'pg'
 import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
-import { createEdgeSmsHandler } from './server/routes/edgeSms.js'\nimport { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'\nimport { reconcileSms } from './server/services/reconcileService.js'
+import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
+import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
+import { reconcileSms } from './server/services/reconcileService.js'
 
 const { Pool } = pg
 const app = express()
@@ -124,7 +126,11 @@ async function createUserSession(req, user) {
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
-app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({\n  pool,\n  onPersist: smsId => reconcileSms({ pool, smsId }),\n})))\napp.post('/api/v1/webhooks/woocommerce/orders', asyncRoute(createWooCommerceWebhookHandler({ pool })))
+app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({
+  pool,
+  onPersist: smsId => reconcileSms({ pool, smsId }),
+})))
+app.post('/api/v1/webhooks/woocommerce/orders', asyncRoute(createWooCommerceWebhookHandler({ pool })))
 
 app.post('/api/auth/login', requireOrigin, loginLimiter, asyncRoute(async (req, res) => {
   if (!SESSION_SECRET) return res.status(503).json({ status: 'error', message: 'Authentication is not configured on this server.' })
