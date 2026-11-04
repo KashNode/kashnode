@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { getSession, signOut, type AuthUser } from './lib/auth'
 import LoginPage from './pages/LoginPage'
+import LandingPage from './pages/LandingPage'
 import AppShell from './pages/AppShell'
 
 export default function App() {
@@ -28,7 +29,8 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/" replace /> : <LoginPage onLogin={setUser} sessionError={sessionError} />} />
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <LoginPage onLogin={setUser} sessionError={sessionError} />} />
       <Route path="/*" element={user ? <AppShell user={user} onSignOut={handleSignOut} /> : <Navigate to="/login" replace />} />
     </Routes>
   )
