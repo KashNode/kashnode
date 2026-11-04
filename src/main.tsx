@@ -4,6 +4,7 @@ import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AppearanceProvider } from './lib/appearance'
 import './index.css'
+import './admin-mobile-package-cards.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
