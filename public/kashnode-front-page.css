@@ -479,4 +479,38 @@ footer.site{border-top:1px solid var(--line);padding:56px 0 34px;background:var(
    background (#05080f in Dark) so the middle matches the hero and footer. */
 .kashnode-reference-landing {
   background: var(--bg);
+  color: var(--text);
+}
+
+/* Theme selector moved out of the header menu to a floating corner:
+   Dark/System only, fixed bottom-right, wired by the same
+   data-theme-choice buttons the landing script already handles. */
+.theme-corner {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 200;
+  display: inline-flex;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid var(--line-strong);
+  border-radius: 99px;
+  background: var(--inset-bg-strong);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+}
+.theme-corner button {
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 99px;
+  padding: 6px 11px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.theme-corner button.on {
+  background: var(--cyan);
+  color: var(--accent-text);
 }
