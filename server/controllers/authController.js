@@ -50,8 +50,10 @@ export function createAuthController({
   verifyGoogleCredential,
   otpSecret = process.env.AUTH_OTP_SECRET,
 }) {
+  const otpSecretReady = typeof otpSecret === 'string' && Buffer.byteLength(otpSecret, 'utf8') >= 32
+
   async function signup(req, res) {
-    if (!pool || !otpSecret || typeof sendOtpEmail !== 'function' || typeof checkDisposableEmail !== 'function') {
+    if (!pool || !otpSecretReady || typeof sendOtpEmail !== 'function' || typeof checkDisposableEmail !== 'function') {
       return res.status(503).json({ status: 'error', message: 'Account verification is not configured on this server.' })
     }
 
@@ -110,7 +112,7 @@ export function createAuthController({
   }
 
   async function verifyOtp(req, res) {
-    if (!pool || !otpSecret || typeof createUserSession !== 'function') {
+    if (!pool || !otpSecretReady || typeof createUserSession !== 'function') {
       return res.status(503).json({ status: 'error', message: 'Account verification is not configured on this server.' })
     }
     const email = normalizeEmail(req.body?.email)
