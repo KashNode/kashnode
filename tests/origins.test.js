@@ -23,7 +23,7 @@ test('allows configured frontend, Render and additional comma-separated origins'
 })
 
 test('only adds localhost development origins outside production', () => {
-  const production = createAllowedOrigins({ NODE_ENV: 'production' })
+  const production = createAllowedOrigins({ NODE_ENV: 'production', FRONTEND_ORIGIN: 'http://localhost:5173' })
   const development = createAllowedOrigins({ NODE_ENV: 'development' })
   assert.equal(isAllowedOrigin('http://localhost:5173', production), false)
   assert.equal(isAllowedOrigin('http://localhost:5173', development), true)
