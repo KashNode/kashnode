@@ -1,5 +1,3 @@
-const API_BASE = import.meta.env.PROD ? '' : (import.meta.env.VITE_API_BASE_URL || 'http://localhost:4892').replace(/\/$/, '')
-
 export type AuthUser = { id: string; email: string; name?: string }
 
 /**
@@ -7,7 +5,7 @@ export type AuthUser = { id: string; email: string; name?: string }
  * session/JWT cookie. The browser never receives or stores a bearer token.
  */
 export async function signIn(email: string, password: string, rememberMe = false): Promise<AuthUser> {
-  const response = await fetch(`${API_BASE}/api/auth/login`, {
+  const response = await fetch('/api/auth/login`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -20,7 +18,7 @@ export async function signIn(email: string, password: string, rememberMe = false
 }
 
 export async function signUp(name: string, email: string, password: string): Promise<AuthUser> {
-  const response = await fetch(`${API_BASE}/api/auth/register`, {
+  const response = await fetch('/api/auth/register`, {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
@@ -33,7 +31,7 @@ export async function signUp(name: string, email: string, password: string): Pro
 }
 
 export async function getSession(): Promise<AuthUser | null> {
-  const response = await fetch(`${API_BASE}/api/auth/session`, {
+  const response = await fetch('/api/auth/session`, {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
@@ -44,7 +42,7 @@ export async function getSession(): Promise<AuthUser | null> {
 }
 
 export async function signOut(): Promise<void> {
-  await fetch(`${API_BASE}/api/auth/logout`, {
+  await fetch('/api/auth/logout`, {
     method: 'POST',
     credentials: 'include',
     headers: { Accept: 'application/json' },
