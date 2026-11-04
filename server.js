@@ -12,7 +12,7 @@ import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
 import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
-import { reconcileSms } from './server/services/reconcileService.js'
+import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 
 const { Pool } = pg
 const app = express()
@@ -59,7 +59,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret'],
   maxAge: 600,
 }))
-app.use(express.json({ limit: '32kb', strict: true, verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer) } }))
+app.use(express.json({ limit: '1mb', strict: true, verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer) } }))
 app.use(cookieParser())
 
 const sessionOptions = {
