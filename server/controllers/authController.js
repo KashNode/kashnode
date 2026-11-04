@@ -196,6 +196,11 @@ export function createAuthController({
     const credential = typeof req.body?.credential === 'string' ? req.body.credential : ''
     if (!credential) return res.status(400).json({ status: 'error', message: 'A Google credential is required.' })
 
+    const expectedNonce = req.session?.googleNonce
+    if (typeof expectedNonce !== 'string' || !expectedNonce) {
+      return res.status(401).json({ status: 'error', message: 'Start Google sign-in again to obtain a fresh security challenge.' })
+    }
+
     let identity
     try {
       identity = await verifyGoogleCredential(credential)
@@ -206,6 +211,14 @@ export function createAuthController({
         message: unavailable ? 'Google sign-in is temporarily unavailable.' : 'Google sign-in could not verify this account.',
       })
     }
+
+    if (!identity.nonce || identity.nonce !== expectedNonce) {
+      delete req.session.googleNonce
+      await new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()))
+      return res.status(401).json({ status: 'error', message: 'Google sign-in security challenge did not match. Please try again.' })
+    }
+    delete req.session.googleNonce
+    await new Promise((resolve, reject) => req.session.save(error => error ? reject(error) : resolve()))
 
     const client = await pool.connect()
     let user
