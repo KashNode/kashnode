@@ -31,8 +31,9 @@ describe('MFS SMS parser', () => {
     assert.equal(parsed.trxId, 'NGD123ABC')
   })
 
-  it('parses Rocket and Upay provider-specific formats', () => {
+  it('parses Rocket by sender label or DBBL short code, and parses Upay', () => {
     assert.equal(parseMfsSms('Rocket', 'Cash In received Tk 75.25 from 01912345678. TrxID RKT881').provider, 'Rocket')
+    assert.equal(parseMfsSms('16216', 'Cash In received Tk 75.25. TrxID RKT882').provider, 'Rocket')
     assert.equal(parseMfsSms('Upay', 'Amount: Tk 1,005.00 TxnID: UPAY19').amount, 1005)
   })
 
