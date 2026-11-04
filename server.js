@@ -10,7 +10,7 @@ import rateLimit from 'express-rate-limit'
 import pg from 'pg'
 import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
-import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
+import { createEdgeSmsHandler } from './server/routes/edgeSms.js'\nimport { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'\nimport { reconcileSms } from './server/services/reconcileService.js'
 
 const { Pool } = pg
 const app = express()
@@ -57,7 +57,7 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret'],
   maxAge: 600,
 }))
-app.use(express.json({ limit: '32kb', strict: true }))
+app.use(express.json({ limit: '32kb', strict: true, verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer) } }))
 app.use(cookieParser())
 
 const sessionOptions = {
@@ -124,7 +124,7 @@ async function createUserSession(req, user) {
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
-app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({ pool })))
+app.post('/api/v1/edge/sms', asyncRoute(async (req, res) => {\n  const handler = createEdgeSmsHandler({ pool });\n  await handler(req, { ...res, status: res.status.bind(res), json: (body) => { res.json(body); if (body?.success && body.id) req.smsId = body.id; return res; } });\n  if (req.smsId) await reconcileSms({ pool, smsId: req.smsId });\n}))\napp.post('/api/v1/webhooks/woocommerce/orders', asyncRoute(createWooCommerceWebhookHandler({ pool })))
 
 app.post('/api/auth/login', requireOrigin, loginLimiter, asyncRoute(async (req, res) => {
   if (!SESSION_SECRET) return res.status(503).json({ status: 'error', message: 'Authentication is not configured on this server.' })
