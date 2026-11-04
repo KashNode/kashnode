@@ -64,14 +64,14 @@ describe('POST /api/v1/edge/sms handler', () => {
     assert.deepEqual(await response.json(), {
       success: true,
       id: 'sms-uuid',
-      parsed: { amount: 1500, trxId: '9J82KL091' },
+      parsed: { amount: 1500, trxId: '9J82KL091', provider: 'bKash', customerPhone: '01712345678' },
     })
     assert.equal(requests.length, 2)
     assert.equal(requests[0].params[0], 'merchant-secret')
     assert.equal(requests[1].params[0], 'merchant-uuid')
     assert.equal(requests[1].params[3], '9J82KL091')
     assert.equal(requests[1].params[4], 1500)
-    assert.equal(requests[1].params[7], '2026-11-04T17:30:00.000Z')
+    assert.equal(requests[1].params[5], 'bKash')\n    assert.equal(requests[1].params[6], '01712345678')\n    assert.equal(requests[1].params[7], '2026-11-04T17:30:00.000Z')
   })
 
   it('rejects requests without a merchant secret before querying the database', async () => {
