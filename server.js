@@ -264,6 +264,8 @@ async function start() {
   if (IS_PRODUCTION && !pool) throw new Error('DATABASE_URL is required in production.')
   if (pool) {
     await pool.query('SELECT 1')
+    await pool.query('SELECT id, name FROM merchants LIMIT 1')
+    console.info('[KashNode] Database startup check passed (merchants table is queryable).')
     if (ADMIN_EMAIL && ADMIN_PASSWORD_HASH) {
       await pool.query(`INSERT INTO users (email, name, password_hash, role)
         VALUES ($1, $2, $3, 'admin') ON CONFLICT (email) DO UPDATE SET name=EXCLUDED.name, password_hash=EXCLUDED.password_hash, role='admin'`,
