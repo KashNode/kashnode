@@ -66,7 +66,7 @@ export async function reconcileSms({ pool, smsId }) {
          )
        ORDER BY created_at ASC
        FOR UPDATE`,
-      [sms.merchant_id, amountMinor, sms.customer_trx_id || null, sms.parsed_trxid, phone || '']);
+      [sms.merchant_id, amountMinor, sms.parsed_trxid, phone]);
     const validCandidates = candidates.rows.filter(row => {
       if (row.customer_trx_id && row.customer_trx_id.toUpperCase() === sms.parsed_trxid.toUpperCase()) return true;
       return phone && normalizeBdPhone(row.customer_phone) === phone;
