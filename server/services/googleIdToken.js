@@ -91,6 +91,7 @@ export async function verifyGoogleIdToken(token, {
 
   return {
     sub: claims.sub,
+    nonce: typeof claims.nonce === 'string' ? claims.nonce : null,
     email: claims.email.trim().toLowerCase(),
     name: typeof claims.name === 'string' ? claims.name.trim().slice(0, 80) : '',
     picture: typeof claims.picture === 'string' && claims.picture.startsWith('https://') ? claims.picture : null,
