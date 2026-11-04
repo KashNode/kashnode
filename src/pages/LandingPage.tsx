@@ -3,7 +3,6 @@ import { Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   ArrowRight,
-  Bot,
   Check,
   Mic,
   PackageCheck,
@@ -12,12 +11,8 @@ import {
   Radio,
   RefreshCw,
   ShieldCheck,
-  ShoppingBag,
   Smartphone,
   Sparkles,
-  Store,
-  Truck,
-  Wallet,
 } from 'lucide-react'
 import {
   LOGO_BKASH,
