@@ -43,18 +43,43 @@ export function createEdgeSmsHandler({ pool, parser = parseMfsSms, onPersist = a
     }
 
     const parsed = parser(sender.trim(), message)
-    const insertResult = await pool.query(
-      `INSERT INTO raw_sms_inbox
-        (merchant_id, sender_number, raw_message, parsed_trxid, parsed_amount, is_reconciled, received_at)
-       VALUES ($1, $2, $3, $4, $5, FALSE, COALESCE($6::timestamptz, NOW()))
-       RETURNING id`,
-      [merchantId, sender.trim(), message, parsed.trxId, parsed.amount, parsed.provider, parsed.customerPhone, parsedReceivedAt],
-    )
+    const insertSql = [
+      'INSERT INTO raw_sms_inbox',
+      '(merchant_id, sender_number, raw_message, parsed_trxid, parsed_amount, provider, customer_phone, is_reconciled, received_at)',
+      'VALUES ($1, $2, $3, $4, $5, $6, $7, FALSE, COALESCE($8::timestamptz, NOW()))',
+      'RETURNING id',
+    ].join(' ')
+    const insertResult = await pool.query(insertSql, [
+      merchantId,
+      sender.trim(),
+      message,
+      parsed.trxId,
+      parsed.amount,
+      parsed.provider,
+      parsed.customerPhone,
+      parsedReceivedAt,
+    ])
 
-    await onPersist(insertResult.rows[0].id);\n\n    return res.status(201).json({
+    const smsId = insertResult.rows[0]?.id
+    if (!smsId) throw new Error('SMS inbox insert did not return an ID.')
+
+    try {
+      await onPersist(smsId)
+    } catch (error) {
+      // The SMS is already durably stored. A reconciliation failure must not
+      // make the sender retry and create another inbox row.
+      console.error('[KashNode] SMS reconciliation deferred:', error)
+    }
+
+    return res.status(201).json({
       success: true,
-      id: String(insertResult.rows[0].id),
-      parsed: { amount: parsed.amount, trxId: parsed.trxId, provider: parsed.provider, customerPhone: parsed.customerPhone },
+      id: String(smsId),
+      parsed: {
+        amount: parsed.amount,
+        trxId: parsed.trxId,
+        provider: parsed.provider,
+        customerPhone: parsed.customerPhone,
+      },
     })
   }
 }
