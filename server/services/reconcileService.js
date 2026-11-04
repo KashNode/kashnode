@@ -2,9 +2,9 @@ const PROVIDER_NAMES = { bkash: 'bKash', nagad: 'Nagad', rocket: 'Rocket', upay:
 
 export function normalizeBdPhone(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
-  const digits = String(value).replace(/\\D/g, '');
+  const digits = String(value).replace(/\D/g, '');
   const last11 = digits.slice(-11);
-  return /^01[3-9]\\d{8}$/.test(last11) ? last11 : null;
+  return /^01[3-9]\d{8}$/.test(last11) ? last11 : null;
 }
 
 export function normalizeGateway(value) {
@@ -62,7 +62,7 @@ export async function reconcileSms({ pool, smsId }) {
          AND lower(coalesce(payment_method, '')) NOT LIKE '%cash on delivery%'
          AND (
            ($3::text IS NOT NULL AND upper(customer_trx_id) = upper($4))
-           OR ($3::text IS NULL AND regexp_replace(customer_phone, '\\D', '', 'g') LIKE '%' || $5)
+           OR ($3::text IS NULL AND regexp_replace(customer_phone, '\D', '', 'g') LIKE '%' || $5)
          )
        ORDER BY created_at ASC
        FOR UPDATE`,
