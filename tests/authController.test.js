@@ -17,6 +17,10 @@ function createPool() {
     async query(sql, params = []) {
       const text = String(sql).replace(/\s+/g, ' ').trim()
       if (text === 'BEGIN' || text === 'COMMIT' || text === 'ROLLBACK') return { rows: [] }
+      if (text.startsWith('DELETE FROM public.merchant_signup_otps')) {
+        state.pending = null
+        return { rows: [] }
+      }
       if (text.includes('FROM public.merchant_signup_otps')) return { rows: state.pending ? [state.pending] : [] }
       if (text.includes('FROM public.users WHERE lower(email) = $1 FOR UPDATE')) return { rows: state.user ? [state.user] : [] }
       if (text.startsWith('INSERT INTO public.users')) {
