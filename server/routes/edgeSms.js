@@ -3,7 +3,7 @@ import { parseMfsSms } from '../parsers/mfs.js'
 const MAX_SENDER_LENGTH = 50
 const MAX_MESSAGE_LENGTH = 8_000
 
-export function createEdgeSmsHandler({ pool, parser = parseMfsSms }) {
+export function createEdgeSmsHandler({ pool, parser = parseMfsSms, onPersist = async () => {} }) {
   return async function ingestEdgeSms(req, res) {
     if (!pool) {
       return res.status(503).json({ success: false, error: 'Database unavailable.' })
@@ -51,7 +51,7 @@ export function createEdgeSmsHandler({ pool, parser = parseMfsSms }) {
       [merchantId, sender.trim(), message, parsed.trxId, parsed.amount, parsed.provider, parsed.customerPhone, parsedReceivedAt],
     )
 
-    return res.status(201).json({
+    await onPersist(insertResult.rows[0].id);\n\n    return res.status(201).json({
       success: true,
       id: String(insertResult.rows[0].id),
       parsed: { amount: parsed.amount, trxId: parsed.trxId, provider: parsed.provider, customerPhone: parsed.customerPhone },
