@@ -48,13 +48,13 @@ export function createEdgeSmsHandler({ pool, parser = parseMfsSms }) {
         (merchant_id, sender_number, raw_message, parsed_trxid, parsed_amount, is_reconciled, received_at)
        VALUES ($1, $2, $3, $4, $5, FALSE, COALESCE($6::timestamptz, NOW()))
        RETURNING id`,
-      [merchantId, sender.trim(), message, parsed.trxId, parsed.amount, parsedReceivedAt],
+      [merchantId, sender.trim(), message, parsed.trxId, parsed.amount, parsed.provider, parsed.customerPhone, parsedReceivedAt],
     )
 
     return res.status(201).json({
       success: true,
       id: String(insertResult.rows[0].id),
-      parsed: { amount: parsed.amount, trxId: parsed.trxId },
+      parsed: { amount: parsed.amount, trxId: parsed.trxId, provider: parsed.provider, customerPhone: parsed.customerPhone },
     })
   }
 }
