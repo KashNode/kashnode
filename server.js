@@ -130,7 +130,10 @@ app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({
   pool,
   onPersist: smsId => reconcileSms({ pool, smsId }),
 })))
-app.post('/api/v1/webhooks/woocommerce/orders', asyncRoute(createWooCommerceWebhookHandler({ pool })))
+app.post('/api/v1/webhooks/woocommerce/:merchantId', asyncRoute(createWooCommerceWebhookHandler({
+  pool,
+  onOrderPersist: merchantId => reconcilePendingSmsForMerchant({ pool, merchantId }),
+})))
 
 app.post('/api/auth/login', requireOrigin, loginLimiter, asyncRoute(async (req, res) => {
   if (!SESSION_SECRET) return res.status(503).json({ status: 'error', message: 'Authentication is not configured on this server.' })
