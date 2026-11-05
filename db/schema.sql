@@ -22,6 +22,9 @@ CREATE TABLE IF NOT EXISTS public.merchants (
   wallet_balance NUMERIC(12,2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.merchants
+  ADD COLUMN IF NOT EXISTS shopify_domain VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS shopify_webhook_secret TEXT;
 
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -37,6 +40,10 @@ CREATE TABLE IF NOT EXISTS public.orders (
   currency VARCHAR(3),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS financial_status VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS currency VARCHAR(3);
 
 CREATE TABLE IF NOT EXISTS public.raw_sms_inbox (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
