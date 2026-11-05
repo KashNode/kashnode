@@ -14,7 +14,7 @@ async function createTestServer(t, { initialQuota = 10, failInsert = false, onOr
   const client = {
     snapshot: null,
     async query(sql, params = []) {
-      const normalized = String(sql).replace(/\\s+/g, ' ').trim()
+      const normalized = String(sql).replace(/\s+/g, ' ').trim()
       queries.push({ sql: normalized, params })
       if (normalized === 'BEGIN') {
         this.snapshot = {
@@ -84,7 +84,7 @@ async function createTestServer(t, { initialQuota = 10, failInsert = false, onOr
 
   const pool = {
     async query(sql, params = []) {
-      const normalized = String(sql).replace(/\\s+/g, ' ').trim()
+      const normalized = String(sql).replace(/\s+/g, ' ').trim()
       queries.push({ sql: normalized, params })
       if (normalized.includes('shopify_webhook_secret') && normalized.includes('shopify_domain')) {
         return { rows: [{ id: MERCHANT_ID, shopify_webhook_secret: SECRET }] }
