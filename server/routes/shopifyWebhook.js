@@ -152,6 +152,9 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     } catch {
       return res.status(400).json({ status: 'error', message: 'Webhook payload must be valid JSON.' });
     }
+    if (!orderPayload || typeof orderPayload !== 'object' || Array.isArray(orderPayload)) {
+      return res.status(400).json({ status: 'error', message: 'Shopify webhook payload must be a JSON object.' });
+    }
 
     const platformOrderId = String(orderPayload?.id ?? '').trim();
     const customerPhone = normalizePhone(
