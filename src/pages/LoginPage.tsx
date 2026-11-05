@@ -92,10 +92,24 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
   const [googleBusy, setGoogleBusy] = useState(false)
   const [error, setError] = useState('')
   const [notice, setNotice] = useState('')
+  const [themeChoice, setThemeChoice] = useState<'dark' | 'system'>('dark')
+  const [systemIsLight, setSystemIsLight] = useState(false)
 
   useEffect(() => {
     document.title = 'KashNode — Sign in'
   }, [])
+
+  // Dark is the default, matching kashnode.com. System follows the device,
+  // using the main site's own light palette when the device prefers light.
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: light)')
+    const update = () => setSystemIsLight(query.matches)
+    update()
+    query.addEventListener('change', update)
+    return () => query.removeEventListener('change', update)
+  }, [])
+
+  const resolvedTheme = themeChoice === 'dark' || !systemIsLight ? 'dark' : 'light'
 
   const switchMode = (next: Mode) => {
     setMode(next)
@@ -236,31 +250,31 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
   }
 
   return (
-    <main className="auth-page">
-      <section className="auth-card" aria-label={mode === 'login' ? 'Sign in to KashNode' : 'Create your free KashNode account'}>
-        <div className="auth-brand">
+    <main className="auth-page" data-auth-theme={resolvedTheme}>
+      <header className="auth-header">
+        <a href="/" className="auth-header-brand" aria-label="KashNode home">
           <KashNodeLogo showTagline />
-          <p>{mode === 'login' ? 'Welcome back to your AI commerce command center.' : 'Create your free account — no card required.'}</p>
+        </a>
+        <div className="auth-theme" role="group" aria-label="Theme">
+          <button type="button" aria-pressed={themeChoice === 'dark'} className={themeChoice === 'dark' ? 'active' : ''} onClick={() => setThemeChoice('dark')}>
+            Dark
+          </button>
+          <button type="button" aria-pressed={themeChoice === 'system'} className={themeChoice === 'system' ? 'active' : ''} onClick={() => setThemeChoice('system')}>
+            System
+          </button>
         </div>
+      </header>
 
-        <div className="auth-tabs" role="tablist" aria-label="Sign in or create an account">
-          <button type="button" role="tab" aria-selected={mode === 'login'} className={mode === 'login' ? 'active' : ''} onClick={() => switchMode('login')}>
-            Sign in
-          </button>
-          <button type="button" role="tab" aria-selected={mode === 'signup'} className={mode === 'signup' ? 'active' : ''} onClick={() => switchMode('signup')}>
-            Create free account
-          </button>
+      <section className="auth-card" aria-label={mode === 'login' ? 'Sign in to KashNode' : 'Create your free KashNode account'}>
+        <div className="auth-heading">
+          <h1>{mode === 'login' ? 'Sign in to KashNode' : signupStep === 'otp' ? 'Verify your email' : 'Create your account'}</h1>
+          <p>{mode === 'login' ? 'Enter your details to continue.' : signupStep === 'otp' ? 'Enter the code we sent to your email.' : 'Start with a free account.'}</p>
         </div>
 
         <button type="button" className="auth-google" onClick={handleGoogle} disabled={googleBusy || busy}>
           {googleBusy ? <Loader2 size={18} className="auth-spinner" /> : <GoogleMark />}
-          {googleBusy ? 'Connecting to Google…' : 'Continue with Google'}
+          {googleBusy ? 'Connecting to Google…' : mode === 'login' ? 'Sign in with Google' : 'Sign up with Google'}
         </button>
-        <p className="auth-google-note">
-          {GOOGLE_CLIENT_ID
-            ? 'Google sign-in is verified by the KashNode server before a session is created.'
-            : 'Google sign-in needs VITE_GOOGLE_CLIENT_ID to be set — see the note below the form.'}
-        </p>
 
         <div className="auth-divider" aria-hidden="true">
           <span>or continue with email</span>
@@ -424,11 +438,8 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
             <>Already have an account? <button type="button" onClick={() => switchMode('login')}>Sign in</button></>
           )}
         </p>
-        <footer className="auth-footer">
-          <span><ShieldCheck size={14} /> Encrypted session · © {new Date().getFullYear()} KashNode</span>
-          <span><a href="/">Back to home</a></span>
-        </footer>
       </section>
+      <footer className="auth-page-footer">© {new Date().getFullYear()} KashNode</footer>
     </main>
   )
 }
