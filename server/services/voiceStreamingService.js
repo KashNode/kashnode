@@ -4,7 +4,7 @@ import { performance } from 'node:perf_hooks';
 import { URL } from 'node:url';
 import WebSocket, { WebSocketServer } from 'ws';
 import { generateOrderVoiceScript } from './aiPromptService.js';
-import { finalizeVoiceCallBilling } from './billingService.js';
+import { createVoiceBillingQueue, finalizeVoiceCallBilling } from './billingService.js';
 
 const ORDER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_HISTORY = 14;
@@ -403,6 +403,7 @@ export function createVoiceStreamingService({
   replyGenerator = generateConversationReply,
   fetchImpl = globalThis.fetch,
   billingFinalizer = finalizeVoiceCallBilling,
+  billingQueue: providedBillingQueue = null,
 } = {}) {
   const config = configFromEnv(env);
   const wss = new WebSocketServerClass({
@@ -412,6 +413,15 @@ export function createVoiceStreamingService({
   });
   const byOrder = new Map();
   const merchantCounts = new Map();
+  const billingQueue = providedBillingQueue || createVoiceBillingQueue({
+    pool,
+    billingFinalizer,
+    logger,
+    staleAfterMs: Math.max(config.heartbeatMs * 2, 60000),
+  });
+  let shuttingDown = false;
+  let shutdownPromise = null;
+  let attachedServer = null;
 
   async function authenticate(request, url) {
     if (!pool?.query) throw new VoiceError('DATABASE_UNAVAILABLE', 'Voice database unavailable.');
@@ -445,53 +455,52 @@ export function createVoiceStreamingService({
   }
 
   function scheduleSessionBilling(session) {
-    if (session.billingFinalizationStarted || session.session_start_time === null || session.session_start_monotonic === null) {
-      return;
+    if (session.billingFinalizationStarted || !session.billingJobStarted) {
+      return session.billingPromise || Promise.resolve(null);
     }
     session.billingFinalizationStarted = true;
 
-    const elapsedMs = Math.max(0, performance.now() - session.session_start_monotonic);
+    const elapsedMs = session.session_start_monotonic === null
+      ? 0
+      : Math.max(0, performance.now() - session.session_start_monotonic);
     const durationSeconds = Number((elapsedMs / 1000).toFixed(3));
-    if (durationSeconds <= 0) {
-      logSafe(logger, 'info', 'voice_session_billing_skipped', {
-        merchantId: session.merchantId,
-        orderId: session.orderId,
-        sessionId: session.session_id,
-        reason: 'zero_duration',
-      });
-      return;
-    }
 
-    // Do not await billing here: WebSocket teardown must complete immediately.
-    void Promise.resolve()
-      .then(() => billingFinalizer({
-        pool,
-        merchantId: session.merchantId,
-        orderId: session.orderId,
-        sessionId: session.session_id,
-        durationSeconds,
-      }))
-      .then(result => {
-        logSafe(logger, 'info', 'voice_session_billed', {
+    session.billingPromise = (async () => {
+      try {
+        await billingQueue.enqueueFinalization({
           merchantId: session.merchantId,
           orderId: session.orderId,
           sessionId: session.session_id,
           durationSeconds,
-          billedAmount: result?.billedAmount ?? 0,
-          currency: result?.currency ?? 'BDT',
-          billingSource: result?.billingSource ?? 'unknown',
-          idempotentReplay: Boolean(result?.idempotentReplay),
         });
-      })
-      .catch(error => {
-        logSafe(logger, 'error', 'voice_session_billing_failed', {
+        if (durationSeconds > 0) await billingQueue.drain({ force: true, maxJobs: 1 });
+        if (durationSeconds > 0) {
+          logSafe(logger, 'info', 'voice_session_billing_enqueued', {
+            merchantId: session.merchantId,
+            orderId: session.orderId,
+            sessionId: session.session_id,
+            durationSeconds,
+          });
+        } else {
+          logSafe(logger, 'info', 'voice_session_billing_skipped', {
+            merchantId: session.merchantId,
+            orderId: session.orderId,
+            sessionId: session.session_id,
+            reason: 'zero_duration_or_not_ready',
+          });
+        }
+      } catch (error) {
+        // The durable active row is intentionally retained. Startup/periodic
+        // recovery will enqueue it from its last heartbeat after the lease is stale.
+        logSafe(logger, 'error', 'voice_session_billing_enqueue_failed', {
           merchantId: session.merchantId,
           orderId: session.orderId,
           sessionId: session.session_id,
-          durationSeconds,
           code: error?.code || 'BILLING_FINALIZATION_FAILED',
         });
-      });
+      }
+    })();
+    return session.billingPromise;
   }
 
   function cleanup(session) {
@@ -598,12 +607,24 @@ export function createVoiceStreamingService({
       session_start_time: null,
       session_start_monotonic: null,
       billingFinalizationStarted: false,
+      billingJobStarted: false,
+      billingPromise: null,
     };
     byOrder.set(key, session);
     merchantCounts.set(identity.merchantId, (merchantCounts.get(identity.merchantId) || 0) + 1);
     client.on('close', () => cleanup(session));
     client.on('error', () => cleanup(session));
-    client.on('pong', () => { session.lastPong = true; });
+    client.on('pong', () => {
+      session.lastPong = true;
+      if (session.billingJobStarted && !session.closed) {
+        void billingQueue.recordHeartbeat(session.session_id).catch(error => {
+          logSafe(logger, 'warn', 'voice_session_heartbeat_persist_failed', {
+            sessionId: session.session_id,
+            code: error?.code || 'DATABASE_ERROR',
+          });
+        });
+      }
+    });
     session.lastPong = true;
     session.heartbeat = setInterval(() => {
       if (session.closed) return;
@@ -681,9 +702,23 @@ export function createVoiceStreamingService({
         }
       });
 
-      // Billable time begins at the moment the runtime announces readiness,
-      // not while authentication, context loading, or upstream setup is pending.
-      session.session_start_time = Date.now();
+      // Persist the billing obligation before telling the client that the
+      // session is ready. If this write fails, the session must not become billable.
+      const sessionStartedAt = new Date();
+      await billingQueue.beginSession({
+        merchantId: session.merchantId,
+        orderId: session.orderId,
+        sessionId: session.session_id,
+        startedAt: sessionStartedAt,
+      });
+      session.billingJobStarted = true;
+      if (session.closed) {
+        await scheduleSessionBilling(session);
+        return;
+      }
+
+      // Billable time begins only when session.ready is about to be sent.
+      session.session_start_time = sessionStartedAt.getTime();
       session.session_start_monotonic = performance.now();
       const readySent = sendJson(client, {
         type: 'session.ready',
@@ -764,6 +799,14 @@ export function createVoiceStreamingService({
       cleanup(session);
     } else if (message?.type === 'ping') {
       sendJson(session.client, { type: 'pong' });
+      if (session.billingJobStarted) {
+        void billingQueue.recordHeartbeat(session.session_id).catch(error => {
+          logSafe(logger, 'warn', 'voice_session_heartbeat_persist_failed', {
+            sessionId: session.session_id,
+            code: error?.code || 'DATABASE_ERROR',
+          });
+        });
+      }
     } else {
       sendJson(session.client, { type: 'error', code: 'UNKNOWN_MESSAGE', message: 'Unsupported control message type.' });
     }
@@ -775,9 +818,11 @@ export function createVoiceStreamingService({
       return rejectUpgrade(socket, 400, 'Invalid WebSocket request.');
     }
     if (url.pathname !== config.path) return;
+    if (shuttingDown) return rejectUpgrade(socket, 503, 'Voice service is shutting down.');
     (async () => {
       try {
         const identity = await authenticate(request, url);
+        if (shuttingDown) return rejectUpgrade(socket, 503, 'Voice service is shutting down.');
         const key = `${identity.merchantId}:${identity.orderId}`;
         if (byOrder.has(key)) return rejectUpgrade(socket, 409, 'A voice session is already active for this order.');
         if ((merchantCounts.get(identity.merchantId) || 0) >= config.maxSessions) {
@@ -801,18 +846,56 @@ export function createVoiceStreamingService({
     })().catch(() => rejectUpgrade(socket, 503, 'Voice service is unavailable.'));
   }
 
+  async function start() {
+    await billingQueue.start();
+  }
+
   function attach(httpServer) {
+    attachedServer = httpServer;
     httpServer.on('upgrade', handleUpgrade);
     return httpServer;
   }
 
-  function close() {
-    for (const session of byOrder.values()) {
-      cleanup(session);
-      if (session.client.readyState === WebSocket.OPEN) session.client.close(1001, 'Server shutting down');
-    }
-    wss.close();
+  async function shutdown({ timeoutMs = 20000 } = {}) {
+    if (shutdownPromise) return shutdownPromise;
+    shuttingDown = true;
+    if (attachedServer) attachedServer.removeListener('upgrade', handleUpgrade);
+
+    shutdownPromise = (async () => {
+      const pending = [];
+      for (const session of [...byOrder.values()]) {
+        sendJson(session.client, { type: 'session.ended', reason: 'server_shutdown' });
+        const billing = cleanup(session);
+        if (billing) pending.push(Promise.resolve(billing));
+        try {
+          if (session.client.readyState === WebSocket.OPEN) {
+            session.client.close(1001, 'Server shutting down');
+          } else {
+            session.client.terminate?.();
+          }
+        } catch { /* best effort; the durable job remains in PostgreSQL */ }
+      }
+
+      await Promise.allSettled(pending);
+      await billingQueue.stop({ timeoutMs });
+      try { wss.close(); } catch { /* already closed */ }
+      logSafe(logger, 'info', 'voice_service_shutdown_complete', {
+        remainingActiveSessions: byOrder.size,
+      });
+    })();
+    return shutdownPromise;
   }
 
-  return { attach, close, webSocketServer: wss, activeSessions: byOrder };
+  function close() {
+    return shutdown();
+  }
+
+  return {
+    attach,
+    start,
+    shutdown,
+    close,
+    webSocketServer: wss,
+    activeSessions: byOrder,
+  };  return { attach, close, webSocketServer: wss, activeSessions: byOrder };
 }
