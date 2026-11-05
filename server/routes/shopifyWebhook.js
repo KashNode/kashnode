@@ -183,9 +183,9 @@ const UPDATE_ORDER_SQL = `
 `;
 
 /**
- * Shopify sends HMAC-SHA256(raw request bytes, app client secret) as base64.
- * Merchant lookup is scoped by Shopify's signed shop-domain header; the
- * merchant-specific secret is loaded from the database before verification.
+ * Shopify sends HMAC-SHA256(raw request bytes, webhook secret) as base64.
+ * The shop-domain header selects the merchant; that merchant's saved secret
+ * is then used to verify the untouched request bytes before parsing JSON.
  */
 export function createShopifyWebhookHandler({ pool, onOrderPersist = async () => {} }) {
   return async function ingestShopifyOrder(req, res) {
