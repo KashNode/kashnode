@@ -17,6 +17,18 @@ function normalizeItemAmount(value) {
     : null;
 }
 
+function normalizeCurrency(value) {
+  if (typeof value !== 'string') return null;
+  const currency = value.trim().toUpperCase();
+  return /^[A-Z]{3}$/.test(currency) ? currency : null;
+}
+
+function normalizePaymentStatus(value) {
+  return typeof value === 'string' && value.trim().toLowerCase() === 'paid'
+    ? 'paid'
+    : 'unpaid';
+}
+
 function normalizeBdPhone(value) {
   if (typeof value !== 'string' && typeof value !== 'number') return null;
   const digits = String(value).replace(/\D/g, '');
@@ -69,8 +81,8 @@ const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
     (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
      payment_status, delivery_status, payment_method, customer_trx_id, line_items,
-     is_phone_verified, ai_call_status)
-  VALUES ($1, $2, $3, $4, $5::numeric, 'unpaid', 'pending', $6, $7, $8::jsonb, FALSE, 'pending')
+     is_phone_verified, ai_call_status, currency)
+  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8, $9::jsonb, FALSE, 'pending', $10)
   RETURNING id, payment_status, delivery_status
 `;
 
@@ -81,7 +93,12 @@ const UPDATE_ORDER_SQL = `
       total_amount = $4::numeric,
       payment_method = $5,
       customer_trx_id = $6,
-      line_items = $7::jsonb
+      line_items = $7::jsonb,
+      payment_status = CASE
+        WHEN payment_status IN ('paid', 'manual_review') THEN payment_status
+        ELSE $8
+      END,
+      currency = COALESCE($9, currency)
   WHERE id = $1
   RETURNING id, payment_status, delivery_status
 `;
@@ -149,6 +166,8 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
     const customerName = getCustomerName(body);
     const totalAmount = normalizeAmount(body.total_amount ?? body.total);
     const paymentMethod = getStoredPaymentMethod(body);
+    const paymentStatus = normalizePaymentStatus(body.payment_status);
+    const currency = normalizeCurrency(body.currency);
     const lineItems = cleanLineItems(body.line_items);
     const customerTrxId = typeof body.customer_trx_id === 'string'
       ? (body.customer_trx_id.trim().slice(0, 100) || null)
@@ -201,6 +220,8 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
           paymentMethod,
           customerTrxId,
           JSON.stringify(lineItems),
+          paymentStatus,
+          currency,
         ]);
         order = updated.rows[0];
         if (!order) throw new Error('Order update did not return the updated order.');
@@ -230,9 +251,11 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
           customerPhone,
           customerName,
           totalAmount,
+          paymentStatus,
           paymentMethod,
           customerTrxId,
           JSON.stringify(lineItems),
+          currency,
         ]);
         order = inserted.rows[0];
         if (!order) throw new Error('Order insert did not return the created order.');
