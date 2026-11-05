@@ -87,6 +87,7 @@ async function waitFor(predicate, timeoutMs = 1000) {
 function createMemoryBillingQueue(pool, finalizer) {
   const pending = [];
   const started = new Map();
+  let stopped = false;
   return {
     async beginSession(job) { started.set(job.sessionId, job); },
     async recordHeartbeat() {},
@@ -101,9 +102,10 @@ function createMemoryBillingQueue(pool, finalizer) {
       return processed;
     },
     async start() {},
-    async stop() {},
+    async stop() { stopped = true; },
     pending,
     started,
+    get stopped() { return stopped; },
   };
 }
 
@@ -181,7 +183,7 @@ async function openVoiceSession(t, {
     service.close();
   });
 
-  return { service, client: FakeClient.latest };
+  return { service, client: FakeClient.latest, billingQueue };
 }
 
 function readyMessage(client) {
@@ -259,4 +261,22 @@ test('socket teardown does not await a slow billing database operation', async t
   assert.equal(client.readyState, 3);
   await waitFor(() => billingStarted);
   releaseBilling();
+});
+
+
+test('graceful voice shutdown closes active sessions and awaits billing finalization', async t => {
+  const calls = [];
+  const { service, client, billingQueue } = await openVoiceSession(t, {
+    billingFinalizer: async input => {
+      calls.push(input);
+      return { status: 'billed', ledgerId: '44444444-4444-4444-8444-444444444444' };
+    },
+  });
+
+  await service.shutdown({ timeoutMs: 1000 });
+
+  assert.equal(client.readyState, 3);
+  assert.equal(service.activeSessions.size, 0);
+  assert.equal(calls.length, 1);
+  assert.equal(billingQueue.stopped, true);
 });
