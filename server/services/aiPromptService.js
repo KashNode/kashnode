@@ -451,7 +451,8 @@ export async function generateOrderVoiceScript({
     const orderResult = await pool.query(
       `SELECT o.id, o.merchant_id, o.platform_order_id, o.customer_name, o.customer_phone,
               o.total_amount::text AS total_amount, o.payment_method, o.payment_status,
-              o.line_items, o.currency, m.name AS merchant_name, m.ai_voice_rules
+              o.line_items, o.currency, m.name AS merchant_name, m.ai_voice_rules,
+              m.wallet_balance, m.available_voice_minutes
        FROM public.orders o
        JOIN public.merchants m ON m.id = o.merchant_id
        WHERE o.id = $1 AND ($2::uuid IS NULL OR o.merchant_id = $2)
@@ -461,6 +462,17 @@ export async function generateOrderVoiceScript({
     const order = orderResult.rows?.[0];
     if (!order) {
       throw new PromptServiceError('ORDER_NOT_FOUND', 'The saved order was not found.');
+    }
+
+    const walletBalance = Number(order.wallet_balance ?? 0);
+    const availableVoiceMinutes = Number(order.available_voice_minutes ?? 0);
+    const hasWalletCredit = Number.isFinite(walletBalance) && walletBalance > 0;
+    const hasPrepaidVoiceMinutes = Number.isFinite(availableVoiceMinutes) && availableVoiceMinutes > 0;
+    if (!hasWalletCredit && !hasPrepaidVoiceMinutes) {
+      throw new PromptServiceError(
+        'INSUFFICIENT_VOICE_CREDIT',
+        'The merchant wallet balance and available voice minutes are exhausted.',
+      );
     }
 
     // Validate critical order data before checking provider credentials or making a paid API call.
