@@ -176,6 +176,7 @@ test('accepts signed WooCommerce payload, persists it and consumes one quota ato
     is_phone_verified: false,
     ai_call_status: 'pending',
     payment_status: 'unpaid',
+    currency: null,
     delivery_status: 'pending',
   })
   assert.deepEqual(reconciledMerchants, [MERCHANT_ID])
