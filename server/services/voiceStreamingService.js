@@ -507,6 +507,7 @@ export function createVoiceStreamingService({
     if (session.closed) return session.billingPromise || Promise.resolve(null);
     session.closed = true;
     clearInterval(session.heartbeat);
+    clearInterval(session.billingHeartbeat);
     clearTimeout(session.durationTimer);
     if (byOrder.get(session.key) === session) byOrder.delete(session.key);
     const count = merchantCounts.get(session.merchantId) || 0;
@@ -637,6 +638,19 @@ export function createVoiceStreamingService({
       try { client.ping(); } catch { cleanup(session); }
     }, config.heartbeatMs);
     session.heartbeat.unref?.();
+    // Persist a conservative crash-recovery checkpoint more frequently than
+    // the WebSocket heartbeat. Recovery bills through this last durable point.
+    session.billingHeartbeat = setInterval(() => {
+      if (session.billingJobStarted && !session.closed) {
+        void billingQueue.recordHeartbeat(session.session_id).catch(error => {
+          logSafe(logger, 'warn', 'voice_session_heartbeat_persist_failed', {
+            sessionId: session.session_id,
+            code: error?.code || 'DATABASE_ERROR',
+          });
+        });
+      }
+    }, Math.min(config.heartbeatMs, 15000));
+    session.billingHeartbeat.unref?.();
     try {
       const runtimeSettings = await getRuntimeSystemSettings({ pool, env });
       session.provider = runtimeSettings.activeLlmProvider;
