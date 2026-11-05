@@ -12,6 +12,7 @@ import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
 import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
+import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 import { createAuthController } from './server/controllers/authController.js'
@@ -60,9 +61,17 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-wc-webhook-signature'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic'],
   maxAge: 600,
 }))
+// Shopify must receive the exact request bytes for HMAC verification. Mount
+// this route before express.json so the global parser cannot consume the body.
+app.post('/api/webhooks/shopify', express.raw({ type: 'application/json', limit: '1mb' }), (req, res, next) => {
+  Promise.resolve(createShopifyWebhookHandler({
+    pool,
+    onOrderPersist: merchantId => reconcilePendingSmsForMerchant({ pool, merchantId }),
+  })(req, res)).catch(next)
+})
 app.use(express.json({ limit: '1mb', strict: true, verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer) } }))
 app.use(cookieParser())
 
