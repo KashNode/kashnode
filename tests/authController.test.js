@@ -117,3 +117,27 @@ test('sends OTP and creates a user and free merchant only after successful verif
   assert.equal(state.pending, null)
   assert.equal(state.released, true)
 })
+
+test('clears the pending challenge and reports sender configuration errors clearly', async () => {
+  const { pool, state } = createPool()
+  const controller = createAuthController({
+    pool,
+    otpSecret: 'test-otp-secret-with-at-least-32-bytes',
+    checkDisposableEmail: async () => false,
+    sendOtpEmail: async () => {
+      const error = new Error('AUTH_EMAIL_FROM uses gmail.com, which is not a verified Resend sending domain.')
+      error.code = 'EMAIL_SENDER_DOMAIN_UNVERIFIABLE'
+      error.statusCode = 503
+      throw error
+    },
+  })
+  const res = response()
+
+  await controller.signup({
+    body: { name: 'Test Merchant', email: 'owner@shop.example', password: 'a-very-strong-password' },
+  }, res)
+
+  assert.equal(res.statusCode, 503)
+  assert.match(res.body.message, /not configured correctly/i)
+  assert.equal(state.pending, null)
+})
