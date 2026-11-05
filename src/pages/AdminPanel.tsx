@@ -704,7 +704,11 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                               autoComplete="new-password"
                               placeholder={keyStatus?.configured ? '•••••••••••• · leave blank to keep current key' : 'Paste provider API key'}
                               value={providerKeys[provider]}
-                              onChange={(event) => setProviderKeys((current) => ({ ...current, [provider]: event.target.value }))}
+                              onChange={(event) => {
+                                const value = event.target.value
+                                setProviderKeys((current) => ({ ...current, [provider]: value }))
+                                if (value.trim()) setClearProviderKeys((current) => current.filter((item) => item !== provider))
+                              }}
                               disabled={settingsLoading || settingsSaving}
                             />
                             {keyStatus?.configured && (
