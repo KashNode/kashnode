@@ -17,9 +17,14 @@ CREATE TABLE IF NOT EXISTS public.merchants (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   webhook_secret VARCHAR(255) NOT NULL,
+  shopify_domain VARCHAR(255),
+  shopify_webhook_secret TEXT,
   wallet_balance NUMERIC(12,2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.merchants
+  ADD COLUMN IF NOT EXISTS shopify_domain VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS shopify_webhook_secret TEXT;
 
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -30,8 +35,15 @@ CREATE TABLE IF NOT EXISTS public.orders (
   total_amount NUMERIC(10,2) NOT NULL,
   payment_status VARCHAR(50) DEFAULT 'unpaid',
   delivery_status VARCHAR(50) DEFAULT 'pending',
+  line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  financial_status VARCHAR(50),
+  currency VARCHAR(3),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS financial_status VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS currency VARCHAR(3);
 
 CREATE TABLE IF NOT EXISTS public.raw_sms_inbox (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -154,6 +166,7 @@ END
 $merchants$;
 
 CREATE UNIQUE INDEX IF NOT EXISTS merchants_webhook_secret_uidx ON public.merchants (webhook_secret);
+CREATE UNIQUE INDEX IF NOT EXISTS merchants_shopify_domain_uidx ON public.merchants (lower(shopify_domain)) WHERE shopify_domain IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS merchants_owner_user_uidx ON public.merchants (owner_user_id) WHERE owner_user_id IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS merchants_email_lower_uidx ON public.merchants (lower(email)) WHERE email IS NOT NULL;
 
