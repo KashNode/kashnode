@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   Activity,
@@ -14,6 +14,7 @@ import {
   Phone,
   Play,
   Search,
+  Settings,
   ShieldCheck,
   Signal,
   Store,
@@ -24,6 +25,7 @@ import {
 } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
+import { getAdminSystemSettings, saveAdminSystemSettings, type AdminSystemSettings, type LlmProvider } from '../lib/adminSettings'
 
 type Props = { user: AuthUser; onSignOut: () => void }
 type Section =
@@ -35,6 +37,7 @@ type Section =
   | 'courier'
   | 'hardware'
   | 'licensing'
+  | 'settings'
   | 'system'
 type PackageId = 'free' | 'basic' | 'standard' | 'premium'
 type MerchantStatus = 'active' | 'trial' | 'suspended'
@@ -139,6 +142,7 @@ const SECTIONS: { id: Section; label: string; icon: typeof LayoutDashboard }[] =
   { id: 'courier', label: 'Courier', icon: Truck },
   { id: 'hardware', label: 'Hardware Boxes', icon: Box },
   { id: 'licensing', label: 'Licensing & Packages', icon: Package },
+  { id: 'settings', label: 'System Settings', icon: Settings },
   { id: 'system', label: 'System & Audit', icon: Activity },
 ]
 
@@ -208,6 +212,14 @@ export default function AdminPanel({ user, onSignOut }: Props) {
   const [voices, setVoices] = useState<Record<string, Voice>>({ 'Dhaka Fashion Hub': 'female', 'Chittagong Electronics': 'male', 'Sylhet Grocery Mart': 'female', 'Rangpur Fashion Point': 'male' })
   const [reviewQueue, setReviewQueue] = useState<ReviewItem[]>(INITIAL_QUEUE)
   const [auditLog, setAuditLog] = useState<string[]>(['Panel opened in command-deck layout (sample data).'])
+  const [systemSettings, setSystemSettings] = useState<AdminSystemSettings | null>(null)
+  const [settingsLoading, setSettingsLoading] = useState(false)
+  const [settingsSaving, setSettingsSaving] = useState(false)
+  const [settingsError, setSettingsError] = useState('')
+  const [settingsProvider, setSettingsProvider] = useState<LlmProvider>('openai')
+  const [defaultVoiceRate, setDefaultVoiceRate] = useState('7.00')
+  const [providerKeys, setProviderKeys] = useState<Record<LlmProvider, string>>({ openai: '', gemini: '', groq: '' })
+  const [clearProviderKeys, setClearProviderKeys] = useState<LlmProvider[]>([])
   const paletteInputRef = useRef<HTMLInputElement>(null)
 
   const activeMerchants = merchants.filter((item) => item.status === 'active')
@@ -244,7 +256,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
       }
       if (event.key === 'Escape') { setPaletteOpen(false); return }
       if (typing || paletteOpen) return
-      const index = Number.parseInt(event.key, 10)
+      const index = event.key === '0' ? 10 : Number.parseInt(event.key, 10)
       if (index >= 1 && index <= SECTIONS.length) setSection(SECTIONS[index - 1].id)
     }
     window.addEventListener('keydown', onKeyDown)
@@ -267,6 +279,65 @@ export default function AdminPanel({ user, onSignOut }: Props) {
   }, [merchants, paletteQuery])
 
   const addAudit = (text: string) => setAuditLog((current) => [text, ...current].slice(0, 12))
+
+  useEffect(() => {
+    if (section !== 'settings') return
+    let active = true
+    setSettingsLoading(true)
+    setSettingsError('')
+    getAdminSystemSettings()
+      .then((settings) => {
+        if (!active) return
+        setSystemSettings(settings)
+        setSettingsProvider(settings.activeLlmProvider)
+        setDefaultVoiceRate(settings.defaultVoiceRate.toFixed(2))
+      })
+      .catch((error) => {
+        if (active) setSettingsError(error instanceof Error ? error.message : 'Could not load system settings.')
+      })
+      .finally(() => {
+        if (active) setSettingsLoading(false)
+      })
+    return () => {
+      active = false
+    }
+  }, [section])
+
+  async function handleSaveSystemSettings(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (settingsSaving) return
+    setSettingsSaving(true)
+    setSettingsError('')
+    try {
+      const apiKeys: Partial<Record<LlmProvider, string>> = {}
+      for (const provider of ['openai', 'gemini', 'groq'] as const) {
+        if (providerKeys[provider].trim()) apiKeys[provider] = providerKeys[provider].trim()
+      }
+      const saved = await saveAdminSystemSettings({
+        activeLlmProvider: settingsProvider,
+        defaultVoiceRate: Number(defaultVoiceRate),
+        apiKeys,
+        clearApiKeys: clearProviderKeys,
+      })
+      setSystemSettings(saved)
+      setProviderKeys({ openai: '', gemini: '', groq: '' })
+      setClearProviderKeys([])
+      addAudit('Super Admin system settings updated: provider ' + saved.activeLlmProvider + ', default rate ৳' + saved.defaultVoiceRate.toFixed(2) + '/min.')
+      setNotice('System settings saved securely.')
+    } catch (error) {
+      setSettingsError(error instanceof Error ? error.message : 'Could not save system settings.')
+    } finally {
+      setSettingsSaving(false)
+    }
+  }
+
+  function toggleClearProviderKey(provider: LlmProvider) {
+    setClearProviderKeys((current) => current.includes(provider)
+      ? current.filter((item) => item !== provider)
+      : [...current, provider])
+    setProviderKeys((current) => ({ ...current, [provider]: '' }))
+  }
+
 
   const changePackage = (id: string, packageId: PackageId) => {
     const merchant = merchants.find((item) => item.id === id)
@@ -319,7 +390,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                 {SECTIONS.slice(6).map((item,index)=>{const Icon=item.icon;return <button key={item.id} type="button" className={section===item.id?'active':''} onClick={()=>setSection(item.id)} aria-current={section===item.id?'page':undefined}><Icon size={18}/><span>{item.label}</span><span className="cd-nav-num">{String(index+7).padStart(2,'0')}</span></button>})}
               </div>
             </nav>
-            <p className="cd-keys">Keyboard: <kbd>1–9</kbd> sections · <kbd>⌘K</kbd> search</p>
+            <p className="cd-keys">Keyboard: <kbd>1–0</kbd> sections · <kbd>⌘K</kbd> search</p>
             <div className="cd-rail-foot"><strong><i/> Preview mode</strong><p>Sample metrics and browser-only actions. Production records are not changed here.</p></div>
             <div className="cd-rail-user"><span className="cd-avatar">{(user.name?.[0]||user.email[0]||'A').toUpperCase()}</span><span className="cd-user-lines"><strong>{user.name||user.email}</strong><small>{user.email}</small></span></div>
             <button type="button" className="cd-signout" onClick={onSignOut}><LogOut size={16}/> Sign out</button>
@@ -575,6 +646,105 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                     ))}
                   </div>
                   <p className="cd-panel-note">Packages define feature access only. AI voice usage is billed per minute against the merchant wallet.</p>
+                </section>
+              )}
+
+
+              {section === 'settings' && (
+                <section className="cd-section" aria-label="Super Admin system settings">
+                  <div className="cd-settings-intro">
+                    <div>
+                      <p className="cd-settings-kicker">PLATFORM CONFIGURATION</p>
+                      <h2>AI provider &amp; voice pricing</h2>
+                      <p>Changes are saved to the platform database. Provider keys are encrypted in Supabase Vault and are never sent back to this page.</p>
+                    </div>
+                    <span className="cd-settings-live"><i /> LIVE SETTINGS</span>
+                  </div>
+
+                  {settingsError && <p className="cd-settings-error" role="alert">{settingsError}</p>}
+                  {settingsLoading && <p className="cd-settings-loading" role="status">Loading current settings…</p>}
+
+                  <form className="cd-settings-form" onSubmit={handleSaveSystemSettings}>
+                    <div className="cd-settings-card">
+                      <div className="cd-settings-card-head">
+                        <span className="cd-settings-step">01</span>
+                        <div><h3>Active AI provider</h3><p>New live voice sessions use this provider without a server restart.</p></div>
+                      </div>
+                      <label className="cd-settings-field">
+                        <span>Default LLM provider</span>
+                        <select value={settingsProvider} onChange={(event) => setSettingsProvider(event.target.value as LlmProvider)} disabled={settingsLoading || settingsSaving}>
+                          <option value="openai">OpenAI</option>
+                          <option value="gemini">Google Gemini</option>
+                          <option value="groq">Groq</option>
+                        </select>
+                      </label>
+                      <div className="cd-settings-active-note">
+                        Current provider: <strong>{systemSettings?.activeLlmProvider || settingsProvider}</strong>
+                      </div>
+                    </div>
+
+                    <div className="cd-settings-card">
+                      <div className="cd-settings-card-head">
+                        <span className="cd-settings-step">02</span>
+                        <div><h3>Provider API keys</h3><p>Leave a key blank to keep its saved value. Enter a new key to replace it.</p></div>
+                      </div>
+                      {(['openai', 'gemini', 'groq'] as const).map((provider) => {
+                        const keyStatus = systemSettings?.apiKeys[provider]
+                        const labels = { openai: 'OpenAI API key', gemini: 'Gemini API key', groq: 'Groq API key' }
+                        return (
+                          <label className="cd-settings-field" key={provider}>
+                            <span className="cd-settings-key-title">
+                              {labels[provider]}
+                              <small className={keyStatus?.configured ? 'configured' : 'not-configured'}>
+                                {keyStatus?.configured ? 'Saved ' + (keyStatus.maskedSuffix || '') : 'Not configured'}
+                              </small>
+                            </span>
+                            <input
+                              type="password"
+                              autoComplete="new-password"
+                              placeholder={keyStatus?.configured ? '•••••••••••• · leave blank to keep current key' : 'Paste provider API key'}
+                              value={providerKeys[provider]}
+                              onChange={(event) => {
+                                const value = event.target.value
+                                setProviderKeys((current) => ({ ...current, [provider]: value }))
+                                if (value.trim()) setClearProviderKeys((current) => current.filter((item) => item !== provider))
+                              }}
+                              disabled={settingsLoading || settingsSaving}
+                            />
+                            {keyStatus?.configured && (
+                              <button
+                                type="button"
+                                className="cd-settings-remove"
+                                onClick={() => toggleClearProviderKey(provider)}
+                                disabled={settingsLoading || settingsSaving}
+                              >
+                                {clearProviderKeys.includes(provider) ? 'Will clear on save · undo' : 'Clear saved key'}
+                              </button>
+                            )}
+                          </label>
+                        )
+                      })}
+                      <p className="cd-settings-security"><strong>Vault protection:</strong> API keys are encrypted at rest by Supabase Vault. Only the backend database connection can read decrypted values; API responses expose configured status and the last four characters only.</p>
+                    </div>
+
+                    <div className="cd-settings-card">
+                      <div className="cd-settings-card-head">
+                        <span className="cd-settings-step">03</span>
+                        <div><h3>Default voice rate</h3><p>Applied to merchants created after this setting is saved. Existing merchant-specific rates stay unchanged.</p></div>
+                      </div>
+                      <label className="cd-settings-field cd-settings-rate-field">
+                        <span>Default rate (BDT per minute)</span>
+                        <div className="cd-settings-rate-input"><span>৳</span><input type="number" min="0" max="10000" step="0.01" value={defaultVoiceRate} onChange={(event) => setDefaultVoiceRate(event.target.value)} required disabled={settingsLoading || settingsSaving} /><small>/ minute</small></div>
+                      </label>
+                    </div>
+
+                    <div className="cd-settings-actions">
+                      <button type="submit" disabled={settingsLoading || settingsSaving}>
+                        {settingsSaving ? 'Saving securely…' : 'Save system settings'}
+                      </button>
+                      <span>Last saved: {systemSettings?.updatedAt ? new Date(systemSettings.updatedAt).toLocaleString() : 'Not yet saved'}</span>
+                    </div>
+                  </form>
                 </section>
               )}
 

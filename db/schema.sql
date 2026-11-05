@@ -341,3 +341,39 @@ ALTER TABLE public.merchants
   ADD COLUMN IF NOT EXISTS website_url VARCHAR(2048),
   ADD COLUMN IF NOT EXISTS admin_contact_phone VARCHAR(32),
   ADD COLUMN IF NOT EXISTS box_sim_phone VARCHAR(32);
+
+
+-- Super Admin system settings and Vault-backed LLM provider keys.
+CREATE TABLE IF NOT EXISTS public.system_settings (
+  id SMALLINT PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+  active_llm_provider TEXT NOT NULL DEFAULT 'openai'
+    CHECK (active_llm_provider IN ('openai', 'gemini', 'groq')),
+  default_voice_rate NUMERIC(10,2) NOT NULL DEFAULT 7.00 CHECK (default_voice_rate >= 0),
+  openai_api_key_secret_id UUID REFERENCES vault.secrets(id) ON DELETE SET NULL,
+  gemini_api_key_secret_id UUID REFERENCES vault.secrets(id) ON DELETE SET NULL,
+  groq_api_key_secret_id UUID REFERENCES vault.secrets(id) ON DELETE SET NULL,
+  updated_by UUID REFERENCES public.users(id) ON DELETE SET NULL,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+INSERT INTO public.system_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.system_settings FROM PUBLIC, anon, authenticated, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.system_settings TO postgres;
+
+CREATE OR REPLACE FUNCTION public.apply_default_merchant_voice_rate()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public, pg_temp
+AS $function$
+BEGIN
+  IF NEW.overage_rate_per_min IS NULL THEN
+    SELECT settings.default_voice_rate INTO NEW.overage_rate_per_min
+    FROM public.system_settings AS settings WHERE settings.id = 1;
+    NEW.overage_rate_per_min := COALESCE(NEW.overage_rate_per_min, 7.00);
+  END IF;
+  RETURN NEW;
+END;
+$function$;
+ALTER TABLE public.merchants ALTER COLUMN overage_rate_per_min DROP DEFAULT;
+DROP TRIGGER IF EXISTS merchants_default_voice_rate_before_insert ON public.merchants;
+CREATE TRIGGER merchants_default_voice_rate_before_insert
+BEFORE INSERT ON public.merchants
+FOR EACH ROW EXECUTE FUNCTION public.apply_default_merchant_voice_rate();

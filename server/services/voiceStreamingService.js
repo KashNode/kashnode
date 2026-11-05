@@ -1,3 +1,4 @@
+import { getRuntimeSystemSettings } from './systemSettingsService.js';
 import crypto from 'node:crypto';
 import { performance } from 'node:perf_hooks';
 import { URL } from 'node:url';
@@ -418,7 +419,6 @@ export function createVoiceStreamingService({
     if (!env.GOOGLE_TTS_ACCESS_TOKEN && !env.GOOGLE_TTS_SERVICE_ACCOUNT_JSON) {
       throw new VoiceError('TTS_NOT_CONFIGURED', 'Bengali speech synthesis is not configured.');
     }
-    llmConfig(config.provider, env);
     const orderId = url.searchParams.get('order_id') || '';
     if (!ORDER_ID_RE.test(orderId)) throw new VoiceError('INVALID_ORDER_ID', 'A valid order UUID is required.');
     const authorization = request.headers.authorization || '';
@@ -540,10 +540,10 @@ export function createVoiceStreamingService({
         session.history.push({ role: 'user', content: transcript });
         sendJson(session.client, { type: 'transcript.final', turn_id: turnId, text: transcript });
         const reply = await replyGenerator({
-          provider: config.provider,
+          provider: session.provider,
           history: session.history,
           transcript,
-          env,
+          env: session.runtimeEnv,
           fetchImpl,
           timeoutMs: config.llmTimeoutMs,
         });
@@ -593,6 +593,8 @@ export function createVoiceStreamingService({
       queue: Promise.resolve(),
       startedAt: Date.now(),
       session_id: crypto.randomUUID(),
+      provider: config.provider,
+      runtimeEnv: env,
       session_start_time: null,
       session_start_monotonic: null,
       billingFinalizationStarted: false,
@@ -614,13 +616,18 @@ export function createVoiceStreamingService({
     }, config.heartbeatMs);
     session.heartbeat.unref?.();
     try {
+      const runtimeSettings = await getRuntimeSystemSettings({ pool, env });
+      session.provider = runtimeSettings.activeLlmProvider;
+      session.runtimeEnv = runtimeSettings.env;
+      llmConfig(session.provider, session.runtimeEnv);
+
       const initial = await initialScriptGenerator({
         pool,
         orderId: identity.orderId,
         merchantId: identity.merchantId,
-        provider: config.provider,
+        provider: session.provider,
         language: config.language,
-        env,
+        env: session.runtimeEnv,
         logger,
       });
       if (session.closed) return;

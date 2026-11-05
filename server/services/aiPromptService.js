@@ -1,3 +1,5 @@
+import { getRuntimeSystemSettings } from './systemSettingsService.js';
+
 const ORDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_LINE_ITEMS = 100;
 const MAX_SCRIPT_CHARS = 1200;
@@ -406,12 +408,11 @@ function failure(code, message) {
 /**
  * Generate a TTS-ready voice script from an order already saved in public.orders.
  *
- * The provider is selected per invocation so Super Admin settings can change
- * engines without restarting the Node process:
- *   await generateOrderVoiceScript({ pool, orderId, provider: 'gemini' })
+ * When no provider override is supplied, the active engine and encrypted API
+ * keys are loaded from Super Admin system_settings / Supabase Vault per call.
+ * An explicit provider argument remains available for tests and internal tools.
  *
- * Required environment variables:
- *   OPENAI_API_KEY | GEMINI_API_KEY (or GOOGLE_API_KEY) | GROQ_API_KEY
+ * API keys are stored in Supabase Vault; environment keys remain a fallback.
  *
  * Optional model overrides:
  *   OPENAI_MODEL, GEMINI_MODEL, GROQ_MODEL
@@ -424,14 +425,15 @@ export async function generateOrderVoiceScript({
   pool,
   orderId,
   merchantId = null,
-  provider = 'openai',
+  provider = null,
   language = 'bn-BD',
   fetchImpl = globalThis.fetch,
   env = process.env,
   logger = console,
   timeoutMs = DEFAULT_TIMEOUT_MS,
 } = {}) {
-  const normalizedProvider = normalizeProvider(provider);
+  let normalizedProvider = normalizeProvider(provider || env.VOICE_LLM_PROVIDER || 'openai');
+  let providerEnv = env;
   const safeOrderId = typeof orderId === 'string' ? orderId.slice(0, 36) : '';
 
   try {
@@ -477,7 +479,12 @@ export async function generateOrderVoiceScript({
 
     // Validate critical order data before checking provider credentials or making a paid API call.
     const facts = buildOrderFacts(order, language);
-    const config = getProviderConfig(normalizedProvider, env);
+    if (!provider) {
+      const runtimeSettings = await getRuntimeSystemSettings({ pool, env });
+      normalizedProvider = normalizeProvider(runtimeSettings.activeLlmProvider);
+      providerEnv = runtimeSettings.env;
+    }
+    const config = getProviderConfig(normalizedProvider, providerEnv);
     const systemContext = createOrderSystemContext(facts, order.merchant_name, order.ai_voice_rules);
     const systemPrompt = systemContext.content;
     const userPrompt = createUserPrompt(facts);
