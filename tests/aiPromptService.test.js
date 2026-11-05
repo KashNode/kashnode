@@ -19,6 +19,8 @@ function makeOrder(overrides = {}) {
       { name: 'Leather Wallet', quantity: 1 },
     ],
     currency: 'BDT',
+    wallet_balance: '100.00',
+    available_voice_minutes: 0,
     ...overrides,
   }
 }
@@ -56,6 +58,21 @@ function captureLogger() {
     error: (_label, entry) => entries.push({ level: 'error', ...entry }),
   }
 }
+
+test('blocks paid LLM calls when wallet and prepaid voice minutes are exhausted', async () => {
+  const pool = createPool(makeOrder({ wallet_balance: '0.00', available_voice_minutes: 0 }))
+  let fetchCalled = false
+  const result = await generateOrderVoiceScript({
+    pool,
+    orderId: ORDER_ID,
+    env: { OPENAI_API_KEY: 'test-openai-key' },
+    logger: captureLogger(),
+    fetchImpl: async () => { fetchCalled = true; throw new Error('must not call') },
+  })
+  assert.equal(result.ok, false)
+  assert.equal(result.error.code, 'INSUFFICIENT_VOICE_CREDIT')
+  assert.equal(fetchCalled, false)
+})
 
 test('generates a COD confirmation script from the saved order without sending the phone to the LLM', async () => {
   const pool = createPool()

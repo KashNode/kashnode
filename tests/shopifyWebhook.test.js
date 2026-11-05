@@ -8,42 +8,71 @@ const MERCHANT_ID = '11111111-1111-4111-8111-111111111111'
 const SHOP_DOMAIN = 'test-shop.myshopify.com'
 const SECRET = 'shopify-merchant-webhook-secret'
 
-async function createTestServer(t, { initialQuota = 10, failInsert = false, onOrderPersist = async () => {} } = {}) {
+async function createTestServer(t, {
+  walletBalance = 50,
+  voiceMinutes = 0,
+  failInsert = false,
+  onOrderPersist = async () => {},
+} = {}) {
   const queries = []
-  const state = { availableOrders: initialQuota, orders: new Map(), nextId: 0 }
+  const state = {
+    walletBalance,
+    voiceMinutes,
+    orders: new Map(),
+    nextId: 0,
+  }
+
   const client = {
     snapshot: null,
     async query(sql, params = []) {
       const normalized = String(sql).replace(/\s+/g, ' ').trim()
       queries.push({ sql: normalized, params })
+
       if (normalized === 'BEGIN') {
         this.snapshot = {
-          availableOrders: state.availableOrders,
+          walletBalance: state.walletBalance,
+          voiceMinutes: state.voiceMinutes,
           orders: new Map([...state.orders.entries()].map(([key, value]) => [key, structuredClone(value)])),
           nextId: state.nextId,
         }
         return { rows: [] }
       }
-      if (normalized === 'COMMIT') { this.snapshot = null; return { rows: [] } }
+
+      if (normalized === 'COMMIT') {
+        this.snapshot = null
+        return { rows: [] }
+      }
+
       if (normalized === 'ROLLBACK') {
         if (this.snapshot) {
-          state.availableOrders = this.snapshot.availableOrders
+          state.walletBalance = this.snapshot.walletBalance
+          state.voiceMinutes = this.snapshot.voiceMinutes
           state.orders = this.snapshot.orders
           state.nextId = this.snapshot.nextId
           this.snapshot = null
         }
         return { rows: [] }
       }
-      if (normalized.startsWith('SELECT id FROM public.merchants')) return { rows: [{ id: MERCHANT_ID }] }
+
+      if (normalized.startsWith('SELECT id, wallet_balance, available_voice_minutes FROM public.merchants')) {
+        return {
+          rows: [{
+            id: MERCHANT_ID,
+            wallet_balance: state.walletBalance,
+            available_voice_minutes: state.voiceMinutes,
+          }],
+        }
+      }
+
       if (normalized.startsWith('SELECT id, payment_status, delivery_status FROM public.orders')) {
         const order = state.orders.get(`${params[0]}:${params[1]}`)
-        return { rows: order ? [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }] : [] }
+        return {
+          rows: order
+            ? [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }]
+            : [],
+        }
       }
-      if (normalized.startsWith('UPDATE public.merchants SET available_orders')) {
-        if (state.availableOrders <= 0) return { rows: [], rowCount: 0 }
-        state.availableOrders -= 1
-        return { rows: [{ available_orders: state.availableOrders }], rowCount: 1 }
-      }
+
       if (normalized.startsWith('INSERT INTO public.orders')) {
         if (failInsert) throw new Error('simulated insert failure')
         const key = `${params[0]}:${params[1]}`
@@ -64,19 +93,33 @@ async function createTestServer(t, { initialQuota = 10, failInsert = false, onOr
           delivery_status: 'pending',
         }
         state.orders.set(key, order)
-        return { rows: [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }], rowCount: 1 }
+        return {
+          rows: [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }],
+          rowCount: 1,
+        }
       }
+
       if (normalized.startsWith('UPDATE public.orders SET customer_phone')) {
         const order = [...state.orders.values()].find(value => value.id === params[0])
         if (!order) return { rows: [], rowCount: 0 }
         Object.assign(order, {
-          customer_phone: params[1], customer_name: params[2], total_amount: params[3],
-          payment_method: params[4], line_items: JSON.parse(params[5]),
-          financial_status: params[6], currency: params[7],
+          customer_phone: params[1],
+          customer_name: params[2],
+          total_amount: params[3],
+          payment_method: params[4],
+          line_items: JSON.parse(params[5]),
+          financial_status: params[6],
+          currency: params[7],
         })
-        if (!(order.payment_status === 'paid' && params[8] === 'unpaid')) order.payment_status = params[8]
-        return { rows: [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }], rowCount: 1 }
+        if (!(order.payment_status === 'paid' && params[8] === 'unpaid')) {
+          order.payment_status = params[8]
+        }
+        return {
+          rows: [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }],
+          rowCount: 1,
+        }
       }
+
       throw new Error('Unhandled client query: ' + normalized)
     },
     release() {},
@@ -109,12 +152,22 @@ function sign(raw, secret = SECRET) {
   return crypto.createHmac('sha256', secret).update(Buffer.from(raw)).digest('base64')
 }
 
-async function postWebhook(server, raw, { secret = SECRET, domain = SHOP_DOMAIN, topic = 'orders/create', signature } = {}) {
-  const headers = { 'content-type': 'application/json', 'x-shopify-hmac-sha256': signature || sign(raw, secret) }
+async function postWebhook(server, raw, {
+  secret = SECRET,
+  domain = SHOP_DOMAIN,
+  topic = 'orders/create',
+  signature,
+} = {}) {
+  const headers = {
+    'content-type': 'application/json',
+    'x-shopify-hmac-sha256': signature || sign(raw, secret),
+  }
   if (domain !== null) headers['x-shopify-shop-domain'] = domain
   if (topic !== null) headers['x-shopify-topic'] = topic
   return fetch(`http://127.0.0.1:${server.address().port}/api/webhooks/shopify`, {
-    method: 'POST', headers, body: raw,
+    method: 'POST',
+    headers,
+    body: raw,
   })
 }
 
@@ -131,7 +184,7 @@ const sampleOrder = {
   ],
 }
 
-test('accepts Shopify HMAC and maps customer, total, financial status and line items', async t => {
+test('accepts Shopify HMAC and maps customer, total, financial status and line items without per-order wallet debit', async t => {
   const reconciled = []
   const { server, state, queries } = await createTestServer(t, {
     onOrderPersist: async merchantId => reconciled.push(merchantId),
@@ -142,9 +195,11 @@ test('accepts Shopify HMAC and maps customer, total, financial status and line i
 
   assert.equal(response.status, 202)
   assert.equal(body.status, 'success')
-  assert.equal(body.quota_consumed, true)
-  assert.equal(state.availableOrders, 9)
+  assert.equal('quota_consumed' in body, false)
+  assert.equal(state.walletBalance, 50)
+  assert.equal(state.voiceMinutes, 0)
   assert.equal(state.orders.size, 1)
+
   const order = [...state.orders.values()][0]
   assert.equal(order.merchant_id, MERCHANT_ID)
   assert.equal(order.platform_order_id, '987654321')
@@ -157,7 +212,7 @@ test('accepts Shopify HMAC and maps customer, total, financial status and line i
   assert.equal(order.currency, 'BDT')
   assert.equal(order.line_items[0].sku, 'SHIRT-01')
   assert.deepEqual(reconciled, [MERCHANT_ID])
-  assert.ok(queries.some(item => item.sql.startsWith('UPDATE public.merchants SET available_orders')))
+  assert.ok(queries.some(item => item.sql.startsWith('SELECT id, wallet_balance, available_voice_minutes FROM public.merchants')))
   const merchantLookup = queries.find(item => item.sql.includes('shopify_webhook_secret'))
   assert.deepEqual(merchantLookup.params, [SHOP_DOMAIN])
 })
@@ -186,7 +241,7 @@ test('rejects a missing or malformed Shopify shop-domain header', async t => {
   assert.equal(queries.length, 0)
 })
 
-test('does not consume order quota twice for Shopify webhook retries', async t => {
+test('Shopify retries update the existing order without debiting wallet funds twice', async t => {
   const { server, state } = await createTestServer(t)
   const raw = JSON.stringify(sampleOrder)
   const first = await postWebhook(server, raw)
@@ -194,8 +249,8 @@ test('does not consume order quota twice for Shopify webhook retries', async t =
   assert.equal(first.status, 202)
   assert.equal(retry.status, 202)
   const retryBody = await retry.json()
-  assert.equal(retryBody.quota_consumed, false)
-  assert.equal(state.availableOrders, 9)
+  assert.equal('quota_consumed' in retryBody, false)
+  assert.equal(state.walletBalance, 50)
   assert.equal(state.orders.size, 1)
   assert.equal([...state.orders.values()][0].total_amount, '1599.00')
 })
@@ -216,28 +271,47 @@ test('stores Shopify paid status as paid and does not mark it eligible for MFS m
   assert.equal([...state.orders.values()][0].payment_status, 'paid')
 })
 
-test('rejects malformed or incomplete order payloads without consuming quota', async t => {
+test('rejects malformed or incomplete order payloads without changing wallet credits', async t => {
   const { server, state } = await createTestServer(t)
   const response = await postWebhook(server, JSON.stringify({ id: 55, total_price: '100.00', line_items: [] }))
   assert.equal(response.status, 400)
-  assert.equal(state.availableOrders, 10)
+  assert.equal(state.walletBalance, 50)
+  assert.equal(state.voiceMinutes, 0)
   assert.equal(state.orders.size, 0)
 })
 
-test('returns 403 and rolls back when the merchant order quota is exhausted', async t => {
-  const { server, state, queries } = await createTestServer(t, { initialQuota: 0 })
+test('accepts a new Shopify order with prepaid voice minutes and a zero wallet balance', async t => {
+  const { server, state } = await createTestServer(t, { walletBalance: 0, voiceMinutes: 8 })
   const response = await postWebhook(server, JSON.stringify(sampleOrder))
-  assert.equal(response.status, 403)
-  assert.equal(state.availableOrders, 0)
+  assert.equal(response.status, 202)
+  assert.equal(state.walletBalance, 0)
+  assert.equal(state.voiceMinutes, 8)
+  assert.equal(state.orders.size, 1)
+})
+
+test('rejects a new Shopify order when wallet and prepaid voice minutes are exhausted', async t => {
+  const { server, state, queries } = await createTestServer(t, { walletBalance: 0, voiceMinutes: 0 })
+  const response = await postWebhook(server, JSON.stringify(sampleOrder))
+  const body = await response.json()
+  assert.equal(response.status, 402)
+  assert.equal(body.code, 'INSUFFICIENT_VOICE_CREDIT')
+  assert.equal(state.walletBalance, 0)
+  assert.equal(state.voiceMinutes, 0)
   assert.equal(state.orders.size, 0)
+  assert.equal(queries.some(item => item.sql.startsWith('INSERT INTO public.orders')), false)
   assert.equal(queries.at(-1).sql, 'ROLLBACK')
 })
 
-test('rolls back quota if the order insert fails', async t => {
-  const { server, state, queries } = await createTestServer(t, { failInsert: true })
+test('rolls back order insert failures without changing wallet or voice credits', async t => {
+  const { server, state, queries } = await createTestServer(t, {
+    walletBalance: 50,
+    voiceMinutes: 3,
+    failInsert: true,
+  })
   const response = await postWebhook(server, JSON.stringify(sampleOrder))
   assert.equal(response.status, 500)
-  assert.equal(state.availableOrders, 10)
+  assert.equal(state.walletBalance, 50)
+  assert.equal(state.voiceMinutes, 3)
   assert.equal(state.orders.size, 0)
   assert.equal(queries.at(-1).sql, 'ROLLBACK')
 })
@@ -249,7 +323,6 @@ test('ignores a validly signed event that is not orders/create', async t => {
   assert.equal((await response.json()).reason, 'unsupported_topic')
   assert.equal(state.orders.size, 0)
 })
-
 
 test('preserves Shopify 64-bit order IDs exactly for idempotency', async t => {
   const { server, state } = await createTestServer(t)

@@ -263,14 +263,16 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     const client = await pool.connect();
     let transactionOpen = false;
     let order;
-    let quotaConsumed = false;
 
     try {
       await client.query('BEGIN');
       transactionOpen = true;
 
       const merchantLock = await client.query(
-        'SELECT id FROM public.merchants WHERE id = $1 FOR UPDATE',
+        `SELECT id, wallet_balance, available_voice_minutes
+         FROM public.merchants
+         WHERE id = $1
+         FOR UPDATE`,
         [merchantId],
       );
       if (!merchantLock.rows[0]) {
@@ -303,22 +305,19 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
         order = updated.rows[0];
         if (!order) throw new Error('Shopify order update did not return the updated order.');
       } else {
-        const decrement = await client.query(
-          `UPDATE public.merchants
-           SET available_orders = available_orders - 1
-           WHERE id = $1 AND available_orders > 0
-           RETURNING available_orders`,
-          [merchantId],
-        );
+        const lockedMerchant = merchantLock.rows[0];
+        const walletBalance = Number(lockedMerchant.wallet_balance ?? 0);
+        const availableVoiceMinutes = Number(lockedMerchant.available_voice_minutes ?? 0);
+        const hasWalletCredit = Number.isFinite(walletBalance) && walletBalance > 0;
+        const hasPrepaidVoiceMinutes = Number.isFinite(availableVoiceMinutes) && availableVoiceMinutes > 0;
 
-        if (!decrement.rows[0]) {
+        if (!hasWalletCredit && !hasPrepaidVoiceMinutes) {
           await client.query('ROLLBACK');
           transactionOpen = false;
-          return res.status(403).json({
+          return res.status(402).json({
             status: 'error',
-            code: 'LIMIT_EXCEEDED',
-            message: 'Limit Exceeded',
-            limit: 'available_orders',
+            code: 'INSUFFICIENT_VOICE_CREDIT',
+            message: 'A positive wallet balance or available voice minutes are required before accepting a new order for AI processing.',
           });
         }
 
@@ -336,7 +335,6 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
         ]);
         order = inserted.rows[0];
         if (!order) throw new Error('Shopify order insert did not return the created order.');
-        quotaConsumed = true;
       }
 
       await client.query('COMMIT');
@@ -363,7 +361,6 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       payment_status: order.payment_status,
       delivery_status: order.delivery_status,
       idempotent_upsert: true,
-      quota_consumed: quotaConsumed,
     });
   };
 }

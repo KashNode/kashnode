@@ -5,7 +5,7 @@ import { getCallHistory, getSimStatus, type CallHistoryEntry, type SimStatus } f
 import KashNodeLogo from '../components/KashNodeLogo'
 
 type Props = { user: AuthUser; onSignOut: () => void }
-type View = 'home' | 'orders' | 'calls' | 'box' | 'minutes' | 'alerts'
+type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts'
 type Theme = 'dark' | 'system'
 
 type SampleOrder = { id: string; channel: string; amount: string; status: string; tone: string; trx: string; note: string }
@@ -34,10 +34,10 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [voice, setVoice] = useState<'Female' | 'Male'>('Female')
   const [orderFilter, setOrderFilter] = useState<'all' | 'review'>('all')
   const [rechargeOpen, setRechargeOpen] = useState(false)
-  const [rechargePack, setRechargePack] = useState(100)
+  const [rechargeAmount, setRechargeAmount] = useState(500)
   const [notice, setNotice] = useState('')
   const [alertBox, setAlertBox] = useState(true)
-  const [alertMinutes, setAlertMinutes] = useState(true)
+  const [alertWallet, setAlertWallet] = useState(true)
   const [alertFailed, setAlertFailed] = useState(true)
   const [simStatus, setSimStatus] = useState<SimStatus | null>(null)
   const [simError, setSimError] = useState('')
@@ -93,7 +93,7 @@ export default function AppShell({ user, onSignOut }: Props) {
     { key: 'orders', label: 'Orders', icon: ShoppingBag },
     { key: 'calls', label: 'Calls', icon: PhoneCall },
     { key: 'box', label: 'Box', icon: Box },
-    { key: 'minutes', label: 'Minutes', icon: Wallet },
+    { key: 'wallet', label: 'Wallet', icon: Wallet },
   ]
 
   return (
@@ -112,7 +112,7 @@ export default function AppShell({ user, onSignOut }: Props) {
         </header>
 
         <div className="md-banner" role="note">
-          Layout preview — sample data only for orders and minutes. SIM and call history load from your account when available.
+          Layout preview — sample operations, wallet balance and AI voice usage. SIM and call history load from your account when available.
         </div>
 
         <main className="md-main">
@@ -127,10 +127,8 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <div className="md-status-row"><span><i className="md-dot ok" /> Store plugin</span><strong>Connected</strong></div>
               </div>
               <div className="md-stats">
-                <div><strong>24</strong><span>Orders today</span></div>
-                <div><strong>21</strong><span>Verified</span></div>
-                <div><strong>86 min</strong><span>Used today</span></div>
-                <div><strong>3</strong><span>Fake blocked</span></div>
+                <div><strong>৳4,250</strong><span>Wallet Balance</span></div>
+                <div><strong>86 min</strong><span>AI Minutes Used</span></div>
               </div>
               <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'Waiting for device data'}</p>
               <button className="md-primary" onClick={() => setView('orders')}>Check today’s orders</button>
@@ -220,28 +218,30 @@ export default function AppShell({ user, onSignOut }: Props) {
             </section>
           )}
 
-          {view === 'minutes' && (
+          {view === 'wallet' && (
             <section>
-              <h1 className="md-title">Minutes &amp; package</h1>
-              <p className="md-sub">Your monthly package, what is left, and what overage costs.</p>
+              <h1 className="md-title">Wallet &amp; usage</h1>
+              <p className="md-sub">Pay as you go: AI voice calls are billed by call duration against your wallet.</p>
               <div className="md-card">
-                <div className="md-card-top"><strong>Standard</strong><span className="md-badge">Most popular</span></div>
-                <p>Orders left: 812 of 1,000</p>
-                <div className="md-meter"><i style={{ width: '81%' }} /></div>
-                <p>Minutes left: 764 of 1,000</p>
-                <div className="md-meter"><i style={{ width: '76%' }} /></div>
-                <p className="md-muted">Package expires 30 Nov 2026 · Overage ৳7/min</p>
-                <button className="md-primary" onClick={() => setRechargeOpen(true)}>Recharge minutes</button>
+                <div className="md-card-top"><strong>Wallet Balance</strong><span className="md-badge">Sample preview</span></div>
+                <h2>৳4,250.00</h2>
+                <p className="md-muted">Available wallet funds for AI voice processing.</p>
+                <button className="md-primary" onClick={() => setRechargeOpen(true)}>Add funds to wallet</button>
+              </div>
+              <div className="md-card">
+                <div className="md-card-top"><strong>AI Minutes Used</strong><span className="md-badge">Sample preview</span></div>
+                <h2>236 min</h2>
+                <p className="md-muted">Voice usage billed at the sample rate of ৳7 per minute.</p>
               </div>
               {rechargeOpen && (
                 <div className="md-card">
-                  <strong>Choose minutes</strong>
+                  <strong>Choose wallet top-up amount</strong>
                   <div className="md-filters">
-                    {[100, 300, 1000].map((amount) => (
-                      <button key={amount} className={rechargePack === amount ? 'active' : ''} onClick={() => setRechargePack(amount)}>{amount} min · ৳{amount * 7}</button>
+                    {[500, 1000, 2000].map((amount) => (
+                      <button key={amount} className={rechargeAmount === amount ? 'active' : ''} onClick={() => setRechargeAmount(amount)}>৳{amount.toLocaleString('en-BD')}</button>
                     ))}
                   </div>
-                  <button className="md-primary" onClick={() => { setRechargeOpen(false); notify('Recharge checkout is not configured yet.') }}>Confirm {rechargePack} min · ৳{rechargePack * 7}</button>
+                  <button className="md-primary" onClick={() => { setRechargeOpen(false); notify('Wallet top-up checkout is not configured yet.') }}>Confirm ৳{rechargeAmount.toLocaleString('en-BD')} top-up</button>
                   <button className="md-secondary" onClick={() => setRechargeOpen(false)}>Cancel</button>
                 </div>
               )}
@@ -254,7 +254,7 @@ export default function AppShell({ user, onSignOut }: Props) {
               <p className="md-sub">Get notified before a small problem becomes a lost order.</p>
               <div className="md-card">
                 <div className="md-toggle-row"><span>Box goes offline</span><button className={`md-switch ${alertBox ? 'on' : ''}`} role="switch" aria-checked={alertBox} onClick={() => setAlertBox((value) => !value)}><i /></button></div>
-                <div className="md-toggle-row"><span>Minutes run low</span><button className={`md-switch ${alertMinutes ? 'on' : ''}`} role="switch" aria-checked={alertMinutes} onClick={() => setAlertMinutes((value) => !value)}><i /></button></div>
+                <div className="md-toggle-row"><span>Wallet balance runs low</span><button className={`md-switch ${alertWallet ? 'on' : ''}`} role="switch" aria-checked={alertWallet} onClick={() => setAlertWallet((value) => !value)}><i /></button></div>
                 <div className="md-toggle-row"><span>Failed call or verification</span><button className={`md-switch ${alertFailed ? 'on' : ''}`} role="switch" aria-checked={alertFailed} onClick={() => setAlertFailed((value) => !value)}><i /></button></div>
               </div>
               <div className="md-card">
