@@ -111,6 +111,20 @@ export default function AppShell({ user, onSignOut }: Props) {
           </div>
         </header>
 
+        <nav className="md-desktop-nav" aria-label="Merchant navigation for desktop">
+          {nav.map((item) => {
+            const Icon = item.icon
+            return (
+              <button key={item.key} className={view === item.key ? 'active' : ''} onClick={() => setView(item.key)}>
+                <Icon size={18} /><span>{item.label}</span>
+              </button>
+            )
+          })}
+          <button className={view === 'alerts' ? 'active' : ''} onClick={() => setView('alerts')}>
+            <Bell size={18} /><span>Alerts</span>
+          </button>
+        </nav>
+
         <div className="md-banner" role="note">
           Layout preview — sample operations, wallet balance and AI voice usage. SIM and call history load from your account when available.
         </div>
