@@ -270,8 +270,11 @@ final class KashNode_WooCommerce_Connector {
 			'customer_name'         => $customer_name,
 			'customer_phone'        => (string) $order->get_billing_phone(),
 			'total_amount'          => (string) $order->get_total(),
+			'currency'              => (string) $order->get_currency(),
 			'payment_method'        => (string) $order->get_payment_method(),
 			'payment_method_title'  => (string) $order->get_payment_method_title(),
+			// Only WooCommerce's authoritative paid state may be sent as paid.
+			'payment_status'        => $order->is_paid() ? 'paid' : 'unpaid',
 			'line_items'            => $line_items,
 		);
 

@@ -65,12 +65,13 @@ async function createTestServer(t, { onOrderPersist = async () => {}, initialQuo
           customer_phone: params[2],
           customer_name: params[3],
           total_amount: params[4],
-          payment_method: params[5],
-          customer_trx_id: params[6],
-          line_items: JSON.parse(params[7]),
+          payment_method: params[6],
+          customer_trx_id: params[7],
+          line_items: JSON.parse(params[8]),
           is_phone_verified: false,
           ai_call_status: 'pending',
-          payment_status: 'unpaid',
+          payment_status: params[5],
+          currency: params[9],
           delivery_status: 'pending',
         }
         state.orders.set(key, order)
@@ -85,6 +86,8 @@ async function createTestServer(t, { onOrderPersist = async () => {}, initialQuo
         order.payment_method = params[4]
         order.customer_trx_id = params[5]
         order.line_items = JSON.parse(params[6])
+        if (!['paid', 'manual_review'].includes(order.payment_status)) order.payment_status = params[7]
+        order.currency = params[8] || order.currency
         return { rows: [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }], rowCount: 1 }
       }
       throw new Error('Unhandled client query: ' + normalized)
@@ -173,6 +176,7 @@ test('accepts signed WooCommerce payload, persists it and consumes one quota ato
     is_phone_verified: false,
     ai_call_status: 'pending',
     payment_status: 'unpaid',
+    currency: null,
     delivery_status: 'pending',
   })
   assert.deepEqual(reconciledMerchants, [MERCHANT_ID])
@@ -374,4 +378,45 @@ test('rejects a signed request that omits the merchant secret header on the new 
   assert.equal(response.status, 401)
   assert.equal(state.orders.size, 0)
   assert.equal(queries.length, 0)
+})
+
+
+test('persists WooCommerce paid state and currency while preserving paid status on later retries', async t => {
+  const { server, state } = await createTestServer(t)
+  const firstPayload = {
+    id: 'wc-paid-9100',
+    customer_name: 'Paid Customer',
+    customer_phone: '01712345678',
+    total_amount: '1499.00',
+    payment_method: 'bkash',
+    payment_status: 'paid',
+    currency: 'BDT',
+    line_items: [],
+  }
+
+  const first = await postPluginOrder(server, firstPayload)
+  assert.equal(first.status, 202)
+  const order = [...state.orders.values()][0]
+  assert.equal(order.payment_status, 'paid')
+  assert.equal(order.currency, 'BDT')
+
+  const retry = await postPluginOrder(server, { ...firstPayload, payment_status: 'unpaid' })
+  assert.equal(retry.status, 202)
+  assert.equal(order.payment_status, 'paid')
+  assert.equal(order.currency, 'BDT')
+})
+
+test('defaults untrusted or unknown WooCommerce payment status to unpaid', async t => {
+  const { server, state } = await createTestServer(t)
+  const response = await postPluginOrder(server, {
+    id: 'wc-pending-9101',
+    customer_name: 'Pending Customer',
+    customer_phone: '01712345678',
+    total_amount: '700.00',
+    payment_method: 'nagad',
+    payment_status: 'settled-maybe',
+    currency: 'BDT',
+  })
+  assert.equal(response.status, 202)
+  assert.equal([...state.orders.values()][0].payment_status, 'unpaid')
 })
