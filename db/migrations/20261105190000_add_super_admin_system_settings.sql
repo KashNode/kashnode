@@ -36,17 +36,18 @@ REVOKE ALL ON TABLE public.system_settings FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.system_settings TO postgres;
 
 -- The application uses the trusted postgres database connection for Vault reads.
--- Explicitly prevent browser and service-role API callers from reading plaintext
--- secrets from Vault's decrypted view.
-REVOKE ALL ON TABLE vault.decrypted_secrets FROM PUBLIC, anon, authenticated, service_role;
+-- Keep browser-facing roles out of the decrypted view. Supabase manages its
+-- own server-side service_role grants on Vault; that key must remain backend-only
+-- and the Vault schema must not be exposed through PostgREST.
+REVOKE ALL ON TABLE vault.decrypted_secrets FROM PUBLIC, anon, authenticated;
 GRANT SELECT ON TABLE vault.decrypted_secrets TO postgres;
 
--- Secret mutation is also limited to the trusted backend database role.
+-- Limit explicit secret mutation access for browser-facing roles.
 REVOKE ALL ON FUNCTION vault.create_secret(TEXT, TEXT, TEXT, UUID)
-  FROM PUBLIC, anon, authenticated, service_role;
+  FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION vault.create_secret(TEXT, TEXT, TEXT, UUID) TO postgres;
 REVOKE ALL ON FUNCTION vault.update_secret(UUID, TEXT, TEXT, TEXT, UUID)
-  FROM PUBLIC, anon, authenticated, service_role;
+  FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION vault.update_secret(UUID, TEXT, TEXT, TEXT, UUID) TO postgres;
 
 -- New merchants inherit the current Super Admin default rate. Existing
