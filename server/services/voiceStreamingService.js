@@ -473,7 +473,7 @@ export function createVoiceStreamingService({
           sessionId: session.session_id,
           durationSeconds,
         });
-        if (durationSeconds > 0) await billingQueue.drain({ force: true, maxJobs: 1 });
+        if (durationSeconds > 0) await billingQueue.drain({ maxJobs: 1 });
         if (durationSeconds > 0) {
           logSafe(logger, 'info', 'voice_session_billing_enqueued', {
             merchantId: session.merchantId,
