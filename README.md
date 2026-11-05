@@ -23,6 +23,10 @@ Copy `.env.example` to `.env` before configuring secrets. The API binds to `127.
 - Set a random `KASHNODE_DEVICE_TOKEN` (at least 32 bytes). The hardware box sends it as `Authorization: Bearer <token>`. Set `KASHNODE_DEVICE_ID` to restrict writes to one registered device.
 - `DATABASE_URL` enables persistent PostgreSQL sessions, SIM status, call history, and USSD settings. The API creates its `kashnode_*` tables automatically. For Supabase use its database connection string and keep TLS certificate verification enabled.
 - `FRONTEND_ORIGIN` must exactly match the browser origin. Credentialed CORS does not accept wildcard origins. Production cookies are `Secure`, `HttpOnly`, and `SameSite=Lax`.
+- Apply `db/migrations/20261105190000_add_voice_billing_recovery_and_merchant_device_scoping.sql` before deploying the durable voice billing worker or merchant SIM dashboard.
+- The voice service writes a durable billing job before sending `session.ready`. The worker checkpoints active sessions and retries pending finalizations; its worker lease allows abandoned sessions to be recovered after a process crash. Keep the migration applied before starting the service.
+- Device telemetry POSTs to `/api/device/sim-status` must include both `Authorization: Bearer <KASHNODE_DEVICE_TOKEN>` and `x-merchant-secret: <merchant webhook_secret>`. The first authenticated report pairs `deviceId` to that merchant; later reports must use the same device ID. Changing a pairing requires an administrator to clear `merchants.box_device_id`.
+- Leave `KASHNODE_DEVICE_ID` empty when one backend serves multiple merchant devices. Set it only when intentionally restricting the deployment to a single device ID.
 - For device status, send `deviceId`, numeric `balance`, `internetDataMb`, `signalStrength` (0–5), and optionally `dataQuotaMb`, `networkType`, and `online`.
 
 Courier tracking currently returns an explicitly marked demo response until Steadfast/RedX/Pathao credentials and provider API adapters are configured. Call history reads PostgreSQL records when configured; without a database the API serves clearly marked demo calls with no audio recordings.
