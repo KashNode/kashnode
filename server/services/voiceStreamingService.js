@@ -1,7 +1,9 @@
 import crypto from 'node:crypto';
+import { performance } from 'node:perf_hooks';
 import { URL } from 'node:url';
 import WebSocket, { WebSocketServer } from 'ws';
 import { generateOrderVoiceScript } from './aiPromptService.js';
+import { finalizeVoiceCallBilling } from './billingService.js';
 
 const ORDER_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_HISTORY = 14;
@@ -399,6 +401,7 @@ export function createVoiceStreamingService({
   initialScriptGenerator = generateOrderVoiceScript,
   replyGenerator = generateConversationReply,
   fetchImpl = globalThis.fetch,
+  billingFinalizer = finalizeVoiceCallBilling,
 } = {}) {
   const config = configFromEnv(env);
   const wss = new WebSocketServerClass({
@@ -441,6 +444,56 @@ export function createVoiceStreamingService({
     return { merchantId: String(merchant.id), orderId: String(order.rows[0].id) };
   }
 
+  function scheduleSessionBilling(session) {
+    if (session.billingFinalizationStarted || !session.session_start_time || !session.session_start_monotonic) {
+      return;
+    }
+    session.billingFinalizationStarted = true;
+
+    const elapsedMs = Math.max(0, performance.now() - session.session_start_monotonic);
+    const durationSeconds = Number((elapsedMs / 1000).toFixed(3));
+    if (durationSeconds <= 0) {
+      logSafe(logger, 'info', 'voice_session_billing_skipped', {
+        merchantId: session.merchantId,
+        orderId: session.orderId,
+        sessionId: session.session_id,
+        reason: 'zero_duration',
+      });
+      return;
+    }
+
+    // Do not await billing here: WebSocket teardown must complete immediately.
+    void Promise.resolve()
+      .then(() => billingFinalizer({
+        pool,
+        merchantId: session.merchantId,
+        orderId: session.orderId,
+        sessionId: session.session_id,
+        durationSeconds,
+      }))
+      .then(result => {
+        logSafe(logger, 'info', 'voice_session_billed', {
+          merchantId: session.merchantId,
+          orderId: session.orderId,
+          sessionId: session.session_id,
+          durationSeconds,
+          billedAmount: result?.billedAmount ?? 0,
+          currency: result?.currency ?? 'BDT',
+          billingSource: result?.billingSource ?? 'unknown',
+          idempotentReplay: Boolean(result?.idempotentReplay),
+        });
+      })
+      .catch(error => {
+        logSafe(logger, 'error', 'voice_session_billing_failed', {
+          merchantId: session.merchantId,
+          orderId: session.orderId,
+          sessionId: session.session_id,
+          durationSeconds,
+          code: error?.code || 'BILLING_FINALIZATION_FAILED',
+        });
+      });
+  }
+
   function cleanup(session) {
     if (session.closed) return;
     session.closed = true;
@@ -450,12 +503,17 @@ export function createVoiceStreamingService({
     const count = merchantCounts.get(session.merchantId) || 0;
     if (count <= 1) merchantCounts.delete(session.merchantId);
     else merchantCounts.set(session.merchantId, count - 1);
+
+    scheduleSessionBilling(session);
     try { session.stt?.close(); } catch { /* best effort */ }
     logSafe(logger, 'info', 'voice_session_closed', {
       merchantId: session.merchantId,
       orderId: session.orderId,
       turns: session.turnCount,
       durationMs: Date.now() - session.startedAt,
+      billableDurationSeconds: session.session_start_monotonic
+        ? Number(Math.max(0, (performance.now() - session.session_start_monotonic) / 1000).toFixed(3))
+        : 0,
     });
   }
 
@@ -534,6 +592,10 @@ export function createVoiceStreamingService({
       pending: 0,
       queue: Promise.resolve(),
       startedAt: Date.now(),
+      session_id: crypto.randomUUID(),
+      session_start_time: null,
+      session_start_monotonic: null,
+      billingFinalizationStarted: false,
     };
     byOrder.set(key, session);
     merchantCounts.set(identity.merchantId, (merchantCounts.get(identity.merchantId) || 0) + 1);
@@ -619,9 +681,13 @@ export function createVoiceStreamingService({
         }
       });
 
-      sendJson(client, {
+      // Billable time begins at the moment the runtime announces readiness,
+      // not while authentication, context loading, or upstream setup is pending.
+      session.session_start_time = Date.now();
+      session.session_start_monotonic = performance.now();
+      const readySent = sendJson(client, {
         type: 'session.ready',
-        session_id: crypto.randomUUID(),
+        session_id: session.session_id,
         order_id: session.orderId,
         audio: {
           input_format: 'pcm_s16le',
@@ -631,6 +697,11 @@ export function createVoiceStreamingService({
           channels: 1,
         },
       });
+      if (!readySent) {
+        session.session_start_time = null;
+        session.session_start_monotonic = null;
+        return cleanup(session);
+      }
       sendJson(client, { type: 'assistant.text', turn_id: 0, text: initial.speechText });
       try {
         await streamGoogleTts({ session, text: initial.speechText, turnId: 0, config, env, fetchImpl });
