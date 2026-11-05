@@ -35,15 +35,27 @@ CREATE TABLE IF NOT EXISTS public.orders (
   total_amount NUMERIC(10,2) NOT NULL,
   payment_status VARCHAR(50) DEFAULT 'unpaid',
   delivery_status VARCHAR(50) DEFAULT 'pending',
+  payment_method TEXT,
+  customer_trx_id TEXT,
   line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  is_phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  ai_call_status VARCHAR(32) NOT NULL DEFAULT 'pending',
   financial_status VARCHAR(50),
   currency VARCHAR(3),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS customer_phone VARCHAR(20),
+  ADD COLUMN IF NOT EXISTS payment_method TEXT,
+  ADD COLUMN IF NOT EXISTS customer_trx_id TEXT,
   ADD COLUMN IF NOT EXISTS line_items JSONB NOT NULL DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS is_phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS ai_call_status VARCHAR(32) NOT NULL DEFAULT 'pending',
   ADD COLUMN IF NOT EXISTS financial_status VARCHAR(50),
   ADD COLUMN IF NOT EXISTS currency VARCHAR(3);
+
+CREATE UNIQUE INDEX IF NOT EXISTS orders_merchant_platform_order_uidx
+  ON public.orders (merchant_id, platform_order_id);
 
 CREATE TABLE IF NOT EXISTS public.raw_sms_inbox (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
