@@ -140,6 +140,7 @@ export function createVoiceBillingQueue({
   processingLeaseMs = 120000,
 } = {}) {
   const workerId = crypto.randomUUID();
+  const localActiveSessions = new Set();
   let timer = null;
   let running = null;
   let started = false;
@@ -170,6 +171,7 @@ export function createVoiceBillingQueue({
     if (!result.rows?.[0]) {
       throw new VoiceBillingError('BILLING_SESSION_ALREADY_EXISTS', 'A durable billing record already exists for this voice session.');
     }
+    localActiveSessions.add(sessionId);
     return true;
   }
 
@@ -187,6 +189,9 @@ export function createVoiceBillingQueue({
 
   async function enqueueFinalization({ merchantId, orderId, sessionId, durationSeconds }) {
     assertPool();
+    // The socket is closed now; allow the periodic reaper to recover this
+    // active row if this database update fails during a transient outage.
+    localActiveSessions.delete(sessionId);
     const seconds = Number(durationSeconds);
     if (!Number.isFinite(seconds) || seconds < 0 || seconds > 86400) {
       throw new VoiceBillingError('BILLING_INVALID_DURATION', 'Call duration must be between zero and 24 hours.');
@@ -252,8 +257,10 @@ export function createVoiceBillingQueue({
               updated_at = NOW()
         WHERE job.status = 'active'
           AND job.last_heartbeat_at < NOW() - ($1::double precision * INTERVAL '1 millisecond')
+          AND NOT (job.session_id = ANY($3::uuid[]))
           AND (
-            EXISTS (
+            job.worker_id = $2::uuid
+            OR EXISTS (
               SELECT 1
                 FROM public.voice_billing_worker_instances AS old_worker
                WHERE old_worker.worker_id = job.worker_id
@@ -268,7 +275,7 @@ export function createVoiceBillingQueue({
             )
           )
         RETURNING job.session_id, job.status, job.duration_seconds`,
-      [staleAfterMs],
+      [staleAfterMs, workerId, [...localActiveSessions]],
     );
     if (result.rows?.length) {
       logQueue(logger, 'warn', 'abandoned_voice_sessions_recovered', { count: result.rows.length });
