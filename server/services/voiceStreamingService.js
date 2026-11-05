@@ -898,5 +898,5 @@ export function createVoiceStreamingService({
     close,
     webSocketServer: wss,
     activeSessions: byOrder,
-  };  return { attach, close, webSocketServer: wss, activeSessions: byOrder };
+  };
 }
