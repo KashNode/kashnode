@@ -40,17 +40,16 @@ type PackageId = 'free' | 'basic' | 'standard' | 'premium'
 type MerchantStatus = 'active' | 'trial' | 'suspended'
 type Voice = 'male' | 'female'
 
-type PackageInfo = { id: PackageId; name: string; price: number; orders: number; minutes: number; note: string }
+type PackageInfo = { id: PackageId; name: string; note: string; features: string[] }
 
 const PACKAGES: PackageInfo[] = [
-  { id: 'free', name: 'Free Trial', price: 0, orders: 10, minutes: 10, note: 'Trial — no card required' },
-  { id: 'basic', name: 'Basic', price: 2000, orders: 300, minutes: 300, note: 'For new stores' },
-  { id: 'standard', name: 'Standard', price: 5500, orders: 1000, minutes: 1000, note: 'Most popular' },
-  { id: 'premium', name: 'Premium', price: 14000, orders: 3000, minutes: 3000, note: 'Priority support' },
+  { id: 'free', name: 'Free Trial', note: 'Core voice automation', features: ['WooCommerce order sync', 'Basic AI order confirmation', 'Wallet usage visibility'] },
+  { id: 'basic', name: 'Basic', note: 'Essential merchant workflows', features: ['COD confirmation workflows', 'Bangla AI voice', 'MFS payment verification'] },
+  { id: 'standard', name: 'Standard', note: 'Advanced voice operations', features: ['All Basic features', 'Merchant voice rules', 'Conversation history and summaries'] },
+  { id: 'premium', name: 'Premium', note: 'Advanced business operations', features: ['All Standard features', 'Priority support workflow', 'Multi-box operations', 'Advanced reporting'] },
 ]
-
 const packageById = (id: PackageId) => PACKAGES.find((item) => item.id === id) ?? PACKAGES[0]
-const formatBdt = (value: number) => `৳${value.toLocaleString('en-US')}`
+const formatBdt = (value: number) => `৳${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
 
 type Merchant = {
   id: string
@@ -59,19 +58,19 @@ type Merchant = {
   packageId: PackageId
   status: MerchantStatus
   boxes: number
-  minutesLeft: number
+  walletBalance: number
+  aiMinutesUsed: number
 }
 
-// Same demo merchants as PR #12, so the numbers on this deck reconcile with the old panel.
 const INITIAL_MERCHANTS: Merchant[] = [
-  { id: 'M-1001', name: 'Dhaka Fashion Hub', email: 'hello@dhakafashion.example', packageId: 'standard', status: 'active', boxes: 3, minutesLeft: 612 },
-  { id: 'M-1002', name: 'Chittagong Electronics', email: 'sales@ctg-electronics.example', packageId: 'premium', status: 'active', boxes: 5, minutesLeft: 1840 },
-  { id: 'M-1003', name: 'Sylhet Grocery Mart', email: 'care@sylhetgrocery.example', packageId: 'basic', status: 'active', boxes: 1, minutesLeft: 96 },
-  { id: 'M-1004', name: 'Khulna Beauty Store', email: 'shop@khulnabeauty.example', packageId: 'basic', status: 'suspended', boxes: 1, minutesLeft: 0 },
-  { id: 'M-1005', name: 'Rajshahi Mobile Zone', email: 'info@rajmobile.example', packageId: 'standard', status: 'active', boxes: 2, minutesLeft: 430 },
-  { id: 'M-1006', name: 'Barishal Home Essentials', email: 'hello@barishalhome.example', packageId: 'free', status: 'trial', boxes: 1, minutesLeft: 7 },
-  { id: 'M-1007', name: 'Rangpur Fashion Point', email: 'team@rangpurfashion.example', packageId: 'premium', status: 'active', boxes: 4, minutesLeft: 2210 },
-  { id: 'M-1008', name: 'Mymensingh Daily Shop', email: 'daily@mymensinghshop.example', packageId: 'basic', status: 'active', boxes: 2, minutesLeft: 148 },
+  { id: 'M-1001', name: 'Dhaka Fashion Hub', email: 'hello@dhakafashion.example', packageId: 'standard', status: 'active', boxes: 3, walletBalance: 1250, aiMinutesUsed: 388 },
+  { id: 'M-1002', name: 'Chittagong Electronics', email: 'sales@ctg-electronics.example', packageId: 'premium', status: 'active', boxes: 5, walletBalance: 6280, aiMinutesUsed: 1840 },
+  { id: 'M-1003', name: 'Sylhet Grocery Mart', email: 'care@sylhetgrocery.example', packageId: 'basic', status: 'active', boxes: 1, walletBalance: 672, aiMinutesUsed: 96 },
+  { id: 'M-1004', name: 'Khulna Beauty Store', email: 'shop@khulnabeauty.example', packageId: 'basic', status: 'suspended', boxes: 1, walletBalance: 0, aiMinutesUsed: 120 },
+  { id: 'M-1005', name: 'Rajshahi Mobile Zone', email: 'info@rajmobile.example', packageId: 'standard', status: 'active', boxes: 2, walletBalance: 1540, aiMinutesUsed: 430 },
+  { id: 'M-1006', name: 'Barishal Home Essentials', email: 'hello@barishalhome.example', packageId: 'free', status: 'trial', boxes: 1, walletBalance: 49, aiMinutesUsed: 7 },
+  { id: 'M-1007', name: 'Rangpur Fashion Point', email: 'team@rangpurfashion.example', packageId: 'premium', status: 'active', boxes: 4, walletBalance: 2200, aiMinutesUsed: 2210 },
+  { id: 'M-1008', name: 'Mymensingh Daily Shop', email: 'daily@mymensinghshop.example', packageId: 'basic', status: 'active', boxes: 2, walletBalance: 1036, aiMinutesUsed: 148 },
 ]
 
 type HardwareBox = {
@@ -118,9 +117,9 @@ const COURIER_ROWS = [
 ]
 
 const WALLET_ROWS = [
-  { date: 'Nov 4', merchant: 'Dhaka Fashion Hub', detail: '+150 min recharge', amount: '৳1,050' },
-  { date: 'Nov 3', merchant: 'Rangpur Fashion Point', detail: '+300 min recharge', amount: '৳2,100' },
-  { date: 'Nov 2', merchant: 'Sylhet Grocery Mart', detail: '+60 min recharge', amount: '৳420' },
+  { date: 'Nov 4', merchant: 'Dhaka Fashion Hub', detail: 'Wallet top-up', amount: '৳1,050' },
+  { date: 'Nov 3', merchant: 'Rangpur Fashion Point', detail: 'Wallet top-up', amount: '৳2,100' },
+  { date: 'Nov 2', merchant: 'Sylhet Grocery Mart', detail: 'Wallet top-up', amount: '৳420' },
 ]
 
 const LIVE_FEED = [
@@ -134,7 +133,7 @@ const LIVE_FEED = [
 const SECTIONS: { id: Section; label: string; icon: typeof LayoutDashboard }[] = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
   { id: 'merchants', label: 'Merchants', icon: Store },
-  { id: 'minutes', label: 'Minutes & Billing', icon: Wallet },
+  { id: 'minutes', label: 'Wallet & Usage', icon: Wallet },
   { id: 'verifications', label: 'Verifications', icon: ShieldCheck },
   { id: 'calls', label: 'Voice Calls', icon: Phone },
   { id: 'courier', label: 'Courier', icon: Truck },
@@ -212,7 +211,8 @@ export default function AdminPanel({ user, onSignOut }: Props) {
   const paletteInputRef = useRef<HTMLInputElement>(null)
 
   const activeMerchants = merchants.filter((item) => item.status === 'active')
-  const totalRevenue = activeMerchants.reduce((sum, item) => sum + packageById(item.packageId).price, 0)
+  const totalWalletBalance = activeMerchants.reduce((sum, item) => sum + item.walletBalance, 0)
+  const totalAiMinutesUsed = activeMerchants.reduce((sum, item) => sum + item.aiMinutesUsed, 0)
   const connectedBoxes = boxes.filter((item) => item.online).length
   const isAdmin = user.role === 'admin'
   const sectionTitle = SECTIONS.find((item) => item.id === section)?.label ?? 'Overview'
@@ -300,7 +300,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
         <div className="cd-ticker" aria-label="KashNode operations preview ticker">
           <div className="cd-ticker-brand"><strong>KashNode</strong><span>Super Admin · visual console</span></div>
           <div className="cd-ticker-marquee" aria-hidden="true"><div className="cd-ticker-track">
-            {['KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample','KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳43,000 monthly package value · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample'].map((item,index)=><span key={index}>{item}</span>)}
+            {['KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳12,978 wallet funds · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample','KN-BOX-04 offline · sample data','8 merchants in demo workspace','6 connected boxes · 5 online','৳12,978 wallet funds · sample','3 reviews waiting in sample queue','96.4% MFS match rate · sample'].map((item,index)=><span key={index}>{item}</span>)}
           </div></div>
           <span className="cd-preview-tag">Layout preview · sample data</span>
         </div>
@@ -341,9 +341,9 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                 <section className="cd-section" aria-label="Overview">
                   <div className="cd-hero">
                     <div className="cd-hero-main">
-                      <div className="cd-hero-eyebrow"><i/> November cycle · package value</div>
-                      <div className="cd-hero-revenue">{formatBdt(totalRevenue)}<small> /month</small></div>
-                      <p className="cd-hero-copy">Estimated monthly package value from <strong>{activeMerchants.length} active merchants</strong>. All figures are sample preview data, not live financial reporting.</p>
+                      <div className="cd-hero-eyebrow"><i/> Merchant wallet funds · sample</div>
+                      <div className="cd-hero-revenue">{formatBdt(totalWalletBalance)}</div>
+                      <p className="cd-hero-copy">Combined wallet balance across <strong>{activeMerchants.length} active merchants</strong>. All figures are sample preview data, not live financial reporting.</p>
                       <div className="cd-hero-gauges">
                         <Gauge label="Active merchant share" value={Math.round(activeMerchants.length/Math.max(merchants.length,1)*100)} display={`${Math.round(activeMerchants.length/Math.max(merchants.length,1)*100)}%`}/>
                         <Gauge label="MFS match sample" value={96.4} display="96.4%"/>
@@ -364,16 +364,16 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                   </div>
 
                   <div className="cd-stats">
-                    <TiltCard ghost="৳"><span className="cd-stat-icon"><CircleDollarSign size={22}/></span><small>Monthly package value</small><strong>{formatBdt(totalRevenue)}<span> /month</span></strong><p>Sum of active merchant package prices in this preview.</p></TiltCard>
+                    <TiltCard ghost="৳"><span className="cd-stat-icon"><CircleDollarSign size={22}/></span><small>Merchant wallet balance</small><strong>{formatBdt(totalWalletBalance)}</strong><p>Combined funds across active sample merchants.</p></TiltCard>
                     <TiltCard ghost="08"><span className="cd-stat-icon cyan"><Users size={22}/></span><small>Active merchants</small><strong>{activeMerchants.length}<span> / {merchants.length} total</span></strong><p>{merchants.filter((item)=>item.status==='trial').length} on trial · {merchants.filter((item)=>item.status==='suspended').length} suspended.</p></TiltCard>
-                    <TiltCard ghost="V"><span className="cd-stat-icon pink"><Wallet size={22}/></span><small>Voice minutes remaining</small><strong>{merchants.reduce((sum,item)=>sum+item.minutesLeft,0).toLocaleString('en-US')}<span> min</span></strong><p>Combined available minutes across sample merchants.</p></TiltCard>
+                    <TiltCard ghost="V"><span className="cd-stat-icon pink"><Wallet size={22}/></span><small>AI minutes used</small><strong>{totalAiMinutesUsed.toLocaleString('en-US')}<span> min</span></strong><p>Combined voice usage across active sample merchants.</p></TiltCard>
                     <TiltCard ghost="KN"><span className="cd-stat-icon amber"><Box size={22}/></span><small>Connected boxes</small><strong>{connectedBoxes}<span> / {boxes.length} online</span></strong><p>{boxes.length-connectedBoxes} offline or inactive in this sample set.</p></TiltCard>
                   </div>
 
                   <div className="cd-overview-grid">
                     <div className="cd-panel cd-chart-panel">
-                      <div className="cd-card-heading"><div><h2>Revenue &amp; voice usage · last 14 days</h2><p>Illustrative trend only — no live transaction series is connected to this screen.</p></div><span className="cd-preview-chip">SAMPLE CHART</span></div>
-                      <svg className="cd-chart" viewBox="0 0 640 240" role="img" aria-label="Illustrative sample revenue and voice usage trend">
+                      <div className="cd-card-heading"><div><h2>Wallet activity &amp; AI usage · last 14 days</h2><p>Illustrative trend only — no live transaction series is connected to this screen.</p></div><span className="cd-preview-chip">SAMPLE CHART</span></div>
+                      <svg className="cd-chart" viewBox="0 0 640 240" role="img" aria-label="Illustrative sample wallet activity and AI voice usage trend">
                         <defs><linearGradient id="cdChartFill" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor="#f07880" stopOpacity=".28"/><stop offset="100%" stopColor="#f07880" stopOpacity="0"/></linearGradient></defs>
                         <g className="cd-chart-grid"><line x1="44" y1="30" x2="620" y2="30"/><line x1="44" y1="85" x2="620" y2="85"/><line x1="44" y1="140" x2="620" y2="140"/><line x1="44" y1="195" x2="620" y2="195"/></g>
                         <g className="cd-chart-labels"><text x="6" y="34">৳4k</text><text x="6" y="89">৳3k</text><text x="6" y="144">৳2k</text><text x="6" y="199">৳1k</text><text x="44" y="222">Oct 23</text><text x="230" y="222">Oct 29</text><text x="420" y="222">Nov 2</text><text x="580" y="222">Nov 5</text></g>
@@ -381,14 +381,14 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                         <path className="cd-chart-revenue" d="M44 139 L88 113 L132 148 L176 91 L220 126 L264 65 L308 109 L352 139 L396 78 L440 122 L484 47 L528 100 L572 131 L620 83"/>
                         <path className="cd-chart-minutes" d="M44 179 L88 168 L132 182 L176 159 L220 173 L264 149 L308 166 L352 179 L396 154 L440 172 L484 142 L528 163 L572 175 L620 156"/>
                       </svg>
-                      <div className="cd-chart-legend"><span><i/> Revenue (sample)</span><span><i/> Voice minutes (sample)</span></div>
+                      <div className="cd-chart-legend"><span><i/> Wallet activity (sample)</span><span><i/> AI minutes used (sample)</span></div>
                     </div>
                     <div className="cd-panel cd-attention-panel">
                       <div className="cd-card-heading"><div><h2>Needs attention</h2><p>Items derived from current sample records.</p></div><span className="cd-preview-chip warn">{boxes.filter((item)=>!item.online).length+reviewQueue.length} OPEN</span></div>
                       <ul className="cd-attention-list">
                         {boxes.filter((item)=>!item.online).map((box)=><li key={box.unit} className="bad"><span className="cd-attention-mark"><Signal size={16}/></span><span><strong>{box.unit} offline</strong><small>{box.merchant} · last sync {box.lastSync}</small></span></li>)}
                         {reviewQueue.length>0&&<li className="warn"><span className="cd-attention-mark"><ShieldCheck size={16}/></span><span><strong>{reviewQueue.length} reviews waiting</strong><small>Manual payment / verification review in sample queue.</small></span></li>}
-                        {merchants.filter((item)=>item.status==='trial'&&item.minutesLeft<=10).map((merchant)=><li key={merchant.id} className="warn"><span className="cd-attention-mark"><Clock3 size={16}/></span><span><strong>{merchant.name} · trial nearly used</strong><small>{merchant.minutesLeft} minutes remain in the sample plan.</small></span></li>)}
+                        {merchants.filter((item)=>item.status!=='suspended'&&item.walletBalance<=100).map((merchant)=><li key={merchant.id} className="warn"><span className="cd-attention-mark"><Clock3 size={16}/></span><span><strong>{merchant.name} · wallet balance low</strong><small>{formatBdt(merchant.walletBalance)} remains in the sample wallet.</small></span></li>)}
                         {CALL_ROWS.filter((call)=>call.outcome.toLowerCase().includes('failed')).map((call)=><li key={call.id} className="info"><span className="cd-attention-mark"><Phone size={16}/></span><span><strong>{call.id} · call follow-up</strong><small>{call.merchant} · {call.outcome}</small></span></li>)}
                       </ul>
                       <div className="cd-quick-actions"><button type="button" onClick={()=>setSection('verifications')}>Review verifications ({reviewQueue.length}) <ArrowUpRight size={15}/></button><button type="button" onClick={()=>setSection('hardware')}>Inspect hardware boxes <ArrowUpRight size={15}/></button></div>
@@ -398,7 +398,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                   <div className="cd-mini-grid">
                     <div className="cd-panel"><h2>Merchant lifecycle</h2><div className="cd-row-between"><span>Active</span><strong>{activeMerchants.length}</strong></div><div className="cd-meter"><i style={{width:`${activeMerchants.length/Math.max(merchants.length,1)*100}%`}}/></div><div className="cd-row-between"><span>Trial</span><strong>{merchants.filter((item)=>item.status==='trial').length}</strong></div><div className="cd-meter warn"><i style={{width:`${merchants.filter((item)=>item.status==='trial').length/Math.max(merchants.length,1)*100}%`}}/></div><div className="cd-row-between"><span>Suspended</span><strong>{merchants.filter((item)=>item.status==='suspended').length}</strong></div><div className="cd-meter bad"><i style={{width:`${merchants.filter((item)=>item.status==='suspended').length/Math.max(merchants.length,1)*100}%`}}/></div></div>
                     <div className="cd-panel"><h2>Box connectivity</h2><div className="cd-row-between"><span>Online now (sample)</span><strong>{connectedBoxes} / {boxes.length}</strong></div><div className="cd-meter"><i style={{width:`${connectedBoxes/Math.max(boxes.length,1)*100}%`}}/></div><div className="cd-box-summary"><span><i className="online"/> Online <strong>{connectedBoxes}</strong></span><span><i className="offline"/> Offline <strong>{boxes.length-connectedBoxes}</strong></span></div><p className="cd-panel-note">Signal, SIM balance and last sync are preview values until live device telemetry is wired in.</p></div>
-                    <div className="cd-panel"><h2>Minutes at risk</h2>{merchants.slice().sort((x,y)=>x.minutesLeft-y.minutesLeft).slice(0,3).map((merchant)=>{const total=packageById(merchant.packageId).minutes;const pct=total>0?Math.max(0,Math.min(100,merchant.minutesLeft/total*100)):0;return <div className="cd-risk-row" key={merchant.id}><div className="cd-row-between"><span>{merchant.name}</span><strong>{merchant.minutesLeft.toLocaleString('en-US')} min left</strong></div><div className="cd-meter warn"><i style={{width:`${pct}%`}}/></div></div>})}</div>
+                    <div className="cd-panel"><h2>Highest AI voice usage</h2>{merchants.slice().sort((x,y)=>y.aiMinutesUsed-x.aiMinutesUsed).slice(0,3).map((merchant)=>{const peak=Math.max(...merchants.map((item)=>item.aiMinutesUsed),1);const pct=Math.max(0,Math.min(100,merchant.aiMinutesUsed/peak*100));return <div className="cd-risk-row" key={merchant.id}><div className="cd-row-between"><span>{merchant.name}</span><strong>{merchant.aiMinutesUsed.toLocaleString('en-US')} min used</strong></div><div className="cd-meter"><i style={{width:`${pct}%`}}/></div></div>})}</div>
                   </div>
                 </section>
               )}
@@ -412,7 +412,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                   </div>
                   <div className="cd-table-wrap">
                     <table className="cd-table">
-                      <thead><tr><th>Merchant</th><th>Package</th><th>Status</th><th>Boxes</th><th>Minutes left</th><th>Actions</th></tr></thead>
+                      <thead><tr><th>Merchant</th><th>Feature set</th><th>Status</th><th>Boxes</th><th>Wallet balance</th><th>AI minutes used</th><th>Actions</th></tr></thead>
                       <tbody>
                         <AnimatePresence>
                           {filteredMerchants.map((merchant, index) => (
@@ -420,17 +420,18 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                               <td><strong>{merchant.name}</strong><small>{merchant.email}</small><small>{merchant.id}</small></td>
                               <td>
                                 <select className="cd-package-select" aria-label={`Package for ${merchant.name}`} value={merchant.packageId} onChange={(event) => changePackage(merchant.id, event.target.value as PackageId)}>
-                                  {PACKAGES.map((item) => (<option key={item.id} value={item.id}>{item.name} · {formatBdt(item.price)}/mo</option>))}
+                                  {PACKAGES.map((item) => (<option key={item.id} value={item.id}>{item.name}</option>))}
                                 </select>
                               </td>
                               <td><span className={`cd-status ${merchant.status}`}>{merchant.status}</span></td>
                               <td>{merchant.boxes}</td>
-                              <td>{merchant.minutesLeft.toLocaleString('en-US')} min</td>
+                              <td>{formatBdt(merchant.walletBalance)}</td>
+                              <td>{merchant.aiMinutesUsed.toLocaleString('en-US')} min</td>
                               <td><button type="button" className="cd-action" onClick={() => toggleSuspend(merchant)}>{merchant.status === 'suspended' ? <><Play size={14} /> Reactivate</> : <><Pause size={14} /> Suspend</>}</button></td>
                             </motion.tr>
                           ))}
                         </AnimatePresence>
-                        {filteredMerchants.length === 0 && (<tr><td colSpan={6} className="cd-empty">No merchants match this search.</td></tr>)}
+                        {filteredMerchants.length === 0 && (<tr><td colSpan={7} className="cd-empty">No merchants match this search.</td></tr>)}
                       </tbody>
                     </table>
                   </div>
@@ -438,24 +439,19 @@ export default function AdminPanel({ user, onSignOut }: Props) {
               )}
 
               {section === 'minutes' && (
-                <section className="cd-section" aria-label="Minutes and billing">
+                <section className="cd-section" aria-label="Wallet and AI usage">
                   <div className="cd-table-wrap">
                     <table className="cd-table">
-                      <thead><tr><th>Merchant</th><th>Package minutes</th><th>Used</th><th>Left</th><th>Overage</th></tr></thead>
+                      <thead><tr><th>Merchant</th><th>Wallet balance</th><th>AI minutes used</th><th>Voice rate</th></tr></thead>
                       <tbody>
-                        {merchants.map((merchant) => {
-                          const total = packageById(merchant.packageId).minutes
-                          const used = Math.max(0, total - merchant.minutesLeft)
-                          return (
-                            <tr key={merchant.id}>
-                              <td><strong>{merchant.name}</strong><small>{packageById(merchant.packageId).name}</small></td>
-                              <td>{total.toLocaleString('en-US')} min</td>
-                              <td>{used.toLocaleString('en-US')} min</td>
-                              <td>{merchant.minutesLeft.toLocaleString('en-US')} min</td>
-                              <td>৳0 · flat ৳7/min overage when minutes run out</td>
-                            </tr>
-                          )
-                        })}
+                        {merchants.map((merchant) => (
+                          <tr key={merchant.id}>
+                            <td><strong>{merchant.name}</strong><small>{packageById(merchant.packageId).name} feature set</small></td>
+                            <td>{formatBdt(merchant.walletBalance)}</td>
+                            <td>{merchant.aiMinutesUsed.toLocaleString('en-US')} min</td>
+                            <td>৳7 / minute</td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -464,7 +460,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                     <ul className="cd-list">
                       {WALLET_ROWS.map((row) => (<li key={`${row.date}-${row.merchant}`}><span><strong>{row.merchant}</strong><small>{row.detail}</small></span><span>{row.date}</span><strong>{row.amount}</strong></li>))}
                     </ul>
-                    <p className="cd-panel-note">Overage is a flat ৳7/minute, with in-app minute recharge.</p>
+                    <p className="cd-panel-note">AI voice usage is billed by call duration against the merchant wallet. Sample voice rate: ৳7 per minute.</p>
                   </div>
                 </section>
               )}
@@ -565,24 +561,20 @@ export default function AdminPanel({ user, onSignOut }: Props) {
               )}
 
               {section === 'licensing' && (
-                <section className="cd-section" aria-label="Licensing and packages">
+                <section className="cd-section" aria-label="Feature packages">
                   <div className="cd-package-grid">
                     {PACKAGES.map((item, index) => (
                       <motion.article key={item.id} className="cd-package-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.06 }} whileHover={{ y: -6, scale: 1.01 }}>
                         <span className="cd-package-note">{item.note}</span>
                         <h2>{item.name}</h2>
-                        <strong className="cd-package-price">{formatBdt(item.price)}<span>/month</span></strong>
                         <ul>
-                          <li>{item.orders.toLocaleString('en-US')} orders / month</li>
-                          <li>{item.minutes.toLocaleString('en-US')} Voice minutes included</li>
-                          <li>Overage: flat ৳7 / minute</li>
-                          <li>{merchants.filter((merchant) => merchant.packageId === item.id).length} merchants on this package (demo)</li>
+                          {item.features.map((feature) => <li key={feature}>{feature}</li>)}
                         </ul>
                         <button type="button" onClick={() => setSection('merchants')}>Assign in Merchants <ArrowUpRight size={15} /></button>
                       </motion.article>
                     ))}
                   </div>
-                  <p className="cd-panel-note">Licensing model: a monthly order package with minutes included inside it — cost is per minute, but sellers budget per order.</p>
+                  <p className="cd-panel-note">Packages define feature access only. AI voice usage is billed per minute against the merchant wallet.</p>
                 </section>
               )}
 
