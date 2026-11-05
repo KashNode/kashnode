@@ -7,7 +7,7 @@ export type SimStatus = {
   networkType: string
   online: boolean
   updatedAt: string
-  source: 'device' | 'database' | 'demo'
+  source: 'device' | 'database'
 }
 
 export type CallHistoryEntry = {
@@ -17,6 +17,9 @@ export type CallHistoryEntry = {
   durationSeconds: number
   status: string
   summary: string
+  billedAmount: number
+  currency: string
+  billingSource: 'wallet' | 'voice_minutes' | 'included'
   recordingUrl: string | null
 }
 
@@ -61,11 +64,11 @@ async function apiWrite<T>(path: string, method: 'PUT' | 'POST', body: unknown):
 }
 
 export function getSimStatus() {
-  return apiRequest<SimStatus>('/api/device/sim-status')
+  return apiRequest<{ source: 'database'; sim: SimStatus | null }>('/api/merchant/sim')
 }
 
 export function getCallHistory() {
-  return apiRequest<{ source: 'demo' | 'database'; calls: CallHistoryEntry[] }>('/api/calls/history')
+  return apiRequest<{ source: 'billing_ledger'; calls: CallHistoryEntry[] }>('/api/merchant/calls')
 }
 
 export function trackOrder(orderId: string, courier: 'steadfast' | 'redx' | 'pathao') {
