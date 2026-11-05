@@ -84,6 +84,29 @@ async function waitFor(predicate, timeoutMs = 1000) {
   }
 }
 
+function createMemoryBillingQueue(pool, finalizer) {
+  const pending = [];
+  const started = new Map();
+  return {
+    async beginSession(job) { started.set(job.sessionId, job); },
+    async recordHeartbeat() {},
+    async enqueueFinalization(job) { pending.push(job); },
+    async drain({ maxJobs = 1 } = {}) {
+      let processed = 0;
+      while (pending.length && processed < maxJobs) {
+        const job = pending.shift();
+        await finalizer({ pool, ...job });
+        processed += 1;
+      }
+      return processed;
+    },
+    async start() {},
+    async stop() {},
+    pending,
+    started,
+  };
+}
+
 async function openVoiceSession(t, {
   initialOk = true,
   billingFinalizer = async () => ({ billedAmount: 1.25, currency: 'BDT', billingSource: 'wallet' }),
@@ -105,6 +128,7 @@ async function openVoiceSession(t, {
     },
   };
 
+  const billingQueue = createMemoryBillingQueue(pool, billingFinalizer);
   const service = createVoiceStreamingService({
     pool,
     env: {
@@ -130,6 +154,7 @@ async function openVoiceSession(t, {
       async json() { return { audioContent: wavPayload() }; },
     }),
     billingFinalizer,
+    billingQueue,
   });
 
   const httpServer = new FakeHttpServer();
