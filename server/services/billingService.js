@@ -413,18 +413,15 @@ export function createVoiceBillingQueue({
     if (timer) clearInterval(timer);
     timer = null;
     if (running) await running.catch(() => {});
-    const deadline = Date.now() + Math.max(0, timeoutMs);
-    while (Date.now() < deadline) {
-      let processed = 0;
-      try {
-        processed = await drain({ force: true, maxJobs: 20 });
-      } catch (error) {
-        logQueue(logger, 'error', 'voice_billing_shutdown_drain_failed', {
-          code: error?.code || 'BILLING_QUEUE_ERROR',
-        });
-        break;
-      }
-      if (processed === 0) break;
+    try {
+      // Jobs enqueued by active-session cleanup are immediately due. Do not
+      // ignore their backoff during shutdown: a failed attempt remains durable
+      // and is retried by the next process instead of hot-looping here.
+      await drain({ maxJobs: 100 });
+    } catch (error) {
+      logQueue(logger, 'error', 'voice_billing_shutdown_drain_failed', {
+        code: error?.code || 'BILLING_QUEUE_ERROR',
+      });
     }
     try {
       await pool?.query(
