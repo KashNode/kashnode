@@ -131,6 +131,12 @@ async function openVoiceSession(t, {
 
   const httpServer = new FakeHttpServer();
   service.attach(httpServer);
+  // FakeClient.latest is shared across tests in this file. A previous test's
+  // client already carries a session.ready message, so without resetting it
+  // the wait below would return immediately with the stale client and the
+  // new session would never be observed (billing then never fires, or a
+  // never-ready session appears to have a ready message).
+  FakeClient.latest = null;
   const rawSocket = { destroyed: false, write() {}, destroy() { this.destroyed = true; } };
   httpServer.emit('upgrade', {
     url: `/ws/voice?order_id=${orderId}`,
