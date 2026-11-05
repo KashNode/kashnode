@@ -1,5 +1,3 @@
-import crypto from 'node:crypto';
-
 const ORDER_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const MAX_LINE_ITEMS = 100;
 const MAX_SCRIPT_CHARS = 1200;
