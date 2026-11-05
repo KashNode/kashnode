@@ -247,3 +247,27 @@ test('ignores a validly signed event that is not orders/create', async t => {
   assert.equal((await response.json()).reason, 'unsupported_topic')
   assert.equal(state.orders.size, 0)
 })
+
+
+test('preserves Shopify 64-bit order IDs exactly for idempotency', async t => {
+  const { server, state } = await createTestServer(t)
+  const raw = JSON.stringify({ ...sampleOrder, id: '987654321987654321' })
+    .replace('"id":"987654321987654321"', '"id":987654321987654321')
+  const response = await postWebhook(server, raw)
+  assert.equal(response.status, 202)
+  assert.equal([...state.orders.values()][0].platform_order_id, '987654321987654321')
+})
+
+test('maps partially paid Shopify orders to manual review, not MFS-unpaid', async t => {
+  const { server, state } = await createTestServer(t)
+  const response = await postWebhook(server, JSON.stringify({ ...sampleOrder, financial_status: 'partially_paid' }))
+  assert.equal(response.status, 202)
+  assert.equal([...state.orders.values()][0].payment_status, 'manual_review')
+})
+
+test('rejects a webhook without the Shopify topic header', async t => {
+  const { server, state } = await createTestServer(t)
+  const response = await postWebhook(server, JSON.stringify(sampleOrder), { topic: null })
+  assert.equal(response.status, 400)
+  assert.equal(state.orders.size, 0)
+})
