@@ -158,6 +158,8 @@ test('accepts Shopify HMAC and maps customer, total, financial status and line i
   assert.equal(order.line_items[0].sku, 'SHIRT-01')
   assert.deepEqual(reconciled, [MERCHANT_ID])
   assert.ok(queries.some(item => item.sql.startsWith('UPDATE public.merchants SET available_orders')))
+  const merchantLookup = queries.find(item => item.sql.includes('shopify_webhook_secret'))
+  assert.deepEqual(merchantLookup.params, [SHOP_DOMAIN])
 })
 
 test('uses exact raw bytes for Shopify HMAC validation', async t => {
