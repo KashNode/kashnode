@@ -5,7 +5,7 @@ import express from 'express'
 import { createWooCommerceWebhookHandler } from '../server/routes/woocommerceWebhook.js'
 
 const MERCHANT_ID = '11111111-1111-4111-8111-111111111111'
-const SECRET = 'merchant-webhook-secret'
+const SECRET = 'merchant-webhook-secret-0123456789abcdef'
 
 async function createTestServer(t, { onOrderPersist = async () => {}, initialQuota = 10, failInsert = false } = {}) {
   const queries = []
