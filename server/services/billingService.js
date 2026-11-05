@@ -25,6 +25,8 @@ export async function finalizeVoiceCallBilling({
   orderId,
   sessionId,
   durationSeconds,
+  maxRetries = 2,
+  retryDelayMs = 100,
 } = {}) {
   if (!UUID_RE.test(String(merchantId || ''))
     || !UUID_RE.test(String(orderId || ''))
@@ -52,25 +54,43 @@ export async function finalizeVoiceCallBilling({
     throw new VoiceBillingError('BILLING_DATABASE_UNAVAILABLE', 'Voice billing database is unavailable.');
   }
 
-  let result;
-  try {
-    result = await pool.query(
-      `SELECT *
-         FROM public.finalize_voice_call_billing($1::uuid, $2::uuid, $3::uuid, $4::numeric)`,
-      [merchantId, orderId, sessionId, billableSeconds],
-    );
-  } catch (error) {
-    const databaseCode = typeof error?.message === 'string'
-      ? error.message.match(/(?:INSUFFICIENT_VOICE_CREDIT|BILLING_[A-Z_]+|INVALID_[A-Z_]+)/)?.[0]
-      : null;
-    throw new VoiceBillingError(
-      databaseCode || 'BILLING_FINALIZATION_FAILED',
-      databaseCode || 'The voice session could not be billed.',
-      error,
-    );
+  if (!Number.isInteger(maxRetries) || maxRetries < 0 || maxRetries > 5
+    || !Number.isInteger(retryDelayMs) || retryDelayMs < 0 || retryDelayMs > 5000) {
+    throw new VoiceBillingError('BILLING_INVALID_RETRY_POLICY', 'Billing retry policy is invalid.');
   }
 
-  const ledger = result.rows?.[0];
+  const sql = `SELECT *
+    FROM public.finalize_voice_call_billing($1::uuid, $2::uuid, $3::uuid, $4::numeric)`;
+  const params = [merchantId, orderId, sessionId, billableSeconds];
+  let result;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      result = await pool.query(sql, params);
+      break;
+    } catch (error) {
+      const databaseCode = typeof error?.message === 'string'
+        ? error.message.match(/(?:INSUFFICIENT_VOICE_CREDIT|BILLING_[A-Z_]+|INVALID_[A-Z_]+)/)?.[0]
+        : null;
+      const retryableCodes = new Set([
+        'ECONNRESET', 'ETIMEDOUT', 'EPIPE',
+        '08000', '08003', '08006', '57P01', '40001',
+      ]);
+      const retryable = retryableCodes.has(error?.code) && attempt < maxRetries;
+      if (retryable) {
+        const delayMs = Math.min(retryDelayMs * (2 ** attempt), 2000);
+        if (delayMs > 0) await new Promise(resolve => setTimeout(resolve, delayMs));
+        continue;
+      }
+
+      throw new VoiceBillingError(
+        databaseCode || 'BILLING_FINALIZATION_FAILED',
+        databaseCode || 'The voice session could not be billed.',
+        error,
+      );
+    }
+  }
+
+  const ledger = result?.rows?.[0];
   if (!ledger?.id) {
     throw new VoiceBillingError('BILLING_LEDGER_NOT_WRITTEN', 'The billing finalizer returned no ledger record.');
   }
