@@ -33,7 +33,7 @@ ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.system_settings FROM PUBLIC, anon, authenticated;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.system_settings TO postgres, service_role;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.system_settings TO postgres;
 
 -- The application uses the trusted postgres database connection for Vault reads.
 -- Explicitly prevent browser and service-role API callers from reading plaintext
