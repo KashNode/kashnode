@@ -611,6 +611,7 @@ export function createVoiceStreamingService({
       billingFinalizationStarted: false,
       billingJobStarted: false,
       billingPromise: null,
+      billingStartPromise: null,
     };
     byOrder.set(key, session);
     merchantCounts.set(identity.merchantId, (merchantCounts.get(identity.merchantId) || 0) + 1);
@@ -720,12 +721,13 @@ export function createVoiceStreamingService({
       // Persist the billing obligation before telling the client that the
       // session is ready. If this write fails, the session must not become billable.
       const sessionStartedAt = new Date();
-      await billingQueue.beginSession({
+      session.billingStartPromise = billingQueue.beginSession({
         merchantId: session.merchantId,
         orderId: session.orderId,
         sessionId: session.session_id,
         startedAt: sessionStartedAt,
       });
+      await session.billingStartPromise;
       session.billingJobStarted = true;
       if (session.closed) {
         await scheduleSessionBilling(session);
@@ -878,7 +880,8 @@ export function createVoiceStreamingService({
 
     shutdownPromise = (async () => {
       const pending = [];
-      for (const session of [...byOrder.values()]) {
+      const closingSessions = [...byOrder.values()];
+      for (const session of closingSessions) {
         sendJson(session.client, { type: 'session.ended', reason: 'server_shutdown' });
         const billing = cleanup(session);
         if (billing) pending.push(Promise.resolve(billing));
@@ -891,6 +894,17 @@ export function createVoiceStreamingService({
         } catch { /* best effort; the durable job remains in PostgreSQL */ }
       }
 
+      // A disconnect can race with the INSERT that persists the session's
+      // initial billing intent. Wait for those writes, then finalize any row
+      // that became durable after cleanup first ran.
+      await Promise.allSettled(closingSessions
+        .map(session => session.billingStartPromise)
+        .filter(Boolean));
+      for (const session of closingSessions) {
+        if (session.billingJobStarted && !session.billingFinalizationStarted) {
+          pending.push(Promise.resolve(scheduleSessionBilling(session)));
+        }
+      }
       await Promise.allSettled(pending);
       await billingQueue.stop({ timeoutMs });
       try { wss.close(); } catch { /* already closed */ }
