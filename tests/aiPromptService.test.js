@@ -78,6 +78,10 @@ test('generates a COD confirmation script from the saved order without sending t
   })
 
   assert.equal(result.ok, true)
+  assert.equal(result.systemContext.role, 'system')
+  assert.match(result.systemContext.content, /MERCHANT_CONTEXT_JSON/)
+  assert.match(result.systemContext.content, /ORDER_CONTEXT_JSON/)
+  assert.match(result.systemContext.content, /COD:/)
   assert.equal(result.provider, 'openai')
   assert.equal(result.intent, 'cod_confirmation')
   assert.equal(result.tts.text, result.speechText)
@@ -117,6 +121,7 @@ test('paid bKash order instructs the AI to state payment received and parcel pre
   })
 
   assert.equal(result.ok, true)
+  assert.match(result.systemContext.content, /PAID:/)
   assert.equal(result.intent, 'payment_received')
   assert.match(requestBody.messages[0].content, /explicitly say payment is received and the parcel is being prepared/)
   assert.doesNotMatch(requestBody.messages[0].content, /ask a direct question confirming/)

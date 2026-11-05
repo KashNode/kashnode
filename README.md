@@ -51,7 +51,7 @@ The Express backend now validates credentials, rotates the session on login, use
 - History: payment logbook, manual approval UI, AI call summaries and recording controls.
 - Settings: voice profile, knowledge base guidance, and courier selection.
 
-Live calls, recharge, and AI workflow toggles remain UI integration points until their provider services are connected. SIM status and USSD settings are connected to API routes.
+The backend now includes an authenticated live voice WebSocket runtime for the Android KashNode Box. The dashboard's live-call controls and Android client remain separate integration work. SIM status and USSD settings are connected to API routes.
 
 
 ## AI order voice prompt service
@@ -79,3 +79,29 @@ if (result.ok) {
 Configure one or more server-side API keys: `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), and `GROQ_API_KEY`. Optional model overrides: `OPENAI_MODEL`, `GEMINI_MODEL`, and `GROQ_MODEL`.
 
 The service loads `customer_phone`, `payment_method`, `payment_status`, `total_amount`, `currency`, and `line_items` from `public.orders`. It validates the phone locally and does not send the phone number to the LLM. COD always asks for order confirmation. A payment-received script is generated only when the database payment status is `paid`; unpaid and review states never claim payment was received. Apply `db/migrations/20261105114500_add_order_currency_for_ai_voice.sql` before enabling this service.
+
+## Live Android voice runtime
+
+The backend exposes an authenticated WebSocket endpoint at `/ws/voice` on the same HTTP server as Express. Connect using:
+
+```
+wss://<host>/ws/voice?order_id=<public.orders UUID>
+Authorization: Bearer <merchant webhook_secret>
+```
+
+The existing `merchants.webhook_secret` is the merchant shared secret used for the handshake. The server verifies that the requested order belongs to that merchant before upgrading. Keep the secret in Android secure storage; never put it in the URL or logs.
+
+### Audio and event contract
+
+- Upload binary mono PCM signed 16-bit little-endian frames at 16 kHz.
+- Send JSON `{"type":"audio.end"}` to finalize an utterance, `{"type":"session.end"}` to close the session, or `{"type":"ping"}` for an application heartbeat.
+- Server JSON events include `session.ready`, `transcript.partial`, `transcript.final`, `assistant.text`, `audio.start`, `audio.end`, `error`, and `session.ended`.
+- Server binary frames are mono PCM16 24 kHz audio. Wait for `session.ready`, play audio only between `audio.start` and `audio.end`, and pause microphone capture during playback (half-duplex echo prevention).
+
+### Voice configuration
+
+Set `DEEPGRAM_API_KEY` for streaming Bengali STT (`nova-3`, `language=bn`). Set one LLM key from the AI Prompt Engine configuration and select `VOICE_LLM_PROVIDER=openai|gemini|groq`. Bengali TTS uses Google Cloud Text-to-Speech because the current OpenAI Speech and Deepgram Aura/Flux voice lists do not include Bengali. Configure `GOOGLE_TTS_SERVICE_ACCOUNT_JSON` with a service-account JSON value (recommended; OAuth access tokens are cached/refreshed), or supply a short-lived `GOOGLE_TTS_ACCESS_TOKEN`. The default voice is `bn-IN-Wavenet-A`; test pronunciation with Bangladesh callers before production use.
+
+Merchant-specific voice preferences are read from `public.merchants.ai_voice_rules` (a JSON array of short strings). These are lower-priority business preferences and cannot override KashNode scope, privacy, or payment guardrails. Apply `db/migrations/20261105123000_add_merchant_ai_voice_rules.sql` before deploying this runtime.
+
+Conversation history is bounded and in-memory per active socket. The service does not persist transcripts or audio and does not mutate order/payment status. Sessions are limited per merchant and per order and close on disconnect, timeout, turn limit, or backpressure.

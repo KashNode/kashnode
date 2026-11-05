@@ -19,12 +19,14 @@ CREATE TABLE IF NOT EXISTS public.merchants (
   webhook_secret VARCHAR(255) NOT NULL,
   shopify_domain VARCHAR(255),
   shopify_webhook_secret TEXT,
+  ai_voice_rules JSONB NOT NULL DEFAULT '[]'::jsonb,
   wallet_balance NUMERIC(12,2) DEFAULT 0.00,
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 ALTER TABLE public.merchants
   ADD COLUMN IF NOT EXISTS shopify_domain VARCHAR(255),
-  ADD COLUMN IF NOT EXISTS shopify_webhook_secret TEXT;
+  ADD COLUMN IF NOT EXISTS shopify_webhook_secret TEXT,
+  ADD COLUMN IF NOT EXISTS ai_voice_rules JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -19,6 +19,7 @@ import { createAuthController } from './server/controllers/authController.js'
 import { isDisposableEmail } from './server/services/disposableEmail.js'
 import { sendSignupOtpEmail } from './server/services/emailService.js'
 import { verifyGoogleIdToken } from './server/services/googleIdToken.js'
+import { createVoiceStreamingService } from './server/services/voiceStreamingService.js'
 
 const { Pool } = pg
 const app = express()
@@ -49,6 +50,9 @@ if (IS_PRODUCTION) {
 const pool = process.env.DATABASE_URL
   ? new Pool({ connectionString: process.env.DATABASE_URL, ssl: IS_PRODUCTION ? { rejectUnauthorized: false } : undefined, options: '-c statement_timeout=10000' })
   : null
+const httpServer = createServer(app)
+const voiceStreamingService = createVoiceStreamingService({ pool })
+voiceStreamingService.attach(httpServer)
 
 app.disable('x-powered-by')
 app.set('trust proxy', IS_PRODUCTION ? 1 : false)
@@ -310,7 +314,7 @@ async function start() {
       [ADMIN_EMAIL, process.env.KASHNODE_ADMIN_NAME || 'Workspace Admin', ADMIN_PASSWORD_HASH])
     }
   }
-  app.listen(PORT, HOST, () => console.info(`KashNode API listening on http://${HOST}:${PORT} (${NODE_ENV})`))
+  httpServer.listen(PORT, HOST, () => console.info(`KashNode API + voice WebSocket listening on http://${HOST}:${PORT} (${NODE_ENV})`))
 }
 
 start().catch(error => {
