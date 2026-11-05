@@ -191,7 +191,7 @@ test('client disconnect triggers billing only once even when cleanup is reached 
 
   await new Promise(resolve => setTimeout(resolve, 20));
   client.close();
-  client.emit('error', new Error('late close error')).catch?.(() => {});
+  client.emit('error', new Error('late close error'));
   await waitFor(() => calls.length === 1);
   assert.equal(calls.length, 1);
 });
