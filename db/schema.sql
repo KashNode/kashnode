@@ -357,7 +357,7 @@ CREATE TABLE IF NOT EXISTS public.system_settings (
 );
 INSERT INTO public.system_settings (id) VALUES (1) ON CONFLICT (id) DO NOTHING;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
-REVOKE ALL ON TABLE public.system_settings FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON TABLE public.system_settings FROM PUBLIC, anon, authenticated, service_role;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.system_settings TO postgres;
 
 CREATE OR REPLACE FUNCTION public.apply_default_merchant_voice_rate()
