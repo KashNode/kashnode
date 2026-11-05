@@ -1,11 +1,25 @@
 BEGIN;
 
+-- Each process maintains a durable heartbeat so multiple live workers do not
+-- recover one another's active voice sessions as abandoned.
+CREATE TABLE IF NOT EXISTS public.voice_billing_worker_instances (
+  worker_id UUID PRIMARY KEY,
+  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  stopped_at TIMESTAMPTZ
+);
+
+ALTER TABLE public.voice_billing_worker_instances ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.voice_billing_worker_instances FROM PUBLIC, anon, authenticated;
+GRANT SELECT, INSERT, UPDATE, DELETE
+  ON TABLE public.voice_billing_worker_instances TO service_role, postgres;
+
 -- Durable outbox for voice-session billing. A row is written before the
 -- server emits session.ready, so a process crash cannot erase the obligation
 -- to finalize a call. The worker leases rows and uses the existing
 -- session_id-idempotent database finalizer.
 CREATE TABLE IF NOT EXISTS public.voice_session_billing_jobs (
   session_id UUID PRIMARY KEY,
+  worker_id UUID NOT NULL REFERENCES public.voice_billing_worker_instances(worker_id) ON DELETE RESTRICT,
   merchant_id UUID NOT NULL REFERENCES public.merchants(id) ON DELETE RESTRICT,
   order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE RESTRICT,
   status TEXT NOT NULL DEFAULT 'active'
