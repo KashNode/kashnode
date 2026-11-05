@@ -214,8 +214,8 @@ export default function AppShell({ user, onSignOut }: Props) {
               <h1 className="md-title">Kash AI calls</h1>
               <p className="md-sub">What Kash said to your customers, and what needs a follow-up.</p>
               <div className="md-stats">
-                <div><strong>{callLogs.length}</strong><span>Calls shown</span></div>
-                <div><strong>1</strong><span>Failed call</span></div>
+                <div><strong>{callLogs.length}</strong><span>Completed calls</span></div>
+                <div><strong>{(callLogs.reduce((total, call) => total + call.durationSeconds, 0) / 60).toFixed(1)} min</strong><span>Billed voice time</span></div>
               </div>
               {callsError && <p className="md-error" role="alert">{callsError}</p>}
               <p className="md-muted">Call history source: {callSource === 'billing_ledger' ? 'Billing ledger' : 'loading…'}</p>
