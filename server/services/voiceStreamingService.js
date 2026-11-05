@@ -613,13 +613,6 @@ export function createVoiceStreamingService({
       try { client.ping(); } catch { cleanup(session); }
     }, config.heartbeatMs);
     session.heartbeat.unref?.();
-    session.durationTimer = setTimeout(() => {
-      sendJson(client, { type: 'session.ended', reason: 'max_duration' });
-      client.close(1000, 'Maximum voice session duration reached');
-      cleanup(session);
-    }, config.maxSessionMs);
-    session.durationTimer.unref?.();
-
     try {
       const initial = await initialScriptGenerator({
         pool,
@@ -702,6 +695,13 @@ export function createVoiceStreamingService({
         session.session_start_monotonic = null;
         return cleanup(session);
       }
+      session.durationTimer = setTimeout(() => {
+        sendJson(client, { type: 'session.ended', reason: 'max_duration' });
+        client.close(1000, 'Maximum voice session duration reached');
+        cleanup(session);
+      }, config.maxSessionMs);
+      session.durationTimer.unref?.();
+
       sendJson(client, { type: 'assistant.text', turn_id: 0, text: initial.speechText });
       try {
         await streamGoogleTts({ session, text: initial.speechText, turnId: 0, config, env, fetchImpl });
