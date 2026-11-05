@@ -151,7 +151,7 @@ test('webhook retries update the existing order without a second wallet debit', 
   assert.equal(retry.status, 202)
   assert.equal(state.walletBalance, 50)
   assert.equal(state.orders.size, 1)
-  assert.equal([...state.orders.values()][0].total_amount, '550')
+  assert.equal([...state.orders.values()][0].total_amount, '550.00')
 })
 
 test('rolls back a failed order insert without changing merchant credits', async t => {
