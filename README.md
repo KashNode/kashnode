@@ -52,3 +52,30 @@ The Express backend now validates credentials, rotates the session on login, use
 - Settings: voice profile, knowledge base guidance, and courier selection.
 
 Live calls, recharge, and AI workflow toggles remain UI integration points until their provider services are connected. SIM status and USSD settings are connected to API routes.
+
+
+## AI order voice prompt service
+
+`server/services/aiPromptService.js` generates a single TTS-ready phone script from an order already stored in PostgreSQL/Supabase. It supports OpenAI (default), Gemini and Groq; the provider is selected per invocation so a Super Admin workflow can switch engines without restarting the server.
+
+```js
+import { generateOrderVoiceScript } from './server/services/aiPromptService.js'
+
+const result = await generateOrderVoiceScript({
+  pool,
+  orderId: savedOrderId, // public.orders.id (UUID)
+  provider: 'openai',    // 'openai' | 'gemini' | 'groq'
+  language: 'bn-BD',
+})
+
+if (result.ok) {
+  // OpenAI TTS: result.tts.openai.input
+  // Deepgram TTS: result.tts.deepgram.text
+} else {
+  // result.error.code / result.error.message
+}
+```
+
+Configure one or more server-side API keys: `OPENAI_API_KEY`, `GEMINI_API_KEY` (or `GOOGLE_API_KEY`), and `GROQ_API_KEY`. Optional model overrides: `OPENAI_MODEL`, `GEMINI_MODEL`, and `GROQ_MODEL`.
+
+The service loads `customer_phone`, `payment_method`, `payment_status`, `total_amount`, `currency`, and `line_items` from `public.orders`. It validates the phone locally and does not send the phone number to the LLM. COD always asks for order confirmation. A payment-received script is generated only when the database payment status is `paid`; unpaid and review states never claim payment was received. Apply `db/migrations/20261105114500_add_order_currency_for_ai_voice.sql` before enabling this service.
