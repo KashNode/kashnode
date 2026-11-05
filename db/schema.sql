@@ -28,7 +28,7 @@ ALTER TABLE public.merchants
 
 CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  merchant_id UUID REFERENCES public.merchants(id) ON DELETE CASCADE,
+  merchant_id UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
   platform_order_id VARCHAR(100) NOT NULL,
   customer_phone VARCHAR(20) NOT NULL,
   customer_name VARCHAR(255),
