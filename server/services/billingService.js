@@ -26,10 +26,6 @@ export async function finalizeVoiceCallBilling({
   sessionId,
   durationSeconds,
 } = {}) {
-  if (!pool || typeof pool.query !== 'function') {
-    throw new VoiceBillingError('BILLING_DATABASE_UNAVAILABLE', 'Voice billing database is unavailable.');
-  }
-
   if (!UUID_RE.test(String(merchantId || ''))
     || !UUID_RE.test(String(orderId || ''))
     || !UUID_RE.test(String(sessionId || ''))) {
@@ -50,6 +46,10 @@ export async function finalizeVoiceCallBilling({
       walletDebited: false,
       ledgerId: null,
     };
+  }
+
+  if (!pool || typeof pool.query !== 'function') {
+    throw new VoiceBillingError('BILLING_DATABASE_UNAVAILABLE', 'Voice billing database is unavailable.');
   }
 
   let result;
