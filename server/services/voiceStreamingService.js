@@ -445,7 +445,7 @@ export function createVoiceStreamingService({
   }
 
   function scheduleSessionBilling(session) {
-    if (session.billingFinalizationStarted || !session.session_start_time || !session.session_start_monotonic) {
+    if (session.billingFinalizationStarted || session.session_start_time === null || session.session_start_monotonic === null) {
       return;
     }
     session.billingFinalizationStarted = true;
@@ -511,9 +511,9 @@ export function createVoiceStreamingService({
       orderId: session.orderId,
       turns: session.turnCount,
       durationMs: Date.now() - session.startedAt,
-      billableDurationSeconds: session.session_start_monotonic
-        ? Number(Math.max(0, (performance.now() - session.session_start_monotonic) / 1000).toFixed(3))
-        : 0,
+      billableDurationSeconds: session.session_start_monotonic === null
+        ? 0
+        : Number(Math.max(0, (performance.now() - session.session_start_monotonic) / 1000).toFixed(3)),
     });
   }
 
