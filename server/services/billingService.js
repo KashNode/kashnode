@@ -1,3 +1,5 @@
+import crypto from 'node:crypto';
+
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export class VoiceBillingError extends Error {
@@ -137,6 +139,7 @@ export function createVoiceBillingQueue({
   staleAfterMs = 60000,
   processingLeaseMs = 120000,
 } = {}) {
+  const workerId = crypto.randomUUID();
   let timer = null;
   let running = null;
   let started = false;
@@ -158,11 +161,11 @@ export function createVoiceBillingQueue({
 
     const result = await pool.query(
       `INSERT INTO public.voice_session_billing_jobs
-        (session_id, merchant_id, order_id, status, started_at, last_heartbeat_at, next_attempt_at)
-       VALUES ($1::uuid, $2::uuid, $3::uuid, 'active', $4::timestamptz, $4::timestamptz, NOW())
+        (session_id, worker_id, merchant_id, order_id, status, started_at, last_heartbeat_at, next_attempt_at)
+       VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, 'active', $5::timestamptz, $5::timestamptz, NOW())
        ON CONFLICT (session_id) DO NOTHING
        RETURNING session_id`,
-      [sessionId, merchantId, orderId, startedAt],
+      [sessionId, workerId, merchantId, orderId, startedAt],
     );
     if (!result.rows?.[0]) {
       throw new VoiceBillingError('BILLING_SESSION_ALREADY_EXISTS', 'A durable billing record already exists for this voice session.');
@@ -222,26 +225,49 @@ export function createVoiceBillingQueue({
     return true;
   }
 
+  async function touchWorker() {
+    assertPool();
+    await pool.query(
+      `INSERT INTO public.voice_billing_worker_instances (worker_id, last_seen_at, stopped_at)
+       VALUES ($1::uuid, NOW(), NULL)
+       ON CONFLICT (worker_id) DO UPDATE
+         SET last_seen_at = NOW(), stopped_at = NULL`,
+      [workerId],
+    );
+  }
+
   async function recoverAbandonedSessions() {
     assertPool();
     const result = await pool.query(
-      `UPDATE public.voice_session_billing_jobs
+      `UPDATE public.voice_session_billing_jobs AS job
           SET duration_seconds = ROUND(GREATEST(
-                0,
-                EXTRACT(EPOCH FROM (last_heartbeat_at - started_at))
+                0.001,
+                EXTRACT(EPOCH FROM (job.last_heartbeat_at - job.started_at))
               )::numeric, 3),
-              ended_at = last_heartbeat_at,
-              status = CASE
-                WHEN last_heartbeat_at > started_at THEN 'pending'
-                ELSE 'skipped'
-              END,
+              ended_at = job.last_heartbeat_at,
+              status = 'pending',
               next_attempt_at = NOW(),
               last_error = 'RECOVERED_AFTER_PROCESS_RESTART',
               locked_at = NULL,
               updated_at = NOW()
-        WHERE status = 'active'
-          AND last_heartbeat_at < NOW() - ($1::double precision * INTERVAL '1 millisecond')
-        RETURNING session_id, status, duration_seconds`,
+        WHERE job.status = 'active'
+          AND job.last_heartbeat_at < NOW() - ($1::double precision * INTERVAL '1 millisecond')
+          AND (
+            EXISTS (
+              SELECT 1
+                FROM public.voice_billing_worker_instances AS old_worker
+               WHERE old_worker.worker_id = job.worker_id
+                 AND old_worker.stopped_at IS NOT NULL
+            )
+            OR NOT EXISTS (
+              SELECT 1
+                FROM public.voice_billing_worker_instances AS live_worker
+               WHERE live_worker.worker_id = job.worker_id
+                 AND live_worker.stopped_at IS NULL
+                 AND live_worker.last_seen_at >= NOW() - ($1::double precision * INTERVAL '1 millisecond')
+            )
+          )
+        RETURNING job.session_id, job.status, job.duration_seconds`,
       [staleAfterMs],
     );
     if (result.rows?.length) {
@@ -360,6 +386,7 @@ export function createVoiceBillingQueue({
   async function tick() {
     if (stopping) return;
     try {
+      await touchWorker();
       await recoverAbandonedSessions();
       await drain({ maxJobs: 20 });
     } catch (error) {
@@ -373,6 +400,7 @@ export function createVoiceBillingQueue({
     assertPool();
     if (started) return;
     stopping = false;
+    await touchWorker();
     await recoverAbandonedSessions();
     await drain({ maxJobs: 100 });
     timer = setInterval(() => { void tick(); }, intervalMs);
@@ -397,6 +425,18 @@ export function createVoiceBillingQueue({
         break;
       }
       if (processed === 0) break;
+    }
+    try {
+      await pool?.query(
+        `UPDATE public.voice_billing_worker_instances
+            SET stopped_at = NOW(), last_seen_at = NOW()
+          WHERE worker_id = $1::uuid`,
+        [workerId],
+      );
+    } catch (error) {
+      logQueue(logger, 'warn', 'billing_worker_stop_checkpoint_failed', {
+        code: error?.code || 'DATABASE_ERROR',
+      });
     }
     started = false;
   }
