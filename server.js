@@ -16,6 +16,8 @@ import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebh
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
 import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
 import { createAdminSettingsHandlers } from './server/routes/adminSettings.js'
+import { createMerchantDashboardHandlers } from './server/routes/merchantDashboard.js'
+import { createDeviceStatusHandler } from './server/routes/deviceStatus.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 import { createAuthController } from './server/controllers/authController.js'
@@ -164,6 +166,8 @@ const authController = createAuthController({
 })
 const merchantOnboardingHandlers = createMerchantOnboardingHandlers({ pool })
 const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
+const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaultDataQuotaMb: DATA_QUOTA_MB })
+const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
@@ -172,6 +176,8 @@ app.get('/api/merchant/onboarding', requireMerchantSession, asyncRoute(merchantO
 app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyncRoute(merchantOnboardingHandlers.postOnboarding))
 // Reveal integration credentials only to the merchant owner after onboarding is complete.
 app.get('/api/merchant/credentials', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getCredentials))
+app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCalls))
+app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))
 
 // Super Admin-only platform settings. Provider key material is written to Vault server-side.
 app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
@@ -274,24 +280,7 @@ app.put('/api/settings/sim-ussd', requireOrigin, requireAdmin, asyncRoute(async 
   res.json({ status: 'success', settings: { autoBalance, frequency, balanceCode, internetCode, source: 'database' } })
 }))
 
-app.post('/api/device/sim-status', requireDevice, asyncRoute(async (req, res) => {
-  const { deviceId, balance, internetDataMb, signalStrength } = req.body || {}
-  const networkType = typeof req.body?.networkType === 'string' ? req.body.networkType.trim().slice(0, 24) : '4G LTE'
-  const online = req.body?.online !== false
-  const quota = req.body?.dataQuotaMb === undefined ? DATA_QUOTA_MB : Number(req.body.dataQuotaMb)
-  if (typeof deviceId !== 'string' || !deviceId.trim() || deviceId.length > 128) return res.status(400).json({ status: 'error', message: 'A valid deviceId is required.' })
-  if (DEVICE_ID && !safeEqual(deviceId.trim(), DEVICE_ID)) return res.status(403).json({ status: 'error', message: 'This device is not registered.' })
-  const values = [balance, internetDataMb, signalStrength, quota].map(Number)
-  if (values.some(value => !Number.isFinite(value)) || values[0] < 0 || values[1] < 0 || values[2] < 0 || values[2] > 5 || values[3] <= 0) {
-    return res.status(400).json({ status: 'error', message: 'Expected balance >= 0, internetDataMb >= 0, dataQuotaMb > 0, and signalStrength between 0 and 5.' })
-  }
-  const rawPayload = { ...req.body, deviceId: deviceId.trim(), dataQuotaMb: values[3], networkType, online }
-  const result = await pool.query('INSERT INTO device_logs (device_id, balance_bdt, data_mb, signal_strength, raw_payload) VALUES ($1,$2,$3,$4,$5) RETURNING created_at',
-    [deviceId.trim(), values[0], values[1], values[2], rawPayload])
-  const createdAt = result.rows[0].created_at
-  console.info(`[KashNode Box Sync] ${deviceId.trim()} · signal ${values[2]}/5 · ${online ? 'online' : 'offline'}`)
-  res.status(202).json({ status: 'success', message: 'SIM status synced successfully.', updatedAt: createdAt })
-}))
+app.post('/api/device/sim-status', requireDevice, asyncRoute(postDeviceStatus))
 
 app.get('/api/orders/track/:orderId', requireAdmin, asyncRoute(async (req, res) => {
   const orderId = req.params.orderId.trim()
@@ -325,17 +314,65 @@ app.use((error, _req, res, _next) => {
   res.status(status).json({ status: 'error', message: status === 403 ? 'Request origin is not allowed.' : 'An unexpected server error occurred.' })
 })
 
+let shutdownPromise = null
+
+async function shutdown(signal) {
+  if (shutdownPromise) return shutdownPromise
+  console.info(`[KashNode] ${signal} received; stopping HTTP and voice services.`)
+
+  // voiceStreamingService.shutdown synchronously rejects new upgrades before
+  // it starts closing active sockets and draining the durable billing queue.
+  const voiceClose = voiceStreamingService.shutdown({ timeoutMs: 20000 })
+  const httpClose = new Promise(resolve => {
+    if (!httpServer.listening) return resolve()
+    httpServer.close(error => {
+      if (error && error.code !== 'ERR_SERVER_NOT_RUNNING') {
+        console.error('[KashNode] HTTP server close failed:', error.message)
+      }
+      resolve()
+    })
+  })
+  const hardStop = setTimeout(() => {
+    console.error('[KashNode] Graceful shutdown deadline reached; closing remaining HTTP connections.')
+    httpServer.closeAllConnections?.()
+  }, 25000)
+  hardStop.unref?.()
+
+  shutdownPromise = (async () => {
+    try {
+      await Promise.allSettled([voiceClose, httpClose])
+      await pool?.end()
+      console.info('[KashNode] Graceful shutdown complete.')
+    } catch (error) {
+      console.error('[KashNode] Graceful shutdown encountered an error:', error)
+      process.exitCode = 1
+    } finally {
+      clearTimeout(hardStop)
+    }
+  })()
+  return shutdownPromise
+}
+
+process.once('SIGTERM', () => { void shutdown('SIGTERM') })
+process.once('SIGINT', () => { void shutdown('SIGINT') })
+
 async function start() {
   if (IS_PRODUCTION && !pool) throw new Error('DATABASE_URL is required in production.')
   if (pool) {
     await pool.query('SELECT 1')
     await pool.query('SELECT id, name FROM merchants LIMIT 1')
-    console.info('[KashNode] Database startup check passed (merchants table is queryable).')
+    // Fail fast when the release migration needed by the billing recovery
+    // worker and merchant-scoped device endpoints has not been applied.
+    await pool.query('SELECT session_id FROM public.voice_session_billing_jobs LIMIT 0')
+    await pool.query('SELECT box_device_id FROM public.merchants LIMIT 0')
+    await pool.query('SELECT merchant_id FROM public.device_logs LIMIT 0')
+    console.info('[KashNode] Database startup checks passed.')
     if (ADMIN_EMAIL && ADMIN_PASSWORD_HASH) {
       await pool.query(`INSERT INTO users (email, name, password_hash, role)
         VALUES ($1, $2, $3, 'admin') ON CONFLICT (email) DO UPDATE SET name=EXCLUDED.name, password_hash=EXCLUDED.password_hash, role='admin'`,
       [ADMIN_EMAIL, process.env.KASHNODE_ADMIN_NAME || 'Workspace Admin', ADMIN_PASSWORD_HASH])
     }
+    await voiceStreamingService.start()
   }
   httpServer.listen(PORT, HOST, () => console.info(`KashNode API + voice WebSocket listening on http://${HOST}:${PORT} (${NODE_ENV})`))
 }

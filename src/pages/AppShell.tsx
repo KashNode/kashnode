@@ -9,7 +9,6 @@ type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts'
 type Theme = 'dark' | 'system'
 
 type SampleOrder = { id: string; channel: string; amount: string; status: string; tone: string; trx: string; note: string }
-type SampleCall = { id: string; phone: string; time: string; duration: string; status: string; summary: string }
 
 const sampleOrders: SampleOrder[] = [
   { id: '#KN-48219', channel: 'bKash', amount: '৳ 1,250', status: 'COD SMS verified', tone: 'ok', trx: 'B8K2••••', note: 'Order confirmed' },
@@ -18,10 +17,6 @@ const sampleOrders: SampleOrder[] = [
   { id: '#KN-48216', channel: 'Upay', amount: '৳ 3,600', status: 'Fake blocked', tone: 'bad', trx: 'C6L1••••', note: 'COD verification failed' },
 ]
 
-const sampleCalls: SampleCall[] = [
-  { id: '1', phone: '+880 17•• ••• 8291', time: 'Today, 10:42 AM', duration: '2:18', status: 'Completed', summary: 'Order confirmed and delivery time explained.' },
-  { id: '2', phone: '+880 18•• ••• 4221', time: 'Today, 09:56 AM', duration: '0:00', status: 'Failed', summary: 'Customer did not answer. Follow-up needed.' },
-]
 
 function maskDeviceId(deviceId: string) {
   if (!deviceId) return '—'
@@ -43,7 +38,7 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [simError, setSimError] = useState('')
   const [simRefreshing, setSimRefreshing] = useState(false)
   const [callLogs, setCallLogs] = useState<CallHistoryEntry[]>([])
-  const [callSource, setCallSource] = useState<'demo' | 'database' | null>(null)
+  const [callSource, setCallSource] = useState<'billing_ledger' | null>(null)
   const [callsError, setCallsError] = useState('')
   const [merchantSecretKey, setMerchantSecretKey] = useState('')
   const [secretLoading, setSecretLoading] = useState(true)
@@ -63,7 +58,8 @@ export default function AppShell({ user, onSignOut }: Props) {
     setSimRefreshing(true)
     setSimError('')
     try {
-      setSimStatus(await getSimStatus())
+      const payload = await getSimStatus()
+      setSimStatus(payload.sim)
       if (!quiet) notify('SIM status refreshed.')
     } catch (error) {
       setSimError(error instanceof Error ? error.message : 'Could not load SIM status.')
@@ -150,7 +146,7 @@ export default function AppShell({ user, onSignOut }: Props) {
         </nav>
 
         <div className="md-banner" role="note">
-          Layout preview — sample operations, wallet balance and AI voice usage. SIM and call history load from your account when available.
+          Live SIM telemetry and completed AI voice sessions are loaded from your merchant account. Orders and wallet previews are not yet connected.
         </div>
 
         <main className="md-main">
@@ -161,14 +157,14 @@ export default function AppShell({ user, onSignOut }: Props) {
               <p className="md-sub">Live status for Kash AI, your KashNode Box and your store, in one place.</p>
               <div className="md-status-list">
                 <div className="md-status-row"><span><i className="md-dot ok" /> Kash AI</span><strong>Live</strong></div>
-                <div className="md-status-row"><span><i className="md-dot ok" /> KashNode Box</span><strong>{simStatus ? (simStatus.online ? 'Online' : 'Offline') : 'Checking…'}</strong></div>
+                <div className="md-status-row"><span><i className="md-dot ok" /> KashNode Box</span><strong>{simStatus ? (simStatus.online ? 'Online' : 'Offline') : 'Not linked'}</strong></div>
                 <div className="md-status-row"><span><i className="md-dot ok" /> Store plugin</span><strong>Connected</strong></div>
               </div>
               <div className="md-stats">
                 <div><strong>৳4,250</strong><span>Wallet Balance</span></div>
                 <div><strong>86 min</strong><span>AI Minutes Used</span></div>
               </div>
-              <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'Waiting for device data'}</p>
+              <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'No merchant device has reported yet'}</p>
               <button className="md-primary" onClick={() => setView('orders')}>Check today’s orders</button>
               <div className="md-card md-merchant-secret-card">
                 <div className="md-card-top"><strong><KeyRound size={17} /> Merchant API secret</strong><span className="md-badge">Private</span></div>
@@ -218,20 +214,20 @@ export default function AppShell({ user, onSignOut }: Props) {
               <h1 className="md-title">Kash AI calls</h1>
               <p className="md-sub">What Kash said to your customers, and what needs a follow-up.</p>
               <div className="md-stats">
-                <div><strong>{callLogs.length || sampleCalls.length}</strong><span>Calls shown</span></div>
-                <div><strong>1</strong><span>Failed call</span></div>
+                <div><strong>{callLogs.length}</strong><span>Completed calls</span></div>
+                <div><strong>{(callLogs.reduce((total, call) => total + call.durationSeconds, 0) / 60).toFixed(1)} min</strong><span>Billed voice time</span></div>
               </div>
               {callsError && <p className="md-error" role="alert">{callsError}</p>}
-              <p className="md-muted">Call history source: {callSource || 'loading…'}</p>
+              <p className="md-muted">Call history source: {callSource === 'billing_ledger' ? 'Billing ledger' : 'loading…'}</p>
               <div className="md-list">
-                {(callLogs.length > 0
-                  ? callLogs.map((call) => ({ id: call.id, phone: call.phone, time: new Date(call.occurredAt).toLocaleString(), duration: `${Math.floor(call.durationSeconds / 60)}:${String(call.durationSeconds % 60).padStart(2, '0')}`, status: call.status, summary: call.summary }))
-                  : sampleCalls
-                ).map((call) => (
+                {callLogs.length === 0 ? (
+                  <article className="md-card"><p className="md-muted">No completed AI voice sessions have been billed to this workspace yet.</p></article>
+                ) : callLogs.map((call) => (
                   <article className="md-card" key={call.id}>
-                    <div className="md-card-top"><strong>{call.phone}</strong><span className={`md-badge ${call.status === 'Completed' ? 'ok' : 'bad'}`}>{call.status}</span></div>
-                    <p>{call.time} · {call.duration}</p>
+                    <div className="md-card-top"><strong>{call.phone}</strong><span className="md-badge ok">{call.status}</span></div>
+                    <p>{new Date(call.occurredAt).toLocaleString()} · {Math.floor(call.durationSeconds / 60)}:{String(Math.floor(call.durationSeconds % 60)).padStart(2, '0')}</p>
                     <p className="md-muted">{call.summary}</p>
+                    <p className="md-muted">Billed: {call.currency === 'BDT' ? '৳' : call.currency + ' '}{call.billedAmount.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} · {call.billingSource.replace('_', ' ')}</p>
                   </article>
                 ))}
               </div>
@@ -252,13 +248,13 @@ export default function AppShell({ user, onSignOut }: Props) {
               <p className="md-sub">The device at your home or office, with your business SIM inside it.</p>
               {simError && <p className="md-error" role="alert">{simError}</p>}
               <div className="md-card">
-                <div className="md-card-top"><strong>Device</strong><span className={`md-badge ${simStatus?.online ? 'ok' : 'bad'}`}>{simStatus ? (simStatus.online ? 'Online' : 'Offline') : 'Checking…'}</span></div>
+                <div className="md-card-top"><strong>Device</strong><span className={`md-badge ${simStatus?.online ? 'ok' : 'bad'}`}>{simStatus ? (simStatus.online ? 'Online' : 'Offline') : 'Not linked'}</span></div>
                 <p>Device ID: {simStatus ? maskDeviceId(simStatus.deviceId) : '—'}</p>
                 <p>SIM balance: {simStatus ? `৳${simStatus.balance.toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : '—'}</p>
                 <p>Signal: {signal >= 4 ? 'Strong' : signal >= 2 ? 'Moderate' : signal > 0 ? 'Weak' : 'No signal data'} ({signal}/5)</p>
                 <p>Network: {simStatus?.networkType || '—'}</p>
                 <p>Data remaining: {simStatus ? `${Math.round(simStatus.internetDataMb)} MB of ${Math.round(simStatus.dataQuotaMb)} MB` : '—'}</p>
-                <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'Waiting for device data'}{simStatus?.source === 'demo' ? ' · Demo data' : ''}</p>
+                <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'Waiting for device pairing'}</p>
                 <button className="md-secondary" onClick={() => void refreshSim()} disabled={simRefreshing}>{simRefreshing ? 'Refreshing…' : 'Refresh SIM status'}</button>
               </div>
               <div className="md-card">
