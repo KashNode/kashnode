@@ -504,7 +504,7 @@ export function createVoiceStreamingService({
   }
 
   function cleanup(session) {
-    if (session.closed) return;
+    if (session.closed) return session.billingPromise || Promise.resolve(null);
     session.closed = true;
     clearInterval(session.heartbeat);
     clearTimeout(session.durationTimer);
@@ -513,7 +513,7 @@ export function createVoiceStreamingService({
     if (count <= 1) merchantCounts.delete(session.merchantId);
     else merchantCounts.set(session.merchantId, count - 1);
 
-    scheduleSessionBilling(session);
+    const billingPromise = scheduleSessionBilling(session);
     try { session.stt?.close(); } catch { /* best effort */ }
     logSafe(logger, 'info', 'voice_session_closed', {
       merchantId: session.merchantId,
@@ -524,6 +524,7 @@ export function createVoiceStreamingService({
         ? 0
         : Number(Math.max(0, (performance.now() - session.session_start_monotonic) / 1000).toFixed(3)),
     });
+    return billingPromise;
   }
 
   async function processTranscript(session) {
