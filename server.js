@@ -61,7 +61,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-kashnode-webhook-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic'],
   maxAge: 600,
 }))
 // Shopify must receive the exact request bytes for HMAC verification. Mount
@@ -154,6 +154,12 @@ app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({
   pool,
   onPersist: smsId => reconcileSms({ pool, smsId }),
 })))
+// WordPress plugin integration: resolve the merchant by its private shared secret header.
+app.post('/api/webhooks/woocommerce', asyncRoute(createWooCommerceWebhookHandler({
+  pool,
+  onOrderPersist: merchantId => reconcilePendingSmsForMerchant({ pool, merchantId }),
+})))
+// Legacy WooCommerce webhook URL remains supported for existing installations.
 app.post('/api/v1/webhooks/woocommerce/:merchantId', asyncRoute(createWooCommerceWebhookHandler({
   pool,
   onOrderPersist: merchantId => reconcilePendingSmsForMerchant({ pool, merchantId }),

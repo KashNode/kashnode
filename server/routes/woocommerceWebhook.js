@@ -1,10 +1,18 @@
 import crypto from 'node:crypto';
 
 const MAX_ORDER_ID_LENGTH = 100;
+const MAX_LINE_ITEMS = 250;
 
 function normalizeAmount(value) {
   const amount = Number(value);
   return Number.isFinite(amount) && amount > 0 && amount <= 99999999
+    ? amount.toFixed(2)
+    : null;
+}
+
+function normalizeItemAmount(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 && amount <= 99999999
     ? amount.toFixed(2)
     : null;
 }
@@ -19,7 +27,7 @@ function normalizeBdPhone(value) {
 function safeEqual(left, right) {
   const a = Buffer.from(String(left || ''));
   const b = Buffer.from(String(right || ''));
-  return a.length === b.length && crypto.timingSafeEqual(a, b);
+  return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 function getCustomerName(body) {
@@ -31,11 +39,38 @@ function getCustomerName(body) {
   return combined ? combined.slice(0, 255) : null;
 }
 
+function cleanLineItems(value) {
+  if (value === undefined || value === null) return [];
+  if (!Array.isArray(value) || value.length > MAX_LINE_ITEMS) return null;
+
+  return value.map(item => ({
+    id: item?.id == null ? null : String(item.id).slice(0, 100),
+    product_id: item?.product_id == null ? null : String(item.product_id).slice(0, 100),
+    variation_id: item?.variation_id == null ? null : String(item.variation_id).slice(0, 100),
+    name: typeof item?.name === 'string' ? item.name.trim().slice(0, 255) : null,
+    sku: typeof item?.sku === 'string' ? item.sku.trim().slice(0, 100) : null,
+    quantity: Number.isInteger(Number(item?.quantity)) && Number(item.quantity) >= 0
+      ? Number(item.quantity)
+      : 0,
+    subtotal: normalizeItemAmount(item?.subtotal ?? item?.total),
+    total: normalizeItemAmount(item?.total ?? item?.subtotal),
+  }));
+}
+
+function getStoredPaymentMethod(body) {
+  const method = String(body.payment_method || '').trim().slice(0, 80);
+  const title = String(body.payment_method_title || '').trim().slice(0, 80);
+  const isCod = /^(cod|cash[\s_-]*on[\s_-]*delivery)$/i.test(method)
+    || /cash\s*on\s*delivery/i.test(title);
+  return isCod ? 'cod' : method || title || null;
+}
+
 const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
     (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
-     payment_status, delivery_status, payment_method, customer_trx_id)
-  VALUES ($1, $2, $3, $4, $5::numeric, 'unpaid', 'pending', $6, $7)
+     payment_status, delivery_status, payment_method, customer_trx_id, line_items,
+     is_phone_verified, ai_call_status)
+  VALUES ($1, $2, $3, $4, $5::numeric, 'unpaid', 'pending', $6, $7, $8::jsonb, FALSE, 'pending')
   RETURNING id, payment_status, delivery_status
 `;
 
@@ -45,41 +80,67 @@ const UPDATE_ORDER_SQL = `
       customer_name = $3,
       total_amount = $4::numeric,
       payment_method = $5,
-      customer_trx_id = $6
+      customer_trx_id = $6,
+      line_items = $7::jsonb
   WHERE id = $1
   RETURNING id, payment_status, delivery_status
 `;
 
 /**
- * Consume one order only for a new order ID. The merchant row lock serializes
- * webhook deliveries for that merchant; checking for an existing order while
- * holding the lock makes retries idempotent. The decrement and order insert
- * share one transaction, so either both commit or neither does.
+ * New endpoint authentication:
+ *   X-KashNode-Webhook-Secret: the merchant's stored webhook_secret
+ *   X-WC-Webhook-Signature: base64(HMAC-SHA256(raw JSON bytes, webhook_secret))
+ *
+ * The legacy /api/v1/webhooks/woocommerce/:merchantId endpoint remains
+ * compatible with WooCommerce's normal HMAC-only webhook delivery.
  */
 export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async () => {} }) {
   return async function ingestWooCommerceOrder(req, res) {
     if (!pool) return res.status(503).json({ status: 'error', message: 'Database unavailable.' });
 
     const body = req.body || {};
-    const merchantId = String(req.params?.merchantId || body.merchant_id || '').trim();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(merchantId)) {
-      return res.status(400).json({ status: 'error', message: 'A valid merchant ID is required in the webhook URL.' });
-    }
-
+    const rawBody = req.rawBody;
     const signature = req.get('x-wc-webhook-signature');
-    if (typeof req.rawBody !== 'object' || !Buffer.isBuffer(req.rawBody) || !signature) {
+    if (!Buffer.isBuffer(rawBody) || rawBody.length === 0 || !signature) {
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
-    const merchantResult = await pool.query(
-      'SELECT webhook_secret FROM public.merchants WHERE id = $1 LIMIT 1',
-      [merchantId],
-    );
-    const secret = merchantResult.rows[0]?.webhook_secret;
-    if (!secret) return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
+    let merchant;
+    const pathMerchantId = String(req.params?.merchantId || '').trim();
 
-    const expected = crypto.createHmac('sha256', secret).update(req.rawBody).digest('base64');
-    if (!safeEqual(signature, expected)) {
+    if (pathMerchantId) {
+      if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(pathMerchantId)) {
+        return res.status(400).json({ status: 'error', message: 'A valid merchant ID is required in the webhook URL.' });
+      }
+
+      const result = await pool.query(
+        'SELECT id, webhook_secret FROM public.merchants WHERE id = $1 LIMIT 1',
+        [pathMerchantId],
+      );
+      merchant = result.rows[0];
+    } else {
+      const suppliedSecret = req.get('x-kashnode-webhook-secret') || req.get('x-merchant-secret') || '';
+      if (typeof suppliedSecret !== 'string' || suppliedSecret.length < 32 || suppliedSecret.length > 255) {
+        return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
+      }
+
+      const result = await pool.query(
+        'SELECT id, webhook_secret FROM public.merchants WHERE webhook_secret = $1 LIMIT 1',
+        [suppliedSecret],
+      );
+      merchant = result.rows[0];
+      if (!merchant?.id || !merchant.webhook_secret || !safeEqual(suppliedSecret, merchant.webhook_secret)) {
+        return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
+      }
+    }
+
+    const secret = merchant?.webhook_secret;
+    if (!merchant?.id || !secret) {
+      return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
+    }
+
+    const expectedSignature = crypto.createHmac('sha256', secret).update(rawBody).digest('base64');
+    if (!safeEqual(signature, expectedSignature)) {
       return res.status(401).json({ status: 'error', message: 'Invalid webhook signature.' });
     }
 
@@ -87,22 +148,21 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
     const customerPhone = normalizeBdPhone(body.customer_phone ?? body.billing?.phone);
     const customerName = getCustomerName(body);
     const totalAmount = normalizeAmount(body.total_amount ?? body.total);
-    const paymentMethod = String(body.payment_method ?? body.payment_method_title ?? '').trim().slice(0, 80);
+    const paymentMethod = getStoredPaymentMethod(body);
+    const lineItems = cleanLineItems(body.line_items);
     const customerTrxId = typeof body.customer_trx_id === 'string'
       ? (body.customer_trx_id.trim().slice(0, 100) || null)
       : null;
 
-    if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH || !customerPhone || !totalAmount) {
+    if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH
+      || !customerPhone || !totalAmount || lineItems === null) {
       return res.status(400).json({
         status: 'error',
-        message: 'A valid WooCommerce order ID, Bangladesh customer phone and positive total are required.',
+        message: 'A valid order ID, Bangladesh customer phone, positive total and up to 250 line items are required.',
       });
     }
 
-    const isCod = /^(cod|cash[\s_-]*on[\s_-]*delivery)$/i.test(paymentMethod)
-      || /cash\s*on\s*delivery/i.test(String(body.payment_method_title || ''));
-    const storedPaymentMethod = isCod ? 'cod' : paymentMethod || null;
-
+    const merchantId = String(merchant.id);
     const client = await pool.connect();
     let transactionOpen = false;
     let order;
@@ -112,8 +172,7 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
       await client.query('BEGIN');
       transactionOpen = true;
 
-      // Serialize order ingestion per merchant. This prevents two distinct
-      // webhooks from both spending the same final quota unit.
+      // Serialize per-merchant deliveries so retries cannot double-spend quota.
       const merchantLock = await client.query(
         'SELECT id FROM public.merchants WHERE id = $1 FOR UPDATE',
         [merchantId],
@@ -134,17 +193,17 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
       );
 
       if (existingOrder.rows[0]) {
-        // A retry or a WooCommerce update changes the existing record but never
-        // consumes another order from the subscription allowance.
         const updated = await client.query(UPDATE_ORDER_SQL, [
           existingOrder.rows[0].id,
           customerPhone,
           customerName,
           totalAmount,
-          storedPaymentMethod,
+          paymentMethod,
           customerTrxId,
+          JSON.stringify(lineItems),
         ]);
         order = updated.rows[0];
+        if (!order) throw new Error('Order update did not return the updated order.');
       } else {
         const decrement = await client.query(
           `UPDATE public.merchants
@@ -171,8 +230,9 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
           customerPhone,
           customerName,
           totalAmount,
-          storedPaymentMethod,
+          paymentMethod,
           customerTrxId,
+          JSON.stringify(lineItems),
         ]);
         order = inserted.rows[0];
         if (!order) throw new Error('Order insert did not return the created order.');
@@ -194,7 +254,7 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
     try {
       await onOrderPersist(merchantId);
     } catch (error) {
-      // Order ingestion is durable; pending SMS can be retried on the next event.
+      // Order data is durable; pending SMS can be retried on the next webhook.
       console.error('[KashNode] Pending SMS reconciliation deferred:', error);
     }
 
