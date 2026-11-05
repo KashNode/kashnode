@@ -113,3 +113,301 @@ export async function finalizeVoiceCallBilling({
     createdAt: ledger.created_at,
   };
 }
+
+
+function logQueue(logger, level, event, details = {}) {
+  try { logger?.[level]?.('[KashNode Billing Queue]', { event, ...details }); } catch { /* logging must not change billing state */ }
+}
+
+/**
+ * Durable PostgreSQL outbox for live voice billing.
+ *
+ * A session row is inserted before session.ready is sent to the client. Normal
+ * disconnect moves it to pending. If the process disappears while the row is
+ * active, a later process converts it to pending using the last persisted
+ * heartbeat as a conservative end-time estimate. Billing itself is idempotent
+ * by session_id, so a crash after wallet debit but before queue acknowledgement
+ * is safe to replay.
+ */
+export function createVoiceBillingQueue({
+  pool,
+  billingFinalizer = finalizeVoiceCallBilling,
+  logger = console,
+  intervalMs = 5000,
+  staleAfterMs = 60000,
+  processingLeaseMs = 120000,
+} = {}) {
+  let timer = null;
+  let running = null;
+  let started = false;
+  let stopping = false;
+
+  function assertPool() {
+    if (!pool || typeof pool.query !== 'function') {
+      throw new VoiceBillingError('BILLING_DATABASE_UNAVAILABLE', 'Durable voice billing requires a PostgreSQL pool.');
+    }
+  }
+
+  async function beginSession({ merchantId, orderId, sessionId, startedAt = new Date() }) {
+    assertPool();
+    if (!UUID_RE.test(String(merchantId || ''))
+      || !UUID_RE.test(String(orderId || ''))
+      || !UUID_RE.test(String(sessionId || ''))) {
+      throw new VoiceBillingError('BILLING_INVALID_ARGUMENTS', 'Merchant, order, and session IDs must be valid UUIDs.');
+    }
+
+    const result = await pool.query(
+      `INSERT INTO public.voice_session_billing_jobs
+        (session_id, merchant_id, order_id, status, started_at, last_heartbeat_at, next_attempt_at)
+       VALUES ($1::uuid, $2::uuid, $3::uuid, 'active', $4::timestamptz, $4::timestamptz, NOW())
+       ON CONFLICT (session_id) DO NOTHING
+       RETURNING session_id`,
+      [sessionId, merchantId, orderId, startedAt],
+    );
+    if (!result.rows?.[0]) {
+      throw new VoiceBillingError('BILLING_SESSION_ALREADY_EXISTS', 'A durable billing record already exists for this voice session.');
+    }
+    return true;
+  }
+
+  async function recordHeartbeat(sessionId) {
+    assertPool();
+    await pool.query(
+      `UPDATE public.voice_session_billing_jobs
+          SET last_heartbeat_at = GREATEST(last_heartbeat_at, NOW()),
+              updated_at = NOW()
+        WHERE session_id = $1::uuid
+          AND status = 'active'`,
+      [sessionId],
+    );
+  }
+
+  async function enqueueFinalization({ merchantId, orderId, sessionId, durationSeconds }) {
+    assertPool();
+    const seconds = Number(durationSeconds);
+    if (!Number.isFinite(seconds) || seconds < 0 || seconds > 86400) {
+      throw new VoiceBillingError('BILLING_INVALID_DURATION', 'Call duration must be between zero and 24 hours.');
+    }
+    const rounded = Number(seconds.toFixed(3));
+    const status = rounded > 0 ? 'pending' : 'skipped';
+    const result = await pool.query(
+      `UPDATE public.voice_session_billing_jobs
+          SET status = $4,
+              duration_seconds = $5::numeric,
+              ended_at = NOW(),
+              last_heartbeat_at = NOW(),
+              next_attempt_at = NOW(),
+              locked_at = NULL,
+              updated_at = NOW()
+        WHERE session_id = $1::uuid
+          AND merchant_id = $2::uuid
+          AND order_id = $3::uuid
+          AND status IN ('active', 'pending', 'processing')
+        RETURNING session_id`,
+      [sessionId, merchantId, orderId, status, rounded],
+    );
+    if (!result.rows?.length) {
+      const existing = await pool.query(
+        `SELECT status, merchant_id, order_id
+           FROM public.voice_session_billing_jobs
+          WHERE session_id = $1::uuid
+          LIMIT 1`,
+        [sessionId],
+      );
+      const row = existing.rows?.[0];
+      if (row && row.merchant_id === merchantId && row.order_id === orderId
+        && ['completed', 'skipped'].includes(row.status)) return false;
+      throw new VoiceBillingError('BILLING_JOB_NOT_FOUND', 'The durable voice billing record could not be finalized.');
+    }
+    return true;
+  }
+
+  async function recoverAbandonedSessions() {
+    assertPool();
+    const result = await pool.query(
+      `UPDATE public.voice_session_billing_jobs
+          SET duration_seconds = ROUND(GREATEST(
+                0,
+                EXTRACT(EPOCH FROM (last_heartbeat_at - started_at))
+              )::numeric, 3),
+              ended_at = last_heartbeat_at,
+              status = CASE
+                WHEN last_heartbeat_at > started_at THEN 'pending'
+                ELSE 'skipped'
+              END,
+              next_attempt_at = NOW(),
+              last_error = 'RECOVERED_AFTER_PROCESS_RESTART',
+              locked_at = NULL,
+              updated_at = NOW()
+        WHERE status = 'active'
+          AND last_heartbeat_at < NOW() - ($1::double precision * INTERVAL '1 millisecond')
+        RETURNING session_id, status, duration_seconds`,
+      [staleAfterMs],
+    );
+    if (result.rows?.length) {
+      logQueue(logger, 'warn', 'abandoned_voice_sessions_recovered', { count: result.rows.length });
+    }
+    return result.rows || [];
+  }
+
+  async function claimNextJob(force = false) {
+    assertPool();
+    const result = await pool.query(
+      `WITH candidate AS (
+         SELECT session_id
+           FROM public.voice_session_billing_jobs
+          WHERE (status = 'pending' AND ($1::boolean OR next_attempt_at <= NOW()))
+             OR (status = 'processing'
+                 AND locked_at < NOW() - ($2::double precision * INTERVAL '1 millisecond'))
+          ORDER BY next_attempt_at ASC, created_at ASC
+          FOR UPDATE SKIP LOCKED
+          LIMIT 1
+       )
+       UPDATE public.voice_session_billing_jobs AS job
+          SET status = 'processing',
+              attempts = attempts + 1,
+              locked_at = NOW(),
+              updated_at = NOW()
+         FROM candidate
+        WHERE job.session_id = candidate.session_id
+       RETURNING job.session_id, job.merchant_id, job.order_id, job.duration_seconds, job.attempts`,
+      [force, processingLeaseMs],
+    );
+    return result.rows?.[0] || null;
+  }
+
+  async function processOne(force = false) {
+    const job = await claimNextJob(force);
+    if (!job) return false;
+
+    try {
+      const result = await billingFinalizer({
+        pool,
+        merchantId: job.merchant_id,
+        orderId: job.order_id,
+        sessionId: job.session_id,
+        durationSeconds: Number(job.duration_seconds),
+      });
+      await pool.query(
+        `UPDATE public.voice_session_billing_jobs
+            SET status = $2,
+                ledger_id = $3::uuid,
+                locked_at = NULL,
+                last_error = NULL,
+                updated_at = NOW()
+          WHERE session_id = $1::uuid
+            AND status = 'processing'`,
+        [job.session_id, result?.status === 'skipped' ? 'skipped' : 'completed', result?.ledgerId || null],
+      );
+      logQueue(logger, 'info', 'voice_billing_job_completed', {
+        sessionId: job.session_id,
+        attempts: Number(job.attempts),
+        ledgerId: result?.ledgerId || null,
+        status: result?.status || 'billed',
+      });
+    } catch (error) {
+      const code = String(error?.code || 'BILLING_FINALIZATION_FAILED').slice(0, 100);
+      try {
+        await pool.query(
+          `UPDATE public.voice_session_billing_jobs
+              SET status = 'pending',
+                  locked_at = NULL,
+                  next_attempt_at = NOW() + LEAST(
+                    3600::double precision,
+                    (15 * POWER(2, LEAST(attempts - 1, 8)))::double precision
+                  ) * INTERVAL '1 second',
+                  last_error = $2,
+                  updated_at = NOW()
+            WHERE session_id = $1::uuid
+              AND status = 'processing'`,
+          [job.session_id, code],
+        );
+      } catch (persistError) {
+        // If the DB is unreachable, leave the lease to expire. The next worker
+        // claims it and replays the same idempotency key.
+        logQueue(logger, 'error', 'voice_billing_retry_state_write_failed', {
+          sessionId: job.session_id,
+          code: String(persistError?.code || 'DATABASE_ERROR'),
+        });
+      }
+      logQueue(logger, 'error', 'voice_billing_job_retry_scheduled', {
+        sessionId: job.session_id,
+        attempts: Number(job.attempts),
+        code,
+      });
+    }
+    return true;
+  }
+
+  async function drain({ force = false, maxJobs = 20 } = {}) {
+    if (running) return running;
+    running = (async () => {
+      let processed = 0;
+      while (processed < maxJobs) {
+        const attempted = await processOne(force);
+        if (!attempted) break;
+        processed += 1;
+      }
+      return processed;
+    })();
+    try {
+      return await running;
+    } finally {
+      running = null;
+    }
+  }
+
+  async function tick() {
+    if (stopping) return;
+    try {
+      await recoverAbandonedSessions();
+      await drain({ maxJobs: 20 });
+    } catch (error) {
+      logQueue(logger, 'error', 'voice_billing_worker_failed', {
+        code: error?.code || 'BILLING_QUEUE_ERROR',
+      });
+    }
+  }
+
+  async function start() {
+    assertPool();
+    if (started) return;
+    stopping = false;
+    await recoverAbandonedSessions();
+    await drain({ maxJobs: 100 });
+    timer = setInterval(() => { void tick(); }, intervalMs);
+    timer.unref?.();
+    started = true;
+  }
+
+  async function stop({ timeoutMs = 20000 } = {}) {
+    stopping = true;
+    if (timer) clearInterval(timer);
+    timer = null;
+    if (running) await running.catch(() => {});
+    const deadline = Date.now() + Math.max(0, timeoutMs);
+    while (Date.now() < deadline) {
+      let processed = 0;
+      try {
+        processed = await drain({ force: true, maxJobs: 20 });
+      } catch (error) {
+        logQueue(logger, 'error', 'voice_billing_shutdown_drain_failed', {
+          code: error?.code || 'BILLING_QUEUE_ERROR',
+        });
+        break;
+      }
+      if (processed === 0) break;
+    }
+    started = false;
+  }
+
+  return {
+    beginSession,
+    recordHeartbeat,
+    enqueueFinalization,
+    recoverAbandonedSessions,
+    drain,
+    start,
+    stop,
+  };
+}
