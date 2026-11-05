@@ -97,11 +97,28 @@ export function createAuthController({
     )
 
     try {
-      await sendOtpEmail({ to: input.email, name: input.name, otp })
+      const delivery = await sendOtpEmail({ to: input.email, name: input.name, otp })
+      if (delivery?.id) {
+        console.info(`[KashNode Auth] Signup verification email accepted by provider (id: ${delivery.id}).`)
+      }
     } catch (error) {
-      await pool.query('DELETE FROM public.merchant_signup_otps WHERE email = $1 AND otp_hash = $2', [input.email, otpHash])
-      console.error('[KashNode Auth] Signup email delivery failed:', error.message)
-      return res.status(502).json({ status: 'error', message: 'We could not send the verification email. Please try again.' })
+      await pool.query(
+        'DELETE FROM public.merchant_signup_otps WHERE email = $1 AND otp_hash = $2',
+        [input.email, otpHash],
+      ).catch(cleanupError => {
+        console.error('[KashNode Auth] Failed to clear an undelivered signup OTP challenge:', cleanupError.message)
+      })
+      console.error('[KashNode Auth] Signup email delivery failed:', {
+        code: error?.code || 'EMAIL_DELIVERY_FAILED',
+        message: error?.message || 'Unknown email delivery error.',
+      })
+      const configurationError = Number(error?.statusCode) === 503
+      return res.status(configurationError ? 503 : 502).json({
+        status: 'error',
+        message: configurationError
+          ? 'Email verification is not configured correctly. Please contact support.'
+          : 'We could not send the verification email. Please try again.',
+      })
     }
 
     return res.status(202).json({
