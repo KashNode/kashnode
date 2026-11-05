@@ -161,7 +161,7 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
                   value={form.adminContactPhone}
                   onChange={(event) => update('adminContactPhone', event.target.value)}
                   maxLength={24}
-                  pattern="(?:\\+?88)?01[3-9][0-9]{8}"
+                  pattern="(?:\+?88)?01[3-9][0-9]{8}"
                   title="Enter a valid Bangladesh mobile number, such as 01712345678 or +8801712345678."
                   required
                   disabled={saving || loadingProfile}
@@ -183,7 +183,7 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
                   value={form.boxSimPhone}
                   onChange={(event) => update('boxSimPhone', event.target.value)}
                   maxLength={24}
-                  pattern="(?:\\+?88)?01[3-9][0-9]{8}"
+                  pattern="(?:\+?88)?01[3-9][0-9]{8}"
                   title="Enter the Bangladesh mobile number of the SIM installed in your Pocket Box."
                   required
                   disabled={saving || loadingProfile}
