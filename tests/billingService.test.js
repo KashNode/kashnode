@@ -106,6 +106,43 @@ test('reports prepaid voice-minute coverage and idempotent replays', async () =>
   assert.equal(result.idempotentReplay, true);
 });
 
+test('skips a zero-duration call even when no database pool is available', async () => {
+  const result = await finalizeVoiceCallBilling({
+    merchantId,
+    orderId,
+    sessionId,
+    durationSeconds: 0,
+  });
+  assert.equal(result.status, 'skipped');
+  assert.equal(result.reason, 'zero_duration');
+});
+
+test('retries a transient database connection failure using the same idempotency key', async () => {
+  let attempts = 0;
+  const result = await finalizeVoiceCallBilling({
+    pool: {
+      async query(_sql, params) {
+        attempts += 1;
+        assert.equal(params[2], sessionId);
+        if (attempts === 1) {
+          const error = new Error('connection reset');
+          error.code = 'ECONNRESET';
+          throw error;
+        }
+        return { rows: [ledgerRow()] };
+      },
+    },
+    merchantId,
+    orderId,
+    sessionId,
+    durationSeconds: 90.125,
+    retryDelayMs: 0,
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(result.status, 'billed');
+});
+
 test('surfaces insufficient-credit database failures as a stable billing error code', async () => {
   await assert.rejects(
     finalizeVoiceCallBilling({
