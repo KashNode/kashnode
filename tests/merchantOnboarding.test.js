@@ -133,3 +133,43 @@ test('merchant credentials stay unavailable until onboarding is complete', async
   assert.equal(res.statusCode, 403);
   assert.equal(res.body.merchantSecretKey, undefined);
 });
+
+
+test('completed merchant owner can retrieve the integration secret', async () => {
+  let queryArgs;
+  const handlers = createMerchantOnboardingHandlers({
+    pool: {
+      async query(_sql, args) {
+        queryArgs = args;
+        return { rows: [{ webhook_secret: 'private-merchant-secret', is_onboarding_complete: true }] };
+      },
+    },
+  });
+  const res = makeResponse();
+
+  await handlers.getCredentials({ ...identity }, res);
+
+  assert.deepEqual(queryArgs, ['merchant-uuid', 'user-uuid']);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.merchantSecretKey, 'private-merchant-secret');
+});
+
+test('onboarding cannot be submitted without a merchant-bound session', async () => {
+  let calls = 0;
+  const handlers = createMerchantOnboardingHandlers({
+    pool: { async query() { calls += 1; return { rows: [] }; } },
+  });
+  const res = makeResponse();
+
+  await handlers.postOnboarding({
+    session: { user: { id: 'user-uuid', role: 'user' } },
+    body: {
+      businessName: 'Test Store',
+      adminContactPhone: '01712345678',
+      boxSimPhone: '01812345678',
+    },
+  }, res);
+
+  assert.equal(res.statusCode, 401);
+  assert.equal(calls, 0);
+});
