@@ -400,7 +400,6 @@ export async function generateOrderVoiceScript({
       throw new PromptServiceError('FETCH_UNAVAILABLE', 'Node fetch is unavailable.');
     }
 
-    const config = getProviderConfig(normalizedProvider, env);
     const orderResult = await pool.query(
       `SELECT id, platform_order_id, customer_name, customer_phone, total_amount::text AS total_amount,
               payment_method, payment_status, line_items, currency
@@ -414,7 +413,9 @@ export async function generateOrderVoiceScript({
       throw new PromptServiceError('ORDER_NOT_FOUND', 'The saved order was not found.');
     }
 
+    // Validate critical order data before checking provider credentials or making a paid API call.
     const facts = buildOrderFacts(order, language);
+    const config = getProviderConfig(normalizedProvider, env);
     const systemPrompt = createSystemPrompt(facts.intent, language);
     const userPrompt = createUserPrompt(facts);
     const request = normalizedProvider === 'gemini'
