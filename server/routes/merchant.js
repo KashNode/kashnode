@@ -1,17 +1,17 @@
 function cleanText(value, maxLength = 255) {
   return typeof value === 'string'
-    ? value.trim().replace(/\\s+/g, ' ').slice(0, maxLength)
+    ? value.trim().replace(/\s+/g, ' ').slice(0, maxLength)
     : '';
 }
 
 function normalizeBangladeshPhone(value) {
   if (typeof value !== 'string') return null;
 
-  let digits = value.replace(/\\D/g, '');
-  if (digits.startsWith('00880')) digits = `0${digits.slice(5)}`;
-  else if (digits.startsWith('880')) digits = `0${digits.slice(3)}`;
+  let digits = value.replace(/\D/g, '');
+  if (digits.startsWith('00880')) digits = '0' + digits.slice(5);
+  else if (digits.startsWith('880')) digits = '0' + digits.slice(3);
 
-  return /^01[3-9]\\d{8}$/.test(digits) ? digits : null;
+  return /^01[3-9]\d{8}$/.test(digits) ? digits : null;
 }
 
 function normalizeWebsiteUrl(value) {
@@ -43,11 +43,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
 
     const result = await pool.query(
-      `SELECT is_onboarding_complete, business_name, website_url,
-              admin_contact_phone, box_sim_phone
-       FROM public.merchants
-       WHERE id = $1 AND owner_user_id = $2
-       LIMIT 1`,
+      'SELECT is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
       [identity.merchantId, identity.userId],
     );
     const merchant = result.rows[0];
@@ -90,15 +86,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     }
 
     const result = await pool.query(
-      `UPDATE public.merchants
-       SET business_name = $3,
-           website_url = $4,
-           admin_contact_phone = $5,
-           box_sim_phone = $6,
-           is_onboarding_complete = TRUE
-       WHERE id = $1 AND owner_user_id = $2
-       RETURNING is_onboarding_complete, business_name, website_url,
-                 admin_contact_phone, box_sim_phone`,
+      'UPDATE public.merchants SET business_name = $3, website_url = $4, admin_contact_phone = $5, box_sim_phone = $6, is_onboarding_complete = TRUE WHERE id = $1 AND owner_user_id = $2 RETURNING is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone',
       [
         identity.merchantId,
         identity.userId,
@@ -132,10 +120,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
 
     const result = await pool.query(
-      `SELECT webhook_secret, is_onboarding_complete
-       FROM public.merchants
-       WHERE id = $1 AND owner_user_id = $2
-       LIMIT 1`,
+      'SELECT webhook_secret, is_onboarding_complete FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
       [identity.merchantId, identity.userId],
     );
     const merchant = result.rows[0];
