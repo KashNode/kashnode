@@ -14,6 +14,7 @@ import path from 'node:path'
 import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
+import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 import { createAuthController } from './server/controllers/authController.js'
@@ -112,6 +113,14 @@ function requireAdmin(req, res, next) {
   return res.status(401).json({ status: 'error', message: 'Authentication required.' })
 }
 
+function requireMerchantSession(req, res, next) {
+  const user = req.session?.user
+  if (!user?.id || !user?.merchantId || user.role === 'admin') {
+    return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' })
+  }
+  return next()
+}
+
 function safeEqual(left, right) {
   const a = Buffer.from(String(left))
   const b = Buffer.from(String(right))
@@ -152,8 +161,15 @@ const authController = createAuthController({
   verifyGoogleCredential: credential => verifyGoogleIdToken(credential, { clientId: process.env.GOOGLE_CLIENT_ID }),
   otpSecret: process.env.AUTH_OTP_SECRET || '',
 })
+const merchantOnboardingHandlers = createMerchantOnboardingHandlers({ pool })
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
+
+// Merchant ownership is resolved from the signed server session, never from request body input.
+app.get('/api/merchant/onboarding', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getOnboarding))
+app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyncRoute(merchantOnboardingHandlers.postOnboarding))
+// Reveal integration credentials only to the merchant owner after onboarding is complete.
+app.get('/api/merchant/credentials', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getCredentials))
 
 app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({
   pool,

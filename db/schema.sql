@@ -332,3 +332,12 @@ REVOKE ALL ON TABLE public.call_billing_ledger FROM PUBLIC, anon, authenticated;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE public.merchant_signup_otps TO service_role, postgres;
 GRANT SELECT ON TABLE public.call_billing_ledger TO service_role, postgres;
 GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO postgres;
+
+
+-- Mandatory merchant business and Pocket Box setup.
+ALTER TABLE public.merchants
+  ADD COLUMN IF NOT EXISTS is_onboarding_complete BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS business_name VARCHAR(255),
+  ADD COLUMN IF NOT EXISTS website_url VARCHAR(2048),
+  ADD COLUMN IF NOT EXISTS admin_contact_phone VARCHAR(32),
+  ADD COLUMN IF NOT EXISTS box_sim_phone VARCHAR(32);

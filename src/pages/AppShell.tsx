@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Bell, Box, Home, LogOut, PhoneCall, ShoppingBag, Wallet } from 'lucide-react'
-import type { AuthUser } from '../lib/auth'
+import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, ShoppingBag, Wallet } from 'lucide-react'
+import { getMerchantCredentials, type AuthUser } from '../lib/auth'
 import { getCallHistory, getSimStatus, type CallHistoryEntry, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
 
@@ -45,6 +45,10 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [callLogs, setCallLogs] = useState<CallHistoryEntry[]>([])
   const [callSource, setCallSource] = useState<'demo' | 'database' | null>(null)
   const [callsError, setCallsError] = useState('')
+  const [merchantSecretKey, setMerchantSecretKey] = useState('')
+  const [secretLoading, setSecretLoading] = useState(true)
+  const [secretVisible, setSecretVisible] = useState(false)
+  const [secretError, setSecretError] = useState('')
 
   const firstName = user.name?.split(' ')[0] || user.email.split('@')[0]
   const systemIsLight = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
@@ -80,11 +84,31 @@ export default function AppShell({ user, onSignOut }: Props) {
       .catch((error) => {
         if (alive) setCallsError(error instanceof Error ? error.message : 'Could not load call history.')
       })
+    getMerchantCredentials()
+      .then((payload) => {
+        if (alive) setMerchantSecretKey(payload.merchantSecretKey)
+      })
+      .catch((error) => {
+        if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load merchant API secret.')
+      })
+      .finally(() => {
+        if (alive) setSecretLoading(false)
+      })
     return () => {
       alive = false
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  async function copyMerchantSecret() {
+    if (!merchantSecretKey) return
+    try {
+      await navigator.clipboard.writeText(merchantSecretKey)
+      notify('Merchant API secret copied.')
+    } catch {
+      notify('Clipboard access is unavailable in this browser.')
+    }
+  }
 
   const visibleOrders = orderFilter === 'review' ? sampleOrders.filter((order) => order.tone === 'warn') : sampleOrders
   const signal = simStatus ? Math.max(0, Math.min(5, Math.round(simStatus.signalStrength))) : 0
@@ -146,6 +170,20 @@ export default function AppShell({ user, onSignOut }: Props) {
               </div>
               <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'Waiting for device data'}</p>
               <button className="md-primary" onClick={() => setView('orders')}>Check today’s orders</button>
+              <div className="md-card md-merchant-secret-card">
+                <div className="md-card-top"><strong><KeyRound size={17} /> Merchant API secret</strong><span className="md-badge">Private</span></div>
+                <p className="md-muted">Use this key in your store integration as the x-merchant-secret credential. Keep it private.</p>
+                {secretError ? <p className="md-error" role="alert">{secretError}</p> : null}
+                <code className="md-secret-value">{secretLoading ? 'Loading secure key…' : secretVisible ? merchantSecretKey : merchantSecretKey ? '••••••••••••' + merchantSecretKey.slice(-4) : 'Not available'}</code>
+                <div className="md-secret-actions">
+                  <button className="md-secondary" onClick={() => setSecretVisible((value) => !value)} disabled={secretLoading || !merchantSecretKey}>
+                    {secretVisible ? <EyeOff size={15} /> : <Eye size={15} />}{secretVisible ? ' Hide key' : ' Reveal key'}
+                  </button>
+                  <button className="md-secondary" onClick={() => void copyMerchantSecret()} disabled={secretLoading || !merchantSecretKey}>
+                    <Copy size={15} /> Copy key
+                  </button>
+                </div>
+              </div>
             </section>
           )}
 
