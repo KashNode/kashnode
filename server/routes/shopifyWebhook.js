@@ -48,8 +48,85 @@ function getCustomerName(order) {
   const first = cleanText(customer.first_name, 120) || cleanText(address.first_name, 120);
   const last = cleanText(customer.last_name, 120) || cleanText(address.last_name, 120);
   return cleanText([first, last].filter(Boolean).join(' '), 255)
-    || cleanText(address.name, 255)
-    || cleanText(order.name, 255);
+    || cleanText(address.name, 255);
+}
+
+function skipWhitespace(source, index) {
+  while (index < source.length && /\s/.test(source[index])) index += 1;
+  return index;
+}
+
+function readJsonStringEnd(source, start) {
+  for (let index = start + 1; index < source.length; index += 1) {
+    if (source[index] === '\\') {
+      index += 1;
+    } else if (source[index] === '"') {
+      return index + 1;
+    }
+  }
+  throw new SyntaxError('Unterminated JSON string.');
+}
+
+function skipJsonValue(source, start) {
+  const first = source[start];
+  if (first === '"') return readJsonStringEnd(source, start);
+
+  if (first === '{' || first === '[') {
+    const stack = [first === '{' ? '}' : ']'];
+    for (let index = start + 1; index < source.length; index += 1) {
+      const character = source[index];
+      if (character === '"') {
+        index = readJsonStringEnd(source, index) - 1;
+      } else if (character === '{') {
+        stack.push('}');
+      } else if (character === '[') {
+        stack.push(']');
+      } else if (character === '}' || character === ']') {
+        if (stack.at(-1) !== character) throw new SyntaxError('Invalid JSON structure.');
+        stack.pop();
+        if (stack.length === 0) return index + 1;
+      }
+    }
+    throw new SyntaxError('Unterminated JSON value.');
+  }
+
+  let index = start;
+  while (index < source.length && !/[,}\]\s]/.test(source[index])) index += 1;
+  return index;
+}
+
+// Shopify order IDs are 64-bit integers. JSON.parse can round values beyond
+// Number.MAX_SAFE_INTEGER, so preserve the root-level ID token from raw JSON.
+function extractTopLevelOrderId(source, parsedId) {
+  let index = skipWhitespace(source, 0);
+  if (source[index] !== '{') return parsedId == null ? null : String(parsedId);
+  index += 1;
+
+  while (index < source.length) {
+    index = skipWhitespace(source, index);
+    if (source[index] === '}') break;
+    if (source[index] !== '"') break;
+
+    const keyEnd = readJsonStringEnd(source, index);
+    const key = JSON.parse(source.slice(index, keyEnd));
+    index = skipWhitespace(source, keyEnd);
+    if (source[index] !== ':') break;
+    const valueStart = skipWhitespace(source, index + 1);
+    const valueEnd = skipJsonValue(source, valueStart);
+    const token = source.slice(valueStart, valueEnd).trim();
+
+    if (key === 'id') {
+      if (token.startsWith('"')) return String(JSON.parse(token));
+      if (/^\d+$/.test(token)) return token;
+      return parsedId == null ? null : String(parsedId);
+    }
+
+    index = skipWhitespace(source, valueEnd);
+    if (source[index] !== ',') break;
+    index += 1;
+  }
+
+  return parsedId == null ? null : String(parsedId);
 }
 
 function getLineItems(value) {
@@ -71,7 +148,7 @@ function getLineItems(value) {
 function mapFinancialStatus(value) {
   const status = cleanText(value, 50)?.toLowerCase() || 'pending';
   if (status === 'paid') return 'paid';
-  if (status === 'refunded' || status === 'voided' || status === 'partially_refunded') return 'manual_review';
+  if (['partially_paid', 'refunded', 'voided', 'partially_refunded'].includes(status)) return 'manual_review';
   return 'unpaid';
 }
 
@@ -142,7 +219,10 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     }
 
     const topic = cleanText(req.get('x-shopify-topic'), 100)?.toLowerCase();
-    if (topic && topic !== 'orders/create') {
+    if (!topic) {
+      return res.status(400).json({ status: 'error', message: 'Shopify webhook topic header is required.' });
+    }
+    if (topic !== 'orders/create') {
       return res.status(200).json({ status: 'ignored', reason: 'unsupported_topic' });
     }
 
@@ -156,7 +236,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       return res.status(400).json({ status: 'error', message: 'Shopify webhook payload must be a JSON object.' });
     }
 
-    const platformOrderId = String(orderPayload?.id ?? '').trim();
+    const platformOrderId = String(extractTopLevelOrderId(rawBody.toString('utf8'), orderPayload?.id) ?? '').trim();
     const customerPhone = normalizePhone(
       orderPayload?.customer?.phone
       || orderPayload?.shipping_address?.phone
