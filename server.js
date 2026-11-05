@@ -15,6 +15,7 @@ import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
 import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
+import { createAdminSettingsHandlers } from './server/routes/adminSettings.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 import { createAuthController } from './server/controllers/authController.js'
@@ -162,6 +163,7 @@ const authController = createAuthController({
   otpSecret: process.env.AUTH_OTP_SECRET || '',
 })
 const merchantOnboardingHandlers = createMerchantOnboardingHandlers({ pool })
+const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
@@ -170,6 +172,10 @@ app.get('/api/merchant/onboarding', requireMerchantSession, asyncRoute(merchantO
 app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyncRoute(merchantOnboardingHandlers.postOnboarding))
 // Reveal integration credentials only to the merchant owner after onboarding is complete.
 app.get('/api/merchant/credentials', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getCredentials))
+
+// Super Admin-only platform settings. Provider key material is written to Vault server-side.
+app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
+app.post('/api/admin/settings', requireOrigin, requireAdmin, asyncRoute(adminSettingsHandlers.postSettings))
 
 app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({
   pool,
