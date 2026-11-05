@@ -14,14 +14,14 @@ The secret field is intentionally blank after saving. Leave it blank to keep the
 
 ## What it sends
 
-When an order is processed in classic checkout or WooCommerce Checkout Block, the plugin sends the order ID, billing name and phone, total, payment method, and sanitized line items as JSON.
+When an order is processed in classic checkout or WooCommerce Checkout Block, the plugin sends the order ID, billing name and phone, total, ISO currency code, payment method, WooCommerce's authoritative paid/unpaid status, and sanitized line items as JSON.
 
 The request contains:
 
 - `X-KashNode-Webhook-Secret`: merchant's shared webhook secret.
 - `X-WC-Webhook-Signature`: base64-encoded HMAC-SHA256 of the exact JSON request body, signed with that secret.
 
-The receiver verifies both headers over HTTPS, resolves the merchant from the saved secret, and handles retries idempotently.
+The receiver verifies both headers over HTTPS, resolves the merchant from the saved secret, persists payment state and currency, and handles retries idempotently. It never downgrades an already paid or manual-review order on a retry.
 
 ## Backend setup
 
