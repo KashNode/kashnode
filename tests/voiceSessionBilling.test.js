@@ -98,6 +98,9 @@ async function openVoiceSession(t, {
         assert.deepEqual(params, [orderId, merchantId]);
         return { rows: [{ id: orderId }] };
       }
+      if (sql.includes('FROM public.system_settings AS settings')) {
+        return { rows: [] };
+      }
       throw new Error('Unexpected auth query: ' + sql);
     },
   };
