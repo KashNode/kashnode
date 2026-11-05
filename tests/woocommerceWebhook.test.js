@@ -65,7 +65,7 @@ async function createTestServer(t, { onOrderPersist = async () => {}, initialQuo
           customer_phone: params[2],
           customer_name: params[3],
           total_amount: params[4],
-          payment_method: params[5],
+          payment_method: params[6],
           customer_trx_id: params[7],
           line_items: JSON.parse(params[8]),
           is_phone_verified: false,
