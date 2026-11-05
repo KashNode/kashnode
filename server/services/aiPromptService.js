@@ -239,7 +239,7 @@ function createOrderSystemContext(facts, merchantName, merchantRules) {
   if (facts.intent === 'cod_confirmation') {
     paymentRule = 'COD: You MUST clearly ask the customer to confirm this exact order with a direct yes/no question. COD is not prepaid. Do not claim payment received. Do not say the parcel is being prepared.';
   } else if (facts.intent === 'payment_received') {
-    paymentRule = 'PAID: the database payment_status is exactly paid. You must explicitly say payment is received and the parcel is being prepared. Do not ask the customer to pay again.';
+    paymentRule = 'PAID: the database payment_status is exactly paid, so payment was received. You must explicitly say payment is received and the parcel is being prepared. Do not ask the customer to pay again.';
   } else if (facts.intent === 'payment_review') {
     paymentRule = 'PAYMENT REVIEW: say payment is being checked. Payment is not verified as received; never say money has been received or that parcel preparation started.';
   } else {
