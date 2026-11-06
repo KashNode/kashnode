@@ -89,11 +89,6 @@ export function OverageNote() {
   return <p className="site-overage">AI voice usage is billed by actual call duration at your selected plan rate. There are no monthly subscriptions or per-order charges. The KashNode Box is a separate one-time hardware purchase at ৳8,000 — <Link to="/hardware">view Box details</Link>.</p>
 }
 
-/** Avoid displaying unverified provider logos or names as live integrations. */
-export function IntegrationStrip() {
-  return <p className="site-note">Provider availability is confirmed during onboarding. Courier booking and tracking require a configured production adapter.</p>
-}
-
 export function FinalCta() {
   return (
     <section className="site-final-cta">
