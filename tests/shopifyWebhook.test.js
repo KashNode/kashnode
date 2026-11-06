@@ -129,6 +129,7 @@ async function createTestServer(t, {
     async query(sql, params = []) {
       const normalized = String(sql).replace(/\s+/g, ' ').trim()
       queries.push({ sql: normalized, params })
+      if (normalized.includes('FROM public.merchant_integrations')) return { rows: [] }
       if (normalized.includes('shopify_webhook_secret') && normalized.includes('shopify_domain')) {
         return { rows: [{ id: MERCHANT_ID, shopify_webhook_secret: SECRET }] }
       }
