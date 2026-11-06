@@ -115,11 +115,10 @@ export default function HomePage() {
             <Link to="/features" className="site-btn site-btn-outline-dark">Explore all features <ArrowRight size={16} /></Link>
           </div>
           <div className="site-ledger">
-            {PILLARS.map((item, index) => {
+            {PILLARS.map(item => {
               const Icon = item.icon
               return (
                 <div key={item.title} className="site-ledger-row">
-                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
                   <div>
                     <span className="site-card-icon"><Icon size={20} /></span>
                     <h3>{item.title}</h3>
