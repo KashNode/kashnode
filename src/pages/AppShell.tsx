@@ -31,8 +31,6 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [theme, setTheme] = useState<Theme>('dark')
   const [voice, setVoice] = useState<'Female' | 'Male'>('Female')
   const [orderFilter, setOrderFilter] = useState<'all' | 'review'>('all')
-  const [rechargeOpen, setRechargeOpen] = useState(false)
-  const [rechargeAmount, setRechargeAmount] = useState(500)
   const [notice, setNotice] = useState('')
   const [alertBox, setAlertBox] = useState(true)
   const [alertWallet, setAlertWallet] = useState(true)
