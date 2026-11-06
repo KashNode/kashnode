@@ -1,5 +1,5 @@
 import { useLocation, NavLink } from 'react-router-dom'
-import { Bell, Box, Home, Link2, PhoneCall, Settings, ShieldCheck, ShoppingBag, Wallet } from 'lucide-react'
+import { Bell, Box, Home, Link2, PhoneCall, Settings, ShoppingBag, Wallet } from 'lucide-react'
 
 type Props = { variant: 'desktop' | 'mobile' }
 const isWithin = (pathname: string, base: string) => pathname === base || pathname.startsWith(`${base}/`)
@@ -25,7 +25,6 @@ export default function Sidebar({ variant }: Props) {
           {integrationsOpen && <div className="md-route-subnav">
             <NavLink to="/dashboard/integrations/couriers" className={({ isActive }) => isActive || pathname === '/dashboard/integrations' ? 'active' : ''}>Couriers</NavLink>
             <NavLink to="/dashboard/integrations/stores" className={({ isActive }) => isActive ? 'active' : ''}>E-Commerce Stores</NavLink>
-            <NavLink to="/dashboard/integrations/webhooks" className={({ isActive }) => isActive ? 'active' : ''}>Webhooks &amp; API</NavLink>
           </div>}
         </div>
       )}
@@ -45,7 +44,7 @@ export default function Sidebar({ variant }: Props) {
           {settingsOpen && <div className="md-route-subnav">
             <NavLink to="/dashboard/settings/profile" className={({ isActive }) => isActive || pathname === '/dashboard/settings' ? 'active' : ''}>Workspace Profile</NavLink>
             <NavLink to="/dashboard/settings/billing" className={({ isActive }) => isActive ? 'active' : ''}>Billing &amp; MFS</NavLink>
-            <NavLink to="/dashboard/settings/api" className={({ isActive }) => isActive ? 'active' : ''}><ShieldCheck size={14} /> Security &amp; API Keys</NavLink>
+            <NavLink to="/dashboard/settings/api" className={({ isActive }) => isActive ? 'active' : ''}>Security &amp; API Keys</NavLink>
           </div>}
         </div>
       )}
@@ -55,7 +54,6 @@ export default function Sidebar({ variant }: Props) {
       {mobile && integrationsOpen && <div className="md-route-mobile-subnav">
         <NavLink to="/dashboard/integrations/couriers" className={({ isActive }) => isActive || pathname === '/dashboard/integrations' ? 'active' : ''}>Couriers</NavLink>
         <NavLink to="/dashboard/integrations/stores">Stores</NavLink>
-        <NavLink to="/dashboard/integrations/webhooks">Webhooks</NavLink>
       </div>}
       {mobile && settingsOpen && <div className="md-route-mobile-subnav">
         <NavLink to="/dashboard/settings/profile" className={({ isActive }) => isActive || pathname === '/dashboard/settings' ? 'active' : ''}>Profile</NavLink>
