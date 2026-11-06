@@ -18,6 +18,8 @@ import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
 import { createAdminSettingsHandlers } from './server/routes/adminSettings.js'
 import { createMerchantDashboardHandlers } from './server/routes/merchantDashboard.js'
 import { createDeviceStatusHandler } from './server/routes/deviceStatus.js'
+import { createMerchantIntegrationHandlers } from './server/routes/merchantIntegrations.js'
+import { startCourierFulfillmentWorker } from './server/services/courierFulfillmentService.js'
 import { createRequirePackage, packageRateFor, normalizeMerchantPackage } from './server/middleware/packageAccess.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
@@ -150,6 +152,7 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHe
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many account creation attempts. Try again later.' } })
 const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many verification attempts. Try again later.' } })
 const googleLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many Google sign-in attempts. Try again later.' } })
+const integrationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many integration requests. Try again later.' } })
 
 async function createUserSession(req, user) {
   await new Promise((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()))
@@ -169,6 +172,8 @@ const merchantOnboardingHandlers = createMerchantOnboardingHandlers({ pool })
 const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
 const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaultDataQuotaMb: DATA_QUOTA_MB })
 const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
+const merchantIntegrationHandlers = createMerchantIntegrationHandlers({ pool })
+const stopCourierFulfillmentWorker = startCourierFulfillmentWorker({ pool })
 const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
 const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
 
@@ -192,6 +197,10 @@ app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, 
 app.get('/api/merchant/credentials', requireMerchantSession, requirePremiumPackage, asyncRoute(merchantOnboardingHandlers.getCredentials))
 app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCalls))
 app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))
+app.get('/api/merchant/integrations', requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.list))
+app.post('/api/merchant/integrations/:provider/test', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.test))
+app.put('/api/merchant/integrations/:provider', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.save))
+app.delete('/api/merchant/integrations/:provider', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.remove))
 
 // Super Admin-only platform settings. Provider key material is written to Vault server-side.
 app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
