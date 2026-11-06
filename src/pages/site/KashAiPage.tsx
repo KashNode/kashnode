@@ -67,7 +67,7 @@ export default function KashAiPage() {
           <div>
             <Eyebrow>Connected to your workflow</Eyebrow>
             <h2 className="site-h2">Kash works with the rest of KashNode.</h2>
-            <p className="site-body">Calls are not a separate tool. Kash knows the order, the payment status and the courier state — so a confirmation call, a payment follow-up and a delivery update all come from the same place. Failed calls raise an alert in the dashboard, and you can change the voice or the call rules from your merchant settings.</p>
+            <p className="site-body">Calls are not a separate tool. Kash uses the order context and configured payment status — so a confirmation call and a payment follow-up can be managed in the same workspace. Courier-state updates depend on a production provider integration. Failed calls raise an alert in the dashboard, and you can change the voice or the call rules from your merchant settings.</p>
             <p className="site-body">Voice usage is measured in AI minutes. Every package includes a minute bundle, and extra minutes are a flat ৳7 per minute.</p>
           </div>
           <CallHistoryVisual />

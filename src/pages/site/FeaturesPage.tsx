@@ -11,15 +11,15 @@ const FEATURES: { icon: typeof ShieldCheck; title: string; text: string; points:
   },
   {
     icon: Wallet, title: 'Payment Verification', visual: 'payment', text: 'Mobile payments are matched automatically. KashNode checks the verification code and TrxID against the order, so you can tell at a glance which orders are paid, which are unmatched, and which need a human check.',
-    points: ['bKash, Nagad, Rocket and Upay', 'TrxID matched / unmatched states', 'Review queue for anything unclear'],
+    points: ['Configured payment-message formats', 'TrxID matched / unmatched states', 'Review queue for anything unclear'],
   },
   {
     icon: PhoneCall, title: 'Kash AI Customer Calls', visual: 'call', text: 'Kash calls your customers in a natural Bangla voice to confirm orders, follow up on payments, and handle routine conversations — without a human on the line. You can switch the voice between male and female.',
     points: ['Natural Bangla voice calls', 'Confirmation and follow-up calls', 'Call history with summaries'],
   },
   {
-    icon: Truck, title: 'Courier Automation', visual: 'courier', text: 'Once an order is verified and paid, KashNode books the parcel with Steadfast or Pathao automatically. Tracking and delivery status stay in the same dashboard as the order.',
-    points: ['Automatic parcel booking', 'Steadfast and Pathao', 'Delivery status in one place'],
+    icon: Truck, title: 'Courier & Fulfilment Handoff', visual: 'courier', text: 'KashNode keeps order verification and fulfilment operations in one workflow. Live courier booking and tracking are not generally available yet; provider credentials and a production API adapter are required.',
+    points: ['Verified orders prepared for fulfilment', 'Courier provider setup required', 'Live booking and tracking availability to be confirmed'],
   },
   {
     icon: LayoutDashboard, title: 'Merchant Dashboard', visual: 'dashboard', text: 'Home, Orders, Calls, Box and Wallet — the dashboard shows live status for Kash AI, your Box and your store, today’s verified orders, and how many minutes you have left.',
@@ -38,7 +38,7 @@ export default function FeaturesPage() {
         <div className="site-wrap">
           <Eyebrow>Features</Eyebrow>
           <h1>Everything your store needs to run <em>without the manual work.</em></h1>
-          <p className="site-lede">Six capabilities, one flow — from the moment an order arrives to the moment the courier picks it up.</p>
+          <p className="site-lede">Connected capabilities for the work between order arrival and fulfilment. Provider-dependent actions are clearly identified before onboarding.</p>
         </div>
       </section>
 

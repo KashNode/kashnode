@@ -14,7 +14,7 @@ export default function TermsPage() {
       <section className="site-section">
         <div className="site-wrap site-legal">
           <h2>The service</h2>
-          <p>KashNode provides a merchant platform, an AI voice assistant (Kash AI) and an optional hardware device (KashNode Box) that together automate order verification, payment matching, customer calls and courier booking for online stores.</p>
+          <p>KashNode provides a merchant platform, an AI voice assistant (Kash AI) and an optional hardware device (KashNode Box) that support order verification, configured payment matching, customer calls and fulfilment workflows for online stores. Live courier booking and tracking depend on provider integrations and may not be available.</p>
           <h2>Your account</h2>
           <p>You are responsible for your account, your password, and the business SIM you connect. Keep your sign-in details safe and tell us promptly if you believe your account has been compromised.</p>
           <h2>Plans and minutes</h2>
@@ -22,7 +22,7 @@ export default function TermsPage() {
           <h2>Fair use</h2>
           <p>Use KashNode for your own store’s orders and customers. Do not use it to send spam, impersonate another business, or make calls to people who have not ordered from you.</p>
           <h2>Availability</h2>
-          <p>KashNode is a young product and we work to keep it reliable, but we do not guarantee uninterrupted service. Verification, calls and courier booking depend on your SIM, your network and third-party services (payment providers and couriers), which are outside our control.</p>
+          <p>KashNode is a young product and we work to keep it reliable, but we do not guarantee uninterrupted service. Verification and calls depend on your SIM, your network and configured third-party services. Courier booking and tracking are provider-dependent and are not generally available until the required production adapter and credentials are configured.</p>
           <h2>Changes</h2>
           <p>We may update these terms as the product grows. The date above will change when we do, and material changes will be communicated to merchants.</p>
         </div>

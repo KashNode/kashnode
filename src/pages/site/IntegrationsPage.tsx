@@ -1,66 +1,53 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Cpu, MessageCircle, Network, ShoppingBag, Smartphone, Wallet } from 'lucide-react'
+import { ArrowRight, MessageCircle, Network, ShoppingBag, Smartphone, Wallet } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { FinalCta } from '../../components/site/SiteSections'
 
 const GROUPS = [
   {
-    icon: ShoppingBag, title: 'Store platforms',
+    icon: ShoppingBag, title: 'Store & order workflows',
     items: [
-      ['WooCommerce', 'Order and payment-status synchronisation through store hooks.'],
-      ['Shopify', 'Order and payment-status synchronisation through store hooks.'],
-      ['Laravel / custom commerce', 'Custom website connection through the platform webhook/API layer.'],
+      ['Merchant order records', 'Orders are managed in the KashNode platform. Specific store-platform connectors must be confirmed before onboarding.'],
+      ['Store API / webhook connection', 'Integration availability depends on the deployed connector and merchant configuration; do not assume every store platform is live.'],
     ],
   },
   {
-    icon: Wallet, title: 'Mobile financial services',
+    icon: Wallet, title: 'Payment signals',
     items: [
-      ['bKash', 'Incoming transaction SMS and TrxID matching.'],
-      ['Nagad', 'Incoming transaction SMS and TrxID matching.'],
-      ['Rocket', 'Incoming transaction SMS and TrxID matching.'],
-      ['Upay', 'Incoming transaction SMS and TrxID matching.'],
+      ['Connected SIM / SMS ingestion', 'Device-connected SMS events can be ingested by the platform. Supported message formats and merchant setup must be verified.'],
+      ['Payment matching', 'Payment matching availability depends on the configured message format and a verified end-to-end workflow.'],
     ],
   },
   {
-    icon: Network, title: 'ISP infrastructure',
+    icon: MessageCircle, title: 'AI voice services',
     items: [
-      ['MikroTik RouterOS v7', 'Router API connection for subscriber status and automatic line restoration after verified payment.'],
+      ['Speech recognition', 'The voice runtime uses a configured speech-to-text provider; service credentials are required.'],
+      ['Language model', 'OpenAI, Gemini or Groq can be selected in the server-side voice prompt service when configured.'],
+      ['Bangla text-to-speech', 'Google Cloud Text-to-Speech is used by the documented Bangla voice runtime and requires service credentials.'],
     ],
   },
   {
-    icon: MessageCircle, title: 'Messaging & notifications',
+    icon: Network, title: 'Courier & fulfilment',
     items: [
-      ['WhatsApp (Baileys)', 'QR-linked merchant WhatsApp session for invoice and OTP delivery.'],
-      ['SMS', 'Transaction alerts, customer confirmation and OTP delivery through a connected SIM.'],
-      ['Email', 'Premium-tier notification and invoice delivery.'],
-      ['Telegram', 'Merchant bot notifications in the e-commerce Standard and Premium tiers.'],
+      ['Courier provider adapters', 'Live courier booking and tracking are not generally available. Provider credentials and production API adapters must be configured; tracking currently returns a demo response until then.'],
     ],
   },
   {
-    icon: Smartphone, title: 'Transaction ingestion devices',
+    icon: Smartphone, title: 'Connected devices',
     items: [
-      ['Android Dual-SIM Agent', 'Maps payment services to SIM slots, captures incoming SMS and buffers events locally while offline.'],
-      ['ESP32 LilyGO / TTGO T-Call', 'Standalone cellular node with its own SIM data connection, SMS capture and remote firmware-update capability.'],
-    ],
-  },
-  {
-    icon: Cpu, title: 'Platform interfaces',
-    items: [
-      ['Hosted checkout', 'Customer payment page with live browser updates over WebSocket / server-sent events.'],
-      ['Merchant dashboard', 'Configuration for payment methods, devices, licences, transactions and integrations.'],
-      ['Webhook layer', 'Server-side event processing for connected commerce platforms.'],
+      ['KashNode Box', 'A connected merchant device can report SIM and network telemetry to the authenticated platform API. Device pairing and secure configuration are required.'],
     ],
   },
 ]
 
 export default function IntegrationsPage() {
   return (
-    <SiteLayout title="Integrations & Connectivity">
+    <SiteLayout title="E-commerce Connections">
       <section className="site-page-hero">
         <div className="site-wrap">
-          <Eyebrow>Integrations & connectivity</Eyebrow>
-          <h1>Connect payments, <em>networks and stores.</em></h1>
-          <p className="site-lede">The platform blueprint covers two business tracks—ISP billing and e-commerce payments—using connected transaction-ingestion devices, messaging channels and server-side integrations.</p>
+          <Eyebrow>E-commerce connections</Eyebrow>
+          <h1>Connect the workflows behind <em>every order.</em></h1>
+          <p className="site-lede">KashNode connects order operations, payment signals, AI voice and device workflows. Availability depends on the production connector, credentials and merchant setup; this page distinguishes documented capabilities from provider-dependent work.</p>
         </div>
       </section>
       <section className="site-section">
@@ -73,19 +60,19 @@ export default function IntegrationsPage() {
                 {group.items.map(([name, desc]) => (
                   <article className="site-int-row" key={name}>
                     <strong>{name}</strong><p>{desc}</p>
-                    <span className="site-badge planned">Architecture scope</span>
+                    <span className="site-badge planned">Setup / validation required</span>
                   </article>
                 ))}
               </section>
             )
           })}
-          <p className="site-note">“Architecture scope” describes components named in the technical blueprint; it is not a claim that every connector is already deployed or generally available.</p>
+          <p className="site-note">Provider names and workflows are not presented as generally available unless they have passed production validation. Courier booking and tracking remain provider-dependent and currently return demo tracking responses until adapters and credentials are configured.</p>
         </div>
       </section>
       <section className="site-section">
         <div className="site-wrap site-center-block">
           <h2 className="site-h2">Need help planning your connection?</h2>
-          <p className="site-body">Tell us whether you operate an ISP, an online store or both. We can help map the required devices and integrations.</p>
+          <p className="site-body">Tell us about your online store and the operational workflow you want to automate. We can confirm which connections are currently supported and what setup is required.</p>
           <Link to="/contact" className="site-btn site-btn-primary">Talk to the team <ArrowRight size={16} /></Link>
         </div>
       </section>
