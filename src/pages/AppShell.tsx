@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, Settings, ShoppingBag, Wallet } from 'lucide-react'
-import { getMerchantCredentials, type AuthUser } from '../lib/auth'
+import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, Settings, ShoppingBag, Wallet, Smartphone } from 'lucide-react'
+import { getMerchantCredentials, getMerchantOnboarding, type AuthUser, type MerchantOnboardingProfile } from '../lib/auth'
 import { getCallHistory, getCourierOrders, getMerchantPackage, getSimStatus, type CallHistoryEntry, type MerchantCourierOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
 import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
@@ -44,6 +44,7 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [courierOrders, setCourierOrders] = useState<MerchantCourierOrder[]>([])
   const [courierOrdersError, setCourierOrdersError] = useState('')
   const [activePackage, setActivePackage] = useState<'basic' | 'standard' | 'premium'>('basic')
+  const [gatewayProfile, setGatewayProfile] = useState<MerchantOnboardingProfile | null>(null)
   const [packageRate, setPackageRate] = useState(7)
   const [packageLoading, setPackageLoading] = useState(true)
   const [merchantSecretKey, setMerchantSecretKey] = useState('')
@@ -77,6 +78,7 @@ export default function AppShell({ user, onSignOut }: Props) {
   useEffect(() => {
     let alive = true
     void refreshSim(true)
+    getMerchantOnboarding().then(profile => { if (alive) setGatewayProfile(profile) }).catch(() => {})
     getCourierOrders()
       .then(payload => { if (alive) setCourierOrders(payload.courierOrders || []) })
       .catch(error => { if (alive) setCourierOrdersError(error instanceof Error ? error.message : 'Could not load courier bookings.') })
@@ -346,7 +348,33 @@ export default function AppShell({ user, onSignOut }: Props) {
             </section>
           )}
 
-          {view === 'settings' && <MerchantIntegrationsSettings activePackage={activePackage} onNotify={notify} />}
+          {view === 'settings' && (
+            <section>
+              <div className="md-card md-gateway-profile">
+                <div className="md-card-top">
+                  <div><strong>Gateway &amp; downloads</strong><p className="md-muted">Your selected connection method for KashNode.</p></div>
+                  <span className="md-badge ok">{gatewayProfile?.gatewayPreference === 'box' ? 'KashNode Box' : 'Kash AI App'}</span>
+                </div>
+                <p>Package: {(gatewayProfile?.selectedPlan || activePackage).toString().toUpperCase()}</p>
+                {gatewayProfile?.gatewayPreference === 'box' ? (
+                  <>
+                    <p>Hardware fulfillment: <strong>{(gatewayProfile.boxFulfillmentStatus || 'not_requested').replaceAll('_', ' ')}</strong></p>
+                    <p className="md-muted">Your Box pre-order status will appear here. SIM details can be added during setup or when the device is ready.</p>
+                    <a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a>
+                  </>
+                ) : (
+                  <>
+                    <p className="md-muted">You are using the free Android gateway. No dedicated hardware or Box SIM is required to get started.</p>
+                    <a className="md-primary md-gateway-link" href="/downloads/kash-ai-android.apk" download>
+                      <Smartphone size={17} /> Download Kash AI Android App
+                    </a>
+                    <small className="md-muted">The download endpoint is ready; the production APK will be published here when the signed release is available.</small>
+                  </>
+                )}
+              </div>
+              <MerchantIntegrationsSettings activePackage={activePackage} onNotify={notify} />
+            </section>
+          )}
 
           {view === 'alerts' && (
             <section>
