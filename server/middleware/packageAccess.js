@@ -1,10 +1,4 @@
-const PACKAGE_RANK = Object.freeze({ free: 0, basic: 1, standard: 2, premium: 3 });
-const PACKAGE_RATES = Object.freeze({ basic: 6.5, standard: 6, premium: 5.5 });
-
-function normalizePackage(value) {
-  const plan = String(value || 'basic').trim().toLowerCase();
-  return Object.hasOwn(PACKAGE_RANK, plan) ? plan : 'basic';
-}
+function normalizePackage(value) { return String(value || '').trim().toLowerCase(); }
 
 function upgradeRequired(res, activePlan, requiredPlan) {
   return res.status(403).json({
@@ -34,7 +28,7 @@ export function createRequirePackage({ pool, minimumPackage, credentialHeader = 
           return res.status(401).json({ status: 'error', message: 'Invalid merchant credentials.' });
         }
         result = await pool.query(
-          'SELECT id, subscription_plan, overage_rate_per_min FROM public.merchants WHERE webhook_secret = $1 LIMIT 1',
+          'SELECT m.id, m.subscription_plan, p.display_order AS plan_rank FROM public.merchants m JOIN public.subscription_plans p ON lower(p.slug)=lower(m.subscription_plan) AND p.is_active=TRUE WHERE m.webhook_secret = $1 LIMIT 1',
           [secret],
         );
       } else {
@@ -43,7 +37,7 @@ export function createRequirePackage({ pool, minimumPackage, credentialHeader = 
           return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
         }
         result = await pool.query(
-          'SELECT id, subscription_plan, overage_rate_per_min FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+          'SELECT m.id, m.subscription_plan, p.display_order AS plan_rank FROM public.merchants m JOIN public.subscription_plans p ON lower(p.slug)=lower(m.subscription_plan) AND p.is_active=TRUE WHERE m.id = $1 AND m.owner_user_id = $2 LIMIT 1',
           [user.merchantId, user.id],
         );
       }
@@ -51,7 +45,9 @@ export function createRequirePackage({ pool, minimumPackage, credentialHeader = 
       const merchant = result.rows?.[0];
       if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
       const activePlan = normalizePackage(merchant.subscription_plan);
-      if (PACKAGE_RANK[activePlan] < PACKAGE_RANK[requiredPlan]) {
+      const required = await pool.query('SELECT display_order FROM public.subscription_plans WHERE lower(slug)=lower($1) AND is_active=TRUE LIMIT 1', [requiredPlan]);
+      if (!required.rows[0]) return res.status(503).json({ status: 'error', message: 'Required package is not configured.' });
+      if (Number(merchant.plan_rank) < Number(required.rows[0].display_order)) {
         return upgradeRequired(res, activePlan, requiredPlan);
       }
 
@@ -61,10 +57,6 @@ export function createRequirePackage({ pool, minimumPackage, credentialHeader = 
       return next(error);
     }
   };
-}
-
-export function packageRateFor(plan) {
-  return PACKAGE_RATES[normalizePackage(plan)];
 }
 
 export function normalizeMerchantPackage(plan) {
