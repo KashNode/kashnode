@@ -111,7 +111,7 @@ export default function HomePage() {
           <div>
             <Eyebrow>What KashNode does</Eyebrow>
             <h2 className="site-h2">Three capabilities, one connected platform.</h2>
-            <p className="site-body">Verification, payment matching and courier dispatch are not three tools — they are one flow. An order moves through all three without anyone retyping, rechecking or chasing it by hand.</p>
+            <p className="site-body">Verification, configured payment checks and fulfilment handoff are connected parts of one workflow. Order details stay together so your team can reduce retyping, rechecking and manual follow-up.</p>
             <Link to="/features" className="site-btn site-btn-outline-dark">Explore all features <ArrowRight size={16} /></Link>
           </div>
           <div className="site-ledger">
