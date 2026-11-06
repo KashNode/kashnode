@@ -192,7 +192,6 @@ export default function HomePage() {
           <div className="site-ledger">
             {OUTCOMES.map((item, index) => (
               <div key={item.title} className="site-ledger-row">
-                <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
                 <div>
                   <h3>{item.title}</h3>
                   <p>{item.text}</p>
