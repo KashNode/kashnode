@@ -43,6 +43,7 @@ Do not position KashNode as:
 - A cloud hosting provider or developer infrastructure platform.
 - A payment gateway, bank, mobile financial service, or payment processor.
 - A courier company.
+- An ISP billing, subscriber-management, or network-automation platform.
 - A hardware-first SIM box company.
 - A broad “AI for everything” product.
 
