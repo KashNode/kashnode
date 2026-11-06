@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, ShoppingBag, Wallet } from 'lucide-react'
+import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, Settings, ShoppingBag, Wallet } from 'lucide-react'
 import { getMerchantCredentials, type AuthUser } from '../lib/auth'
 import { getCallHistory, getMerchantPackage, getSimStatus, type CallHistoryEntry, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
+import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
 
 type Props = { user: AuthUser; onSignOut: () => void }
-type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts'
+type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts' | 'settings'
 type Theme = 'dark' | 'system'
 
 type SampleOrder = { id: string; channel: string; amount: string; status: string; tone: string; trx: string; note: string }
@@ -130,6 +131,7 @@ export default function AppShell({ user, onSignOut }: Props) {
     { key: 'calls', label: 'Calls', icon: PhoneCall },
     { key: 'box', label: 'Box', icon: Box },
     { key: 'wallet', label: 'Wallet', icon: Wallet },
+    { key: 'settings', label: 'Settings', icon: Settings },
   ]
 
   return (
@@ -328,6 +330,8 @@ export default function AppShell({ user, onSignOut }: Props) {
               )}
             </section>
           )}
+
+          {view === 'settings' && <MerchantIntegrationsSettings activePackage={activePackage} onNotify={notify} />}
 
           {view === 'alerts' && (
             <section>
