@@ -55,6 +55,7 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [tested, setTested] = useState<Provider[]>([]);
+  const [shopifySyncing, setShopifySyncing] = useState(false);
 
   async function refresh() {
     setLoading(true);
@@ -131,6 +132,20 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
     } finally {
       setTesting(null);
       setSaving(null);
+    }
+  }
+
+
+  async function syncShopify() {
+    setShopifySyncing(true);
+    setError('');
+    try {
+      const result = await callApi('/api/merchant/integrations/shopify/sync', 'POST', {});
+      onNotify(`Shopify sync complete: ${Number(result.synced || 0)} new, ${Number(result.updated || 0)} updated orders.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not sync Shopify orders.');
+    } finally {
+      setShopifySyncing(false);
     }
   }
 
@@ -244,7 +259,10 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
               <button className="md-primary" onClick={() => void connectShopify(false)} disabled={busy}>
                 {saving === 'shopify' ? <Loader2 className="md-spin" size={15} /> : <CheckCircle2 size={15} />} Save &amp; Connect
               </button>
-              {saved?.configured && <button className="md-secondary" onClick={() => void remove(provider.id)} disabled={busy}><Trash2 size={15} /> Remove</button>}
+              {saved?.configured && <button className="md-secondary" onClick={() => void syncShopify()} disabled={busy || shopifySyncing}>
+                {shopifySyncing ? <Loader2 className="md-spin" size={15} /> : <PlugZap size={15} />} {shopifySyncing ? 'Syncing orders…' : 'Sync Orders'}
+              </button>}
+              {saved?.configured && <button className="md-secondary" onClick={() => void remove(provider.id)} disabled={busy || shopifySyncing}><Trash2 size={15} /> Remove</button>}
             </div> : <div className="md-integration-actions">
               <button className="md-secondary" onClick={() => void test(provider.id)} disabled={busy}>
                 {testing === provider.id ? <Loader2 className="md-spin" size={15} /> : <PlugZap size={15} />} Test Connection
