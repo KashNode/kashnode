@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Link2, Loader2, PlugZap, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle2, Link2, Loader2, PlugZap, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 
 type Provider = 'steadfast' | 'pathao' | 'woocommerce' | 'shopify';
 type Integration = {
