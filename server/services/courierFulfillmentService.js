@@ -57,7 +57,7 @@ async function completeJob(pool, jobId, status, error = null, retry = false, att
 async function processJob(pool, job) {
   const orderResult = await pool.query(
     `SELECT id, merchant_id, platform_order_id, customer_name, customer_phone, alternative_phone,
-            total_amount, payment_status, line_items, shipping_address, shipping_city, shipping_zone,
+            total_amount, payment_status, line_items, store_provider, shipping_address, shipping_city, shipping_zone,
             shipping_area, courier_provider, courier_consignment_id, courier_tracking_code
      FROM public.orders WHERE id = $1 AND merchant_id = $2 LIMIT 1`,
     [job.order_id, job.merchant_id],
@@ -97,7 +97,7 @@ async function processJob(pool, job) {
 
   const courierCredentials = decryptIntegrationCredentials(courierRow);
   const booking = await createCourierOrder(courierRow.provider, courierCredentials, order);
-  const storeRow = byProvider.get('woocommerce') || byProvider.get('shopify');
+  const storeRow = order.store_provider ? byProvider.get(order.store_provider) : null;
   let storeSync = 'not_configured';
   if (storeRow) {
     const storeCredentials = decryptIntegrationCredentials(storeRow);
