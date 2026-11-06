@@ -62,3 +62,23 @@ test('provider credential validation normalizes safe provider settings', () => {
     '2026-10',
   );
 });
+
+test('Shopify API test accepts a shop URL and does not require webhook signing secret', () => {
+  const credentials = validateIntegrationCredentials('shopify', {
+    shopDomain: 'https://shop.myshopify.com/',
+    accessToken: 'shpat_test_token',
+  }, { requireWebhookSecret: false });
+  assert.equal(credentials.shopDomain, 'shop.myshopify.com');
+  assert.equal(credentials.accessToken, 'shpat_test_token');
+  assert.equal(credentials.webhookSecret, '');
+});
+
+test('Shopify save validation still requires the webhook signing secret', () => {
+  assert.throws(
+    () => validateIntegrationCredentials('shopify', {
+      shopDomain: 'shop.myshopify.com',
+      accessToken: 'shpat_test_token',
+    }),
+    /webhook signing secret/,
+  );
+});
