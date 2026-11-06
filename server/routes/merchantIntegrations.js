@@ -143,6 +143,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env, fet
     if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Integrations are unavailable.' });
     const provider = String(req.params.provider || '').toLowerCase();
     if (!ALL_PROVIDERS.has(provider)) return res.status(400).json({ status: 'error', message: 'Unsupported integration provider.' });
+    if (provider === 'shopify') return res.status(400).json({ status: 'error', message: 'Use the Shopify Save & Connect action for merchant-owned app credentials.' });
     const merchant = await verifyMerchant(pool, id);
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
     try {
