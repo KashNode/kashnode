@@ -146,7 +146,7 @@ test('completed merchant owner can retrieve the integration secret', async () =>
     pool: {
       async query(_sql, args) {
         queryArgs = args;
-        return { rows: [{ webhook_secret: 'private-merchant-secret', is_onboarding_complete: true }] };
+        return { rows: [{ id: 'merchant-uuid', webhook_secret: 'private-merchant-secret', is_onboarding_complete: true }] };
       },
     },
   });
@@ -156,6 +156,7 @@ test('completed merchant owner can retrieve the integration secret', async () =>
 
   assert.deepEqual(queryArgs, ['merchant-uuid', 'user-uuid']);
   assert.equal(res.statusCode, 200);
+  assert.equal(res.body.merchantId, 'merchant-uuid');
   assert.equal(res.body.merchantSecretKey, 'private-merchant-secret');
 });
 
