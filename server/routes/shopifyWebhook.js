@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { decryptIntegrationCredentials } from '../services/integrationCrypto.js';
 
 const MAX_ORDER_ID_LENGTH = 100;
 const MAX_LINE_ITEMS = 250;
@@ -207,19 +208,34 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
-    const merchantResult = await pool.query(
-      `SELECT id, shopify_webhook_secret
-       FROM public.merchants
-       WHERE lower(shopify_domain) = $1
+    const integrationResult = await pool.query(
+      `SELECT merchant_id, credentials_ciphertext, credentials_nonce, credentials_auth_tag,
+              credentials_key_version
+       FROM public.merchant_integrations
+       WHERE provider = 'shopify' AND is_active = TRUE
+         AND lower(config->>'shopDomain') = $1
        LIMIT 1`,
       [shopDomain],
     );
-    const merchant = merchantResult.rows[0];
-    if (!merchant?.id || !merchant.shopify_webhook_secret) {
+    let merchantId = integrationResult.rows[0]?.merchant_id;
+    let webhookSecret = null;
+    if (integrationResult.rows[0]) {
+      const credentials = decryptIntegrationCredentials(integrationResult.rows[0]);
+      webhookSecret = credentials.webhookSecret;
+    } else {
+      const legacy = await pool.query(
+        `SELECT id, shopify_webhook_secret FROM public.merchants
+         WHERE lower(shopify_domain) = $1 LIMIT 1`,
+        [shopDomain],
+      );
+      merchantId = legacy.rows[0]?.id;
+      webhookSecret = legacy.rows[0]?.shopify_webhook_secret;
+    }
+    if (!merchantId || !webhookSecret) {
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
-    const expected = crypto.createHmac('sha256', merchant.shopify_webhook_secret)
+    const expected = crypto.createHmac('sha256', webhookSecret)
       .update(rawBody)
       .digest('base64');
     if (!safeEqualBase64(signature, expected)) {
@@ -277,7 +293,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       });
     }
 
-    const merchantId = String(merchant.id);
+    const merchantId = String(merchantId);
     const client = await pool.connect();
     let transactionOpen = false;
     let order;
