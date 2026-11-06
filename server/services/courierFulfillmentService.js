@@ -72,6 +72,13 @@ async function processJob(pool, job) {
     return;
   }
 
+  const tierResult = await pool.query('SELECT subscription_plan FROM public.merchants WHERE id = $1 LIMIT 1', [job.merchant_id]);
+  const activePlan = String(tierResult.rows?.[0]?.subscription_plan || 'basic').toLowerCase();
+  if (!['standard', 'premium'].includes(activePlan)) {
+    await completeJob(pool, job.id, 'blocked', 'Courier automation requires Standard or Premium.', false, job.attempts);
+    return;
+  }
+
   const integrations = await pool.query(
     `SELECT provider, credentials_ciphertext, credentials_nonce, credentials_auth_tag,
             credentials_key_version, config
@@ -81,8 +88,11 @@ async function processJob(pool, job) {
     [job.merchant_id],
   );
   const byProvider = new Map(integrations.rows.map(row => [row.provider, row]));
-  const courierRow = order.courier_provider ? byProvider.get(order.courier_provider) : (byProvider.get('steadfast') || byProvider.get('pathao'));
-  if (!courierRow || !COURIERS.has(courierRow.provider) || courierRow.config?.autoBook === false) {
+  const enabledCouriers = integrations.rows.filter(row => COURIERS.has(row.provider) && row.config?.autoBook !== false);
+  const courierRow = order.courier_provider
+    ? enabledCouriers.find(row => row.provider === order.courier_provider)
+    : enabledCouriers[0];
+  if (!courierRow) {
     await completeJob(pool, job.id, 'blocked', 'No active auto-booking courier integration is configured.', false, job.attempts);
     return;
   }
