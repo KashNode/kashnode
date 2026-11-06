@@ -131,7 +131,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
         );
         {
           await client.query(
-            "UPDATE public.courier_fulfillment_outbox SET status = 'pending', next_attempt_at = NOW(), last_error = NULL, updated_at = NOW() WHERE merchant_id = $1 AND status = 'blocked'",
+            "UPDATE public.courier_fulfillment_outbox SET status = 'pending', attempts = 0, next_attempt_at = NOW(), last_error = NULL, updated_at = NOW() WHERE merchant_id = $1 AND status = 'blocked'",
             [id.merchantId],
           );
         }
