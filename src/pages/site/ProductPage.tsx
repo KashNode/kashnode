@@ -6,11 +6,11 @@ import { DashboardMock } from '../../components/site/SiteVisuals'
 
 const ARCHITECTURE = [
   { icon: LayoutDashboard, title: 'Merchant dashboard', text: 'Live status for Kash AI, your Box, your store connection, today’s orders and remaining minutes — one screen that shows whether the system is actually working.' },
-  { icon: Workflow, title: 'Order automation', text: 'Orders flow in from WooCommerce, Shopify or a custom store and move through verification, payment matching and courier booking without manual steps.' },
+  { icon: Workflow, title: 'Order automation', text: 'Order records move through verification and payment review in the KashNode workspace. Specific store-platform connectors must be confirmed during onboarding.' },
   { icon: ShieldCheck, title: 'Customer verification', text: 'COD orders are verified by SMS from your business SIM, proving a real customer before anything ships.' },
-  { icon: Wallet, title: 'Payment verification', text: 'bKash, Nagad, Rocket and Upay payments are checked by verification code and TrxID, so paid and unpaid are never confused.' },
+  { icon: Wallet, title: 'Payment verification', text: 'Configured payment messages can be matched against verification codes and transaction references. Supported message formats and provider availability must be confirmed during onboarding.' },
   { icon: PhoneCall, title: 'AI voice automation', text: 'Kash calls customers in natural Bangla to confirm orders and follow up — and merchants can switch the voice between male and female.' },
-  { icon: Truck, title: 'Courier workflow', text: 'Confirmed orders are booked with Steadfast or Pathao automatically, with tracking and delivery status in the same place.' },
+  { icon: Truck, title: 'Courier workflow', text: 'Verified orders can be prepared for fulfilment. Live courier booking and tracking are not generally available until a provider adapter and credentials are configured.' },
   { icon: Box, title: 'Device connectivity', text: 'The KashNode Box keeps your business SIM connected to the platform around the clock, with signal, balance and sync visible in the dashboard.' },
 ]
 
@@ -41,7 +41,7 @@ export default function ProductPage() {
               <span>Kash AI + Box</span><ArrowRight size={16} />
               <span>Customer &amp; courier</span>
             </div>
-            <p className="site-body">An order arrives from your store. The platform verifies the customer and the payment, Kash confirms the order by voice, and the courier is booked — all in one connected flow.</p>
+            <p className="site-body">An order is managed in the platform, verification and configured payment checks take place, and Kash can confirm the order by voice. Live courier booking depends on a production provider integration.</p>
           </div>
           <div className="site-ledger">
             {ARCHITECTURE.map((item, index) => {
