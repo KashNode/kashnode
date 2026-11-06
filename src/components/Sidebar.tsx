@@ -18,6 +18,7 @@ export default function Sidebar({ variant }: Props) {
       <NavLink to="/dashboard/orders" className={({ isActive }) => isActive ? 'active' : ''}>
         <ShoppingBag size={mobile ? 20 : 18} /><span>Orders</span>{mobile && <i className="md-nav-dot" />}
       </NavLink>
+      {mobile && <NavLink to="/dashboard/integrations" className={() => integrationsOpen ? 'active' : ''}><Link2 size={20} /><span>Integrations</span><i className="md-nav-dot" /></NavLink>}
       {!mobile && (
         <div className={`md-route-group ${integrationsOpen ? 'expanded' : ''}`}>
           <NavLink to="/dashboard/integrations" className={() => integrationsOpen ? 'active' : ''}><Link2 size={18} /><span>Integrations</span></NavLink>
@@ -37,6 +38,7 @@ export default function Sidebar({ variant }: Props) {
       <NavLink to="/dashboard/calls" className={({ isActive }) => isActive ? 'active' : ''}>
         <PhoneCall size={mobile ? 20 : 18} /><span>Calls</span>{mobile && <i className="md-nav-dot" />}
       </NavLink>
+      {mobile && <NavLink to="/dashboard/settings" className={() => settingsOpen ? 'active' : ''}><Settings size={20} /><span>Settings</span><i className="md-nav-dot" /></NavLink>}
       {!mobile && (
         <div className={`md-route-group ${settingsOpen ? 'expanded' : ''}`}>
           <NavLink to="/dashboard/settings" className={() => settingsOpen ? 'active' : ''}><Settings size={18} /><span>Settings</span></NavLink>
