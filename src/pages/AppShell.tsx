@@ -6,6 +6,7 @@ import KashNodeLogo from '../components/KashNodeLogo'
 import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
 import MerchantTopupForm from '../components/MerchantTopupForm'
 import BillingPhoneSettings from '../components/BillingPhoneSettings'
+import MerchantDeviceCredentialsCard from '../components/MerchantDeviceCredentialsCard'
 
 type Props = { user: AuthUser; onSignOut: () => void }
 type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts' | 'settings'
@@ -49,9 +50,9 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [gatewayProfile, setGatewayProfile] = useState<MerchantOnboardingProfile | null>(null)
   const [packageRate, setPackageRate] = useState(7)
   const [packageLoading, setPackageLoading] = useState(true)
+  const [merchantId, setMerchantId] = useState('')
   const [merchantSecretKey, setMerchantSecretKey] = useState('')
   const [secretLoading, setSecretLoading] = useState(true)
-  const [secretVisible, setSecretVisible] = useState(false)
   const [secretError, setSecretError] = useState('')
 
   const firstName = user.name?.split(' ')[0] || user.email.split('@')[0]
@@ -100,13 +101,11 @@ export default function AppShell({ user, onSignOut }: Props) {
         setPackageRate(Number.isFinite(Number(payload.ratePerMinute)) ? Number(payload.ratePerMinute) : 7)
         setWalletBalance(Number(payload.walletBalance || 0))
         setAvailableVoiceMinutes(Number(payload.availableVoiceMinutes || 0))
-        if (payload.package === 'premium') {
-          try {
-            const credentials = await getMerchantCredentials()
-            if (alive) setMerchantSecretKey(credentials.merchantSecretKey)
-          } catch (error) {
-            if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load merchant API secret.')
-          }
+        try {
+          const credentials = await getMerchantCredentials()
+          if (alive) { setMerchantId(credentials.merchantId); setMerchantSecretKey(credentials.merchantSecretKey) }
+        } catch (error) {
+          if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load merchant pairing credentials.')
         }
       })
       .catch((error) => {
@@ -124,15 +123,6 @@ export default function AppShell({ user, onSignOut }: Props) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  async function copyMerchantSecret() {
-    if (!merchantSecretKey) return
-    try {
-      await navigator.clipboard.writeText(merchantSecretKey)
-      notify('Merchant API secret copied.')
-    } catch {
-      notify('Clipboard access is unavailable in this browser.')
-    }
-  }
 
   const visibleOrders = orderFilter === 'review' ? sampleOrders.filter((order) => order.tone === 'warn') : sampleOrders
   const signal = simStatus ? Math.max(0, Math.min(5, Math.round(simStatus.signalStrength))) : 0
@@ -197,28 +187,13 @@ export default function AppShell({ user, onSignOut }: Props) {
               </div>
               <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'No merchant device has reported yet'}</p>
               <button className="md-primary" onClick={() => setView('orders')}>Check today’s orders</button>
-              {activePackage === 'premium' ? (
-                <div className="md-card md-merchant-secret-card">
-                  <div className="md-card-top"><strong><KeyRound size={17} /> Merchant API secret</strong><span className="md-badge">Private</span></div>
-                  <p className="md-muted">Use this key in your store integration as the x-merchant-secret credential. Keep it private.</p>
-                  {secretError ? <p className="md-error" role="alert">{secretError}</p> : null}
-                  <code className="md-secret-value">{secretLoading ? 'Loading secure key…' : secretVisible ? merchantSecretKey : merchantSecretKey ? '••••••••••••' + merchantSecretKey.slice(-4) : 'Not available'}</code>
-                  <div className="md-secret-actions">
-                    <button className="md-secondary" onClick={() => setSecretVisible((value) => !value)} disabled={secretLoading || !merchantSecretKey}>
-                      {secretVisible ? <EyeOff size={15} /> : <Eye size={15} />}{secretVisible ? ' Hide key' : ' Reveal key'}
-                    </button>
-                    <button className="md-secondary" onClick={() => void copyMerchantSecret()} disabled={secretLoading || !merchantSecretKey}>
-                      <Copy size={15} /> Copy key
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="md-card md-merchant-secret-card">
-                  <strong>Full API &amp; Webhook access · Premium</strong>
-                  <p className="md-muted">API credential generation is locked on your current package.</p>
-                  <button className="md-primary" onClick={() => notify('Upgrade to Premium to unlock full API and Webhook access.')}>Upgrade to Premium</button>
-                </div>
-              )}
+              <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
+              <article className="md-card md-app-download-card">
+                <div className="md-card-top"><strong><Smartphone size={18}/> Download Kash AI App</strong><span className="md-badge">Android</span></div>
+                <p className="md-muted">Install the Android app and pair it using your Merchant ID and secret above.</p>
+                <a className="md-primary md-gateway-link" href="/downloads/kash-ai-android.apk" download><Smartphone size={17}/> Download Kash AI APK</a>
+                <small className="md-muted">Placeholder release URL; publish the signed APK at this path before announcing downloads.</small>
+              </article>
             </section>
           )}
 
@@ -314,6 +289,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'Waiting for device pairing'}</p>
                 <button className="md-secondary" onClick={() => void refreshSim()} disabled={simRefreshing}>{simRefreshing ? 'Refreshing…' : 'Refresh SIM status'}</button>
               </div>
+              <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
               <div className="md-card">
                 <strong>Store connection</strong>
                 <p>WooCommerce: Connected</p>
@@ -367,6 +343,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                   </>
                 )}
               </div>
+              <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
               <BillingPhoneSettings phone={gatewayProfile?.billingPhone || ''} verified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
               <MerchantIntegrationsSettings activePackage={activePackage} onNotify={notify} />
             </section>
