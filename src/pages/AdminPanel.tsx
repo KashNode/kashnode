@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Activity, Box, Building2, ClipboardList, CreditCard, LayoutDashboard, Phone, RefreshCw, Settings, ShieldCheck, Truck, Wifi } from 'lucide-react'
+import { Activity, Box, Building2, ClipboardList, LayoutDashboard, Phone, RefreshCw, Settings, Truck, Wifi } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
 import { getAdminSystemSettings, saveAdminSystemSettings, type AdminSystemSettings, type LlmProvider } from '../lib/adminSettings'
