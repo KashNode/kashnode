@@ -2327,9 +2327,8 @@ body { min-height: 100dvh; overflow-x: hidden; }
 
 /* Editorial ledger — numbered rows with hairline dividers, not card grids */
 .site-ledger{display:grid}
-.site-ledger-row{display:grid;grid-template-columns:56px 1fr;gap:18px;padding:22px 0;border-top:1px solid #e6eaf3;align-items:start}
+.site-ledger-row{display:grid;grid-template-columns:minmax(0,1fr);gap:0;padding:22px 0;border-top:1px solid #e6eaf3;align-items:start}
 .site-ledger-row:last-child{border-bottom:1px solid #e6eaf3}
-.site-ledger-num{font-size:.85rem;font-weight:800;color:#be185d;padding-top:2px}
 .site-ledger-row h3{font-size:1.12rem;font-weight:700;color:#0a1230;margin:0 0 6px}
 .site-ledger-row p{color:#475569;margin:0;font-size:.95rem;max-width:720px}
 .site-ledger-row .site-card-icon{margin-bottom:10px}
@@ -2426,7 +2425,6 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .site-trust-row{grid-template-columns:1fr;gap:24px}
   .site-steps{grid-template-columns:1fr}
   .site-int-row{grid-template-columns:1fr;gap:4px}
-  .site-ledger-row{grid-template-columns:40px 1fr;gap:12px}
   .site-final-cta-split .site-box{max-width:280px}
 }
 @media (max-width: 480px){
