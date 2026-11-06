@@ -29,7 +29,7 @@ const FAQS = [
   { q: 'How does KashNode verify a COD order?', a: 'When a customer places an order, KashNode sends a verification SMS from your business SIM in the KashNode Box. The customer confirms with the code, proving the order comes from a real person with a real phone number.' },
   { q: 'Do I need the KashNode Box to start?', a: 'No. You can start with the KashNode Platform — your merchant web dashboard — and explore it first. The Box is a dedicated device for merchants who want 24/7 reliability with their business SIM always connected.' },
   { q: 'Which stores and payments does KashNode work with?', a: 'Available store, payment and courier connections depend on the current production setup. Payment SMS ingestion and device requirements are confirmed during onboarding. Contact the team before relying on a specific provider integration.' },
-  { q: 'How does pricing work?', a: 'KashNode uses pay-as-you-go voice billing: Basic is ৳7.00/minute, Standard is ৳6.50/minute, and Premium is ৳6.00/minute. The Free Trial includes 10 complimentary AI minutes.' },
+  { q: 'How does pricing work?', a: 'KashNode uses pay-as-you-go voice billing: Basic is ৳5.50/minute, Standard is ৳6.50/minute, and Premium is ৳7.00/minute. The Free Trial includes 10 complimentary AI minutes.' },
   { q: 'Does Kash speak Bangla?', a: 'Yes. Kash talks with customers in Bangla on confirmation calls. The website and dashboard are in English.' },
 ]
 
