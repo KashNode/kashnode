@@ -1,5 +1,5 @@
 const PACKAGE_RANK = Object.freeze({ free: 0, basic: 1, standard: 2, premium: 3 });
-const PACKAGE_RATES = Object.freeze({ basic: 7, standard: 6.5, premium: 6 });
+const PACKAGE_RATES = Object.freeze({ basic: 6.5, standard: 6, premium: 5.5 });
 
 function normalizePackage(value) {
   const plan = String(value || 'basic').trim().toLowerCase();
