@@ -33,7 +33,7 @@ export type OrderTrackingResult = {
   checkedAt: string
 }
 
-export type MerchantPackage = { package: 'basic' | 'standard' | 'premium'; ratePerMinute: number; currency: 'BDT' }
+export type MerchantPackage = { package: 'basic' | 'standard' | 'premium'; ratePerMinute: number; currency: 'BDT' }\n\nexport type MerchantCourierOrder = { orderId: string; courier: string; trackingCode: string; status: string; deliveryCharge: number | null; createdAt: string }
 
 export type SimUssdSettings = {
   autoBalance: boolean
@@ -73,7 +73,7 @@ export function getSimStatus() {
   return apiRequest<{ source: 'database'; sim: SimStatus | null }>('/api/merchant/sim')
 }
 
-export function getCallHistory() {
+export function getCourierOrders() {\n  return apiRequest<{ source: 'database'; courierOrders: MerchantCourierOrder[] }>('/api/merchant/courier-orders')\n}\n\nexport function getCallHistory() {
   return apiRequest<{ source: 'billing_ledger'; calls: CallHistoryEntry[] }>('/api/merchant/calls')
 }
 
