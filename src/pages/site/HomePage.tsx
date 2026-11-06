@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import { ArrowRight, BarChart3, Box, Check, CreditCard, PhoneCall, ShieldCheck, Truck, Wallet } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
-import { Faq, FinalCta, IntegrationStrip, OverageNote, PricingTiers } from '../../components/site/SiteSections'
+import { Faq, FinalCta, OverageNote, PricingTiers } from '../../components/site/SiteSections'
 import { BoxRender, CallInterface, DashboardMock, WorkflowSteps } from '../../components/site/SiteVisuals'
 
 const HERO_STRIP = [
@@ -145,14 +145,6 @@ export default function HomePage() {
             </ul>
             <p style={{ marginTop: 24 }}><Link to="/hardware" className="site-btn site-btn-outline-light">See the Box <ArrowRight size={16} /></Link></p>
           </div>
-        </div>
-      </section>
-
-      <section className="site-section">
-        <div className="site-wrap">
-          <Eyebrow>Works with your existing tools</Eyebrow>
-          <h2 className="site-h2">Connect your store, payments and couriers.</h2>
-          <IntegrationStrip />
         </div>
       </section>
 
