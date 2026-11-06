@@ -18,6 +18,18 @@ async function verifyMerchant(pool, id) {
   return result.rows[0] || null;
 }
 
+function validateStoreWebhookUrl(value) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 2048) throw new Error('Enter a valid HTTPS webhook URL.');
+  let url;
+  try { url = new URL(value.trim()); } catch { throw new Error('Enter a valid HTTPS webhook URL.'); }
+  if (url.protocol !== 'https:' || !url.hostname || url.username || url.password || url.port && url.port !== '443'
+    || url.hostname === 'localhost' || url.hostname.endsWith('.local') || url.hostname.endsWith('.localhost')) {
+    throw new Error('Webhook URL must use a public HTTPS address without embedded credentials.');
+  }
+  return url.toString();
+}
+
 function publicMessage(error) {
   if (/INTEGRATION_ENCRYPTION_KEY/.test(error?.message || '')) {
     return 'Integration encryption is not configured on the server.';
@@ -62,6 +74,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
     try {
       const credentials = validateIntegrationCredentials(provider, req.body?.credentials);
+      if (provider === 'woocommerce') validateStoreWebhookUrl(req.body?.config?.webhookUrl);
       const message = await testProviderCredentials(provider, credentials);
       return res.json({ status: 'success', provider, message, verified: true });
     } catch (error) {
@@ -86,10 +99,11 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
       // Re-test on the server at save time; the browser's earlier test result is not trusted.
       const testMessage = await testProviderCredentials(provider, credentials);
       const encrypted = encryptIntegrationCredentials(credentials, env);
+      const webhookUrl = provider === 'woocommerce' ? validateStoreWebhookUrl(req.body?.config?.webhookUrl) : null;
       const allowedConfig = {
         autoBook: COURIER_PROVIDERS.has(provider) ? req.body?.config?.autoBook !== false : false,
         ...(provider === 'shopify' ? { shopDomain: credentials.shopDomain } : {}),
-        ...(provider === 'woocommerce' && req.body?.config?.webhookUrl ? { webhookUrl: String(req.body.config.webhookUrl).trim() } : {}),
+        ...(webhookUrl ? { webhookUrl } : {}),
       };
       const client = await pool.connect();
       try {
