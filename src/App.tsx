@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { getMerchantOnboarding, getSession, signOut, type AuthUser } from './lib/auth'
 import LoginPage from './pages/LoginPage'
 import LandingPage from './pages/LandingPage'
@@ -26,6 +26,19 @@ export default function App() {
   const [sessionError, setSessionError] = useState('')
   const [onboardingStatusError, setOnboardingStatusError] = useState('')
   const navigate = useNavigate()
+  const location = useLocation()
+
+  // Phones load the desktop layout on public marketing pages (viewport
+  // width=1280, set in index.html). The signed-in app keeps the phone-sized
+  // viewport. This keeps the viewport correct on client-side navigation;
+  // index.html handles the first paint.
+  useEffect(() => {
+    const meta = document.querySelector('meta[name="viewport"]')
+    if (!meta) return
+    const marketingPaths = ['/', '/product', '/features', '/kash-ai', '/hardware', '/integrations', '/pricing', '/resources', '/about', '/contact', '/security', '/privacy', '/terms']
+    const isMarketing = marketingPaths.includes(location.pathname)
+    meta.setAttribute('content', isMarketing ? 'width=1280' : 'width=device-width, initial-scale=1.0')
+  }, [location.pathname])
 
   useEffect(() => {
     let active = true
