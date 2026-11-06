@@ -176,6 +176,8 @@ export function createMerchantPaymentHandlers({ pool, sendSms, otpSecret, proces
       [planSlug],
     );
     if (!plan.rows[0]) return res.status(400).json({ message: 'Selected plan is no longer available.' });
+    const destination = await pool.query('SELECT 1 FROM public.mfs_payment_destinations WHERE provider=$1 AND is_active=TRUE LIMIT 1', [gateway]);
+    if (!destination.rows[0]) return res.status(409).json({ message: 'This payment gateway has no official KashNode destination configured. Contact support.' });
     try {
       const result = await pool.query(
         `INSERT INTO public.merchant_plan_upgrade_requests
