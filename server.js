@@ -86,7 +86,10 @@ app.post('/api/webhooks/shopify', express.raw({ type: 'application/json', limit:
   Promise.resolve(createShopifyWebhookHandler({
     pool,
     onOrderPersist: merchantId => reconcilePendingSmsForMerchant({ pool, merchantId }),
-  })(req, res)).catch(next)
+  })(req, res)).catch(error => {
+    console.error('[Shopify Webhook] Unhandled validation or processing error:', error?.stack || error)
+    next(error)
+  })
 })
 app.use(express.json({ limit: '1mb', strict: true, verify: (req, _res, buffer) => { req.rawBody = Buffer.from(buffer) } }))
 app.use(cookieParser())
