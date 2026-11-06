@@ -33,7 +33,7 @@ export type OrderTrackingResult = {
   checkedAt: string
 }
 
-export type MerchantPackage = { package: 'basic' | 'standard' | 'premium'; ratePerMinute: number; currency: 'BDT' }
+export type MerchantPackage = { package: 'free' | 'basic' | 'standard' | 'premium'; ratePerMinute: number; walletBalance: number; availableVoiceMinutes: number; currency: 'BDT' }
 
 export type MerchantCourierOrder = { orderId: string; courier: string; trackingCode: string; status: string; deliveryCharge: number | null; createdAt: string }
 

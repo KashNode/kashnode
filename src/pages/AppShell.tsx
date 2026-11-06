@@ -43,7 +43,9 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [callsError, setCallsError] = useState('')
   const [courierOrders, setCourierOrders] = useState<MerchantCourierOrder[]>([])
   const [courierOrdersError, setCourierOrdersError] = useState('')
-  const [activePackage, setActivePackage] = useState<'basic' | 'standard' | 'premium'>('basic')
+  const [activePackage, setActivePackage] = useState<'free' | 'basic' | 'standard' | 'premium'>('basic')
+  const [walletBalance, setWalletBalance] = useState<number | null>(null)
+  const [availableVoiceMinutes, setAvailableVoiceMinutes] = useState<number | null>(null)
   const [gatewayProfile, setGatewayProfile] = useState<MerchantOnboardingProfile | null>(null)
   const [packageRate, setPackageRate] = useState(7)
   const [packageLoading, setPackageLoading] = useState(true)
@@ -96,6 +98,8 @@ export default function AppShell({ user, onSignOut }: Props) {
         if (!alive) return
         setActivePackage(payload.package)
         setPackageRate(Number.isFinite(Number(payload.ratePerMinute)) ? Number(payload.ratePerMinute) : 7)
+        setWalletBalance(Number(payload.walletBalance || 0))
+        setAvailableVoiceMinutes(Number(payload.availableVoiceMinutes || 0))
         if (payload.package === 'premium') {
           try {
             const credentials = await getMerchantCredentials()
@@ -171,7 +175,7 @@ export default function AppShell({ user, onSignOut }: Props) {
         </nav>
 
         <div className="md-banner" role="note">
-          Live SIM telemetry and completed AI voice sessions are loaded from your merchant account. Orders and wallet previews are not yet connected.
+          Live SIM telemetry, wallet balance, included voice minutes and completed AI voice sessions are loaded from your merchant account. Order previews are sample data.
         </div>
 
         <main className="md-main">
@@ -179,7 +183,8 @@ export default function AppShell({ user, onSignOut }: Props) {
             <section>
               <p className="md-eyebrow">GOOD MORNING, {firstName.toUpperCase()}</p>
               <h1 className="md-title">Is everything working?</h1>
-              <p className="md-muted">{packageLoading ? 'Loading package…' : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${(Number.isFinite(packageRate) ? packageRate : 7).toFixed(2)}/minute`}</p>
+              <p className="md-muted">{packageLoading ? 'Loading package…' : activePackage === 'free' ? `Free Trial · ${availableVoiceMinutes ?? 0} mins included` : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${(Number.isFinite(packageRate) ? packageRate : 7).toFixed(2)}/minute`}</p>
+              {activePackage === 'free' && <p className="md-muted">৳{packageRate.toFixed(2)}/minute applies only after your included free minutes are used. No per-minute charge while included minutes remain.</p>}
               <p className="md-sub">Live status for Kash AI, your KashNode Box and your store, in one place.</p>
               <div className="md-status-list">
                 <div className="md-status-row"><span><i className="md-dot ok" /> Kash AI</span><strong>Live</strong></div>
@@ -187,8 +192,8 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <div className="md-status-row"><span><i className="md-dot ok" /> Store plugin</span><strong>Connected</strong></div>
               </div>
               <div className="md-stats">
-                <div><strong>৳4,250</strong><span>Wallet Balance</span></div>
-                <div><strong>86 min</strong><span>AI Minutes Used</span></div>
+                <div><strong>{walletBalance == null ? '—' : `৳${walletBalance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</strong><span>Wallet Balance</span></div>
+                <div><strong>{availableVoiceMinutes == null ? '—' : `${availableVoiceMinutes} min`}</strong><span>{activePackage === 'free' ? 'Free Minutes Remaining' : 'Voice Minutes Available'}</span></div>
               </div>
               <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'No merchant device has reported yet'}</p>
               <button className="md-primary" onClick={() => setView('orders')}>Check today’s orders</button>
@@ -321,17 +326,17 @@ export default function AppShell({ user, onSignOut }: Props) {
           {view === 'wallet' && (
             <section>
               <h1 className="md-title">Wallet &amp; usage</h1>
-              <p className="md-sub">Pay as you go: AI voice calls are billed by call duration against your wallet.</p>
+              <p className="md-sub">Your live wallet and included voice minutes are read from your merchant account.</p>
               <div className="md-card">
-                <div className="md-card-top"><strong>Wallet Balance</strong><span className="md-badge">Sample preview</span></div>
-                <h2>৳4,250.00</h2>
+                <div className="md-card-top"><strong>Wallet Balance</strong><span className="md-badge">Live from Supabase</span></div>
+                <h2>{walletBalance == null ? 'Loading…' : `৳${walletBalance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</h2>
                 <p className="md-muted">Available wallet funds for AI voice processing.</p>
                 <button className="md-primary" onClick={() => setRechargeOpen(true)}>Add funds to wallet</button>
               </div>
               <div className="md-card">
-                <div className="md-card-top"><strong>AI Minutes Used</strong><span className="md-badge">Sample preview</span></div>
-                <h2>236 min</h2>
-                <p className="md-muted">Voice usage is billed per minute at your selected package rate.</p>
+                <div className="md-card-top"><strong>{activePackage === 'free' ? 'Free Trial Minutes Remaining' : 'Available Voice Minutes'}</strong><span className="md-badge">Live from Supabase</span></div>
+                <h2>{availableVoiceMinutes == null ? 'Loading…' : `${availableVoiceMinutes} min`}</h2>
+                <p className="md-muted">{activePackage === 'free' ? `Your first 10 AI voice minutes are included. ৳${packageRate.toFixed(2)}/minute is charged only after those free minutes expire.` : `Your current overage rate is ৳${packageRate.toFixed(2)}/minute after available minutes are used.`}</p>
               </div>
               {rechargeOpen && (
                 <div className="md-card">
