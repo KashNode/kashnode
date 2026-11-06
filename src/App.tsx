@@ -191,14 +191,29 @@ export default function App() {
           checkingSession
             ? sessionLoading
             : !user
-              ? <Navigate to="/login" replace />
+              ? <Navigate to="/login" replace state={{ from: location }} />
               : user.role === 'admin'
                 ? <Navigate to="/admin" replace />
                 : onboardingComplete
                   ? <AppShell user={user} onSignOut={handleSignOut} />
                   : <Navigate to="/onboarding" replace />
         }
-      />
+      >
+        <Route index element={<></>} />
+        <Route path="orders" element={<></>} />
+        <Route path="calls" element={<></>} />
+        <Route path="integrations" element={<></>} />
+        <Route path="integrations/couriers" element={<></>} />
+        <Route path="integrations/stores" element={<></>} />
+        <Route path="integrations/webhooks" element={<></>} />
+        <Route path="box" element={<></>} />
+        <Route path="wallet" element={<></>} />
+        <Route path="settings" element={<></>} />
+        <Route path="settings/profile" element={<></>} />
+        <Route path="settings/billing" element={<></>} />
+        <Route path="settings/api" element={<></>} />
+        <Route path="alerts" element={<></>} />
+      </Route>
       <Route
         path="*"
         element={
