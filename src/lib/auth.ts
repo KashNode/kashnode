@@ -12,7 +12,7 @@ export type MerchantOnboardingProfile = {
   boxPreorderRequestedAt: string | null
 }
 
-export type MerchantOnboardingInput = Pick<MerchantOnboardingProfile, 'businessName' | 'websiteUrl' | 'adminContactPhone' | 'boxSimPhone'>
+export type MerchantOnboardingInput = Pick<MerchantOnboardingProfile, 'businessName' | 'websiteUrl' | 'adminContactPhone' | 'boxSimPhone' | 'gatewayMode'>
 
 /**
  * The API should verify the password and set a Secure, HttpOnly, SameSite=Lax
@@ -144,4 +144,23 @@ export async function getMerchantCredentials(): Promise<{ merchantSecretKey: str
     throw new Error('The server did not return a merchant API secret.')
   }
   return { merchantSecretKey: payload.merchantSecretKey }
+}
+
+export async function requestBillingPhoneOtp(phone: string): Promise<void> {
+  const response = await fetch('/api/merchant/billing-phone/otp', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ phone }),
+  })
+  await readApiPayload(response, 'Could not send billing phone verification code.')
+}
+
+export async function verifyBillingPhoneOtp(code: string): Promise<{ billingPhone: string; isBillingPhoneVerified: boolean }> {
+  const response = await fetch('/api/merchant/billing-phone/verify', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    body: JSON.stringify({ code }),
+  })
+  const payload = await readApiPayload(response, 'Could not verify billing phone.')
+  return { billingPhone: payload.billingPhone, isBillingPhoneVerified: Boolean(payload.isBillingPhoneVerified) }
 }
