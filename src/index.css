@@ -2439,3 +2439,101 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .site-hero h1{font-size:2.35rem}
   .site-dash-main{padding:14px}
 }
+
+
+/* Landing page layout polish — balanced desktop hero and deliberate mobile flow. */
+.site-hero-inner{
+  max-width:1360px;
+  grid-template-columns:minmax(0,.94fr) minmax(0,1.06fr);
+  gap:clamp(32px,5vw,72px);
+  padding:clamp(60px,7vw,92px) clamp(20px,4vw,48px) clamp(68px,8vw,104px);
+}
+.site-hero-copy{width:100%;max-width:610px;min-width:0}
+.site-hero h1{max-width:650px;font-size:clamp(2.55rem,4.5vw,4.25rem);line-height:1.055;text-wrap:balance}
+.site-hero .site-lede{max-width:580px;font-size:clamp(1rem,1.2vw,1.15rem)}
+.site-hero-actions{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.site-hero-actions .site-btn{min-height:49px}
+.site-hero-visual{
+  width:100%;
+  max-width:690px;
+  min-width:0;
+  justify-self:end;
+  position:relative;
+  padding:22px 8px 14px;
+}
+.site-hero-visual::before{
+  content:"";
+  position:absolute;
+  inset:8% 2% 16%;
+  z-index:0;
+  border-radius:32px;
+  background:radial-gradient(ellipse at 50% 45%,rgba(139,92,246,.32),rgba(34,211,238,.12) 48%,transparent 72%);
+  filter:blur(24px);
+  pointer-events:none;
+}
+.site-hero-visual-frame{position:relative;z-index:1}
+.site-hero-visual .site-laptop{width:100%;margin:0 auto}
+.site-hero-visual-caption{
+  position:relative;
+  z-index:2;
+  display:flex;
+  align-items:center;
+  gap:11px;
+  width:max-content;
+  max-width:calc(100% - 28px);
+  margin:-2px 0 0 auto;
+  padding:12px 16px;
+  border:1px solid rgba(255,255,255,.14);
+  border-radius:13px;
+  background:rgba(11,17,48,.88);
+  box-shadow:0 14px 34px rgba(3,6,24,.28);
+  backdrop-filter:blur(12px);
+}
+.site-hero-caption-dot{width:9px;height:9px;flex:0 0 9px;border-radius:50%;background:#4de5bd;box-shadow:0 0 0 5px rgba(77,229,189,.12)}
+.site-hero-visual-caption strong,.site-hero-visual-caption small{display:block}
+.site-hero-visual-caption strong{color:#fff;font-size:.82rem;line-height:1.35}
+.site-hero-visual-caption small{margin-top:2px;color:#aebbd8;font-size:.72rem;line-height:1.4}
+.site-start-section{padding-top:72px;padding-bottom:76px}
+.site-start-heading{max-width:720px;margin:0 auto 30px;text-align:center}
+.site-start-heading .site-body{margin-left:auto;margin-right:auto}
+.site-start-grid{max-width:980px;margin:0 auto;align-items:stretch}
+.site-start-grid article{display:flex;flex-direction:column;min-width:0;padding:24px}
+.site-start-grid article p{flex:1}
+.site-start-grid article .site-btn{margin-top:4px}
+.site-start-grid article small{margin-top:13px}
+
+@media(max-width:1020px){
+  .site-hero-inner{grid-template-columns:minmax(0,1fr);gap:36px;padding:58px 24px 68px}
+  .site-hero-copy{max-width:760px;margin:0 auto;text-align:center}
+  .site-hero .site-lede{margin-left:auto;margin-right:auto}
+  .site-hero-checks{justify-content:center}
+  .site-hero-actions{justify-content:center}
+  .site-hero-signin{text-align:center}
+  .site-hero-visual{max-width:760px;justify-self:center;padding:8px 12px 12px}
+  .site-hero-visual-caption{margin:0 4px 0 auto}
+}
+@media(max-width:760px){
+  .site-hero-inner{gap:26px;padding:42px 18px 48px}
+  .site-hero-copy{text-align:left}
+  .site-hero h1{font-size:clamp(2.2rem,8.5vw,3.25rem);line-height:1.07;letter-spacing:-.035em}
+  .site-hero .site-lede{font-size:1rem;line-height:1.65;margin-bottom:18px}
+  .site-hero-checks{justify-content:flex-start;gap:10px 16px;font-size:.82rem;margin-bottom:22px}
+  .site-hero-actions{display:grid;grid-template-columns:1fr;gap:10px}
+  .site-hero-actions .site-btn{width:100%;white-space:normal}
+  .site-hero-signin{text-align:left;margin-top:14px}
+  .site-hero-visual{padding:2px 0 8px}
+  .site-hero-visual-caption{width:100%;max-width:100%;margin:8px 0 0;padding:10px 13px}
+  .site-start-section{padding:52px 0}
+  .site-start-heading{text-align:left;margin-bottom:22px}
+  .site-start-heading .site-body{margin-left:0}
+  .site-start-grid{gap:14px}
+  .site-start-grid article{padding:20px}
+}
+@media(max-width:480px){
+  .site-hero-inner{padding:34px 16px 42px}
+  .site-pill{font-size:.68rem;letter-spacing:.04em}
+  .site-hero h1{font-size:clamp(2rem,9vw,2.55rem)}
+  .site-hero-checks{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .site-hero-visual-caption small{font-size:.68rem}
+  .site-start-grid article .site-btn{white-space:normal}
+}
