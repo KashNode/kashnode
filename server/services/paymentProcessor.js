@@ -71,6 +71,57 @@ export class SmsMatchingPaymentProcessor {
       client.release();
     }
   }
+
+  // Also reconcile the opposite arrival order: payment notification first,
+  // merchant enters TrxID later. This closes the SMS/top-up race.
+  async matchExistingTopup({ merchantId, gateway, trxId }) {
+    const client = await this.pool.connect();
+    try {
+      await client.query('BEGIN');
+      const eventResult = await client.query(
+        `SELECT id, amount, sender_phone FROM public.payment_sms_events
+          WHERE gateway=$1 AND trx_id=$2 LIMIT 1 FOR UPDATE`,
+        [gateway, trxId],
+      );
+      const event = eventResult.rows[0];
+      if (!event) {
+        await client.query('COMMIT');
+        return { outcome: 'pending' };
+      }
+      const topupResult = await client.query(
+        `SELECT id, amount FROM public.merchant_topups
+          WHERE merchant_id=$1 AND gateway=$2 AND trx_id=$3
+            AND amount=$4::numeric AND sender_phone=$5 AND status='pending'
+          FOR UPDATE`,
+        [merchantId, gateway, trxId, event.amount, event.sender_phone],
+      );
+      if (topupResult.rowCount !== 1) {
+        await client.query('COMMIT');
+        return { outcome: 'pending' };
+      }
+      const topup = topupResult.rows[0];
+      const updated = await client.query(
+        `UPDATE public.merchant_topups SET status='matched', matched_event_id=$2, credited_at=NOW()
+          WHERE id=$1 AND status='pending' RETURNING amount`,
+        [topup.id, event.id],
+      );
+      if (!updated.rowCount) {
+        await client.query('COMMIT');
+        return { outcome: 'already_processed' };
+      }
+      await client.query(
+        'UPDATE public.merchants SET wallet_balance=COALESCE(wallet_balance,0)+$2::numeric WHERE id=$1',
+        [merchantId, updated.rows[0].amount],
+      );
+      await client.query('COMMIT');
+      return { outcome: 'matched_and_credited', topupId: topup.id };
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
 }
 
 /** Future API processors (bKash Merchant API, SSLCommerz, etc.) implement
