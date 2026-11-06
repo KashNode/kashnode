@@ -58,7 +58,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
         adminContactPhone: merchant.admin_contact_phone || '',
         boxSimPhone: merchant.box_sim_phone || '',
         selectedPlan: merchant.subscription_plan || 'basic',
-        gatewayPreference: merchant.gateway_preference || 'app',
+        gatewayPreference: merchant.gateway_mode === 'kashnode_box' ? 'box' : 'app',
         gatewayMode: merchant.gateway_mode || 'android_app',
         billingPhone: merchant.billing_phone || '',
         isBillingPhoneVerified: Boolean(merchant.is_billing_phone_verified),
@@ -97,9 +97,6 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!current.rows[0]) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
     if (!current.rows[0].is_billing_phone_verified || !current.rows[0].billing_phone) return res.status(403).json({ status: 'error', message: 'Verify your primary billing MFS number before completing setup.' });
     const gatewayPreference = gatewayMode === 'kashnode_box' ? 'box' : 'app';
-    if (gatewayPreference === 'box' && !boxSimPhone) {
-      return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the Pocket Box SIM.' });
-    }
 
     const result = await pool.query(
       'UPDATE public.merchants SET business_name = $3, website_url = $4, admin_contact_phone = $5, box_sim_phone = $6, gateway_mode = $7, gateway_preference = $8, is_onboarding_complete = TRUE WHERE id = $1 AND owner_user_id = $2 RETURNING is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone, subscription_plan, gateway_preference, gateway_mode, billing_phone, is_billing_phone_verified, box_fulfillment_status',
