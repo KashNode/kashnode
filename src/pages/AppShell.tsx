@@ -4,6 +4,8 @@ import { getMerchantCredentials, getMerchantOnboarding, type AuthUser, type Merc
 import { getCallHistory, getCourierOrders, getMerchantPackage, getSimStatus, type CallHistoryEntry, type MerchantCourierOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
 import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
+import MerchantTopupForm from '../components/MerchantTopupForm'
+import BillingPhoneSettings from '../components/BillingPhoneSettings'
 
 type Props = { user: AuthUser; onSignOut: () => void }
 type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts' | 'settings'
@@ -29,8 +31,6 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [theme, setTheme] = useState<Theme>('dark')
   const [voice, setVoice] = useState<'Female' | 'Male'>('Female')
   const [orderFilter, setOrderFilter] = useState<'all' | 'review'>('all')
-  const [rechargeOpen, setRechargeOpen] = useState(false)
-  const [rechargeAmount, setRechargeAmount] = useState(500)
   const [notice, setNotice] = useState('')
   const [alertBox, setAlertBox] = useState(true)
   const [alertWallet, setAlertWallet] = useState(true)
@@ -331,25 +331,14 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <div className="md-card-top"><strong>Wallet Balance</strong><span className="md-badge">Live from Supabase</span></div>
                 <h2>{walletBalance == null ? 'Loading…' : `৳${walletBalance.toLocaleString("en-BD", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</h2>
                 <p className="md-muted">Available wallet funds for AI voice processing.</p>
-                <button className="md-primary" onClick={() => setRechargeOpen(true)}>Add funds to wallet</button>
+                <p className="md-muted">Top-ups are credited only after an incoming payment notification is matched to your verified billing phone.</p>
               </div>
               <div className="md-card">
                 <div className="md-card-top"><strong>{activePackage === 'free' ? 'Free Trial Minutes Remaining' : 'Available Voice Minutes'}</strong><span className="md-badge">Live from Supabase</span></div>
                 <h2>{availableVoiceMinutes == null ? 'Loading…' : `${availableVoiceMinutes} min`}</h2>
                 <p className="md-muted">{activePackage === 'free' ? `Your first 10 AI voice minutes are included. ৳${packageRate.toFixed(2)}/minute is charged only after those free minutes expire.` : `Your current overage rate is ৳${packageRate.toFixed(2)}/minute after available minutes are used.`}</p>
               </div>
-              {rechargeOpen && (
-                <div className="md-card">
-                  <strong>Choose wallet top-up amount</strong>
-                  <div className="md-filters">
-                    {[500, 1000, 2000].map((amount) => (
-                      <button key={amount} className={rechargeAmount === amount ? 'active' : ''} onClick={() => setRechargeAmount(amount)}>৳{amount.toLocaleString('en-BD')}</button>
-                    ))}
-                  </div>
-                  <button className="md-primary" onClick={() => { setRechargeOpen(false); notify('Wallet top-up checkout is not configured yet.') }}>Confirm ৳{rechargeAmount.toLocaleString('en-BD')} top-up</button>
-                  <button className="md-secondary" onClick={() => setRechargeOpen(false)}>Cancel</button>
-                </div>
-              )}
+              <MerchantTopupForm />
             </section>
           )}
 
@@ -378,6 +367,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                   </>
                 )}
               </div>
+              <BillingPhoneSettings phone={gatewayProfile?.billingPhone || ''} verified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
               <MerchantIntegrationsSettings activePackage={activePackage} onNotify={notify} />
             </section>
           )}

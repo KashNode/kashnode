@@ -43,7 +43,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
 
     const result = await pool.query(
-      'SELECT is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone, subscription_plan, gateway_preference, box_fulfillment_status, box_preorder_requested_at FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+      'SELECT is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone, subscription_plan, gateway_preference, gateway_mode, billing_phone, is_billing_phone_verified, box_fulfillment_status, box_preorder_requested_at FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
       [identity.merchantId, identity.userId],
     );
     const merchant = result.rows[0];
@@ -58,7 +58,10 @@ export function createMerchantOnboardingHandlers({ pool }) {
         adminContactPhone: merchant.admin_contact_phone || '',
         boxSimPhone: merchant.box_sim_phone || '',
         selectedPlan: merchant.subscription_plan || 'basic',
-        gatewayPreference: merchant.gateway_preference || 'box',
+        gatewayPreference: merchant.gateway_mode === 'kashnode_box' ? 'box' : 'app',
+        gatewayMode: merchant.gateway_mode || 'android_app',
+        billingPhone: merchant.billing_phone || '',
+        isBillingPhoneVerified: Boolean(merchant.is_billing_phone_verified),
         boxFulfillmentStatus: merchant.box_fulfillment_status || 'not_requested',
         boxPreorderRequestedAt: merchant.box_preorder_requested_at || null,
       },
@@ -89,15 +92,14 @@ export function createMerchantOnboardingHandlers({ pool }) {
       return res.status(400).json({ status: 'error', message: 'Website must be a valid http:// or https:// URL.' });
     }
 
-    const current = await pool.query('SELECT gateway_preference FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1', [identity.merchantId, identity.userId]);
+    const gatewayMode = req.body?.gatewayMode === 'kashnode_box' ? 'kashnode_box' : 'android_app';
+    const current = await pool.query('SELECT is_billing_phone_verified, billing_phone FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1', [identity.merchantId, identity.userId]);
     if (!current.rows[0]) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
-    const gatewayPreference = current.rows[0].gateway_preference || 'box';
-    if (gatewayPreference === 'box' && !boxSimPhone) {
-      return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the Pocket Box SIM.' });
-    }
+    if (!current.rows[0].is_billing_phone_verified || !current.rows[0].billing_phone) return res.status(403).json({ status: 'error', message: 'Verify your primary billing MFS number before completing setup.' });
+    const gatewayPreference = gatewayMode === 'kashnode_box' ? 'box' : 'app';
 
     const result = await pool.query(
-      'UPDATE public.merchants SET business_name = $3, website_url = $4, admin_contact_phone = $5, box_sim_phone = $6, is_onboarding_complete = TRUE WHERE id = $1 AND owner_user_id = $2 RETURNING is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone, subscription_plan, gateway_preference, box_fulfillment_status',
+      'UPDATE public.merchants SET business_name = $3, website_url = $4, admin_contact_phone = $5, box_sim_phone = $6, gateway_mode = $7, gateway_preference = $8, is_onboarding_complete = TRUE WHERE id = $1 AND owner_user_id = $2 RETURNING is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone, subscription_plan, gateway_preference, gateway_mode, billing_phone, is_billing_phone_verified, box_fulfillment_status',
       [
         identity.merchantId,
         identity.userId,
@@ -105,6 +107,8 @@ export function createMerchantOnboardingHandlers({ pool }) {
         website.value,
         adminContactPhone,
         boxSimPhone,
+        gatewayMode,
+        gatewayPreference,
       ],
     );
 
@@ -121,6 +125,9 @@ export function createMerchantOnboardingHandlers({ pool }) {
         adminContactPhone: merchant.admin_contact_phone,
         boxSimPhone: merchant.box_sim_phone || '',
         gatewayPreference: merchant.gateway_preference || gatewayPreference,
+        gatewayMode: merchant.gateway_mode || gatewayMode,
+        billingPhone: merchant.billing_phone || '',
+        isBillingPhoneVerified: Boolean(merchant.is_billing_phone_verified),
         selectedPlan: merchant.subscription_plan || 'basic',
         boxFulfillmentStatus: merchant.box_fulfillment_status || 'not_requested',
       },
