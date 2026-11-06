@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit'
 import pg from 'pg'
 import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
+import { existsSync } from 'node:fs'
 import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
@@ -324,6 +325,18 @@ app.get('/api/calls/history', requireAdmin, asyncRoute(async (_req, res) => {
   const result = await pool.query(`SELECT id, phone_number, created_at, duration, status, ai_summary, recording_url FROM ai_calls ORDER BY created_at DESC LIMIT 100`)
   res.json({ source: 'database', calls: result.rows.map(row => ({ id: String(row.id), phone: row.phone_number, occurredAt: row.created_at, durationSeconds: Number(row.duration || 0), status: row.status, summary: row.ai_summary || '', recordingUrl: safeRecordingUrl(row.recording_url) })) })
 }))
+
+const apkDownloadPath = path.resolve('public/downloads/kash-ai-android.apk')
+app.get('/downloads/kash-ai-android.apk', (_req, res) => {
+  if (!existsSync(apkDownloadPath)) {
+    return res.status(503).json({
+      status: 'unavailable',
+      code: 'ANDROID_APK_NOT_PUBLISHED',
+      message: 'The signed Kash AI Android release is being prepared. Please check back soon.',
+    })
+  }
+  return res.download(apkDownloadPath, 'kash-ai-android.apk')
+})
 
 const distDir = path.resolve('dist')
 app.use(express.static(distDir))
