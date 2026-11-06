@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Activity, Box, Building2, ClipboardList, LayoutDashboard, Phone, RefreshCw, Settings, Truck, Wifi } from 'lucide-react'
+import { Activity, Box, Building2, Check, ClipboardList, LayoutDashboard, Phone, RefreshCw, Settings, Truck, Wifi } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
 import { getAdminSystemSettings, saveAdminSystemSettings, type AdminSystemSettings, type LlmProvider } from '../lib/adminSettings'
 
 type Props = { user: AuthUser; onSignOut: () => void }
-type Section = 'overview' | 'merchants' | 'orders' | 'calls' | 'courier' | 'devices' | 'integrations' | 'reliability' | 'settings'
+type CatalogPlan = { slug:string; name:string; tagline:string; price_per_minute:string|number; short_features:string[]; details:string[]; feature_groups:{category:string;items:string[]}[]; is_active?:boolean; updated_at?:string }
+type Section = 'overview' | 'merchants' | 'orders' | 'calls' | 'courier' | 'devices' | 'integrations' | 'reliability' | 'plans' | 'settings'
 type LiveData = {
   source: 'database'; generatedAt: string
   summary: { merchants: number; onboardedMerchants: number; walletBalance: number; orders: Record<string, number | string>; calls: Record<string, number | string>; devices: { assigned: number; reporting: number; online: number }; sms: Record<string, number | string> }
@@ -19,7 +20,7 @@ const sections: {id:Section;label:string;icon:typeof LayoutDashboard}[] = [
   {id:'orders',label:'Orders & Payments',icon:ClipboardList},{id:'calls',label:'Voice & Billing',icon:Phone},
   {id:'courier',label:'Courier',icon:Truck},{id:'devices',label:'KashNode Boxes',icon:Box},
   {id:'integrations',label:'Integrations',icon:Wifi},{id:'reliability',label:'Queues & Reliability',icon:Activity},
-  {id:'settings',label:'System Settings',icon:Settings},
+  {id:'plans',label:'Plans & Features',icon:ClipboardList},{id:'settings',label:'System Settings',icon:Settings},
 ]
 const money=(value:unknown)=>'৳'+Number(value||0).toLocaleString('en-BD',{minimumFractionDigits:2,maximumFractionDigits:2})
 const date=(value:unknown)=>value?new Date(String(value)).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—'
@@ -43,6 +44,9 @@ export default function AdminPanel({user,onSignOut}:Props) {
   const [providerKeys,setProviderKeys]=useState<Record<LlmProvider,string>>({openai:'',gemini:'',groq:''})
   const [clearProviderKeys,setClearProviderKeys]=useState<LlmProvider[]>([])
   const [notice,setNotice]=useState('')
+  const [catalogPlans,setCatalogPlans]=useState<CatalogPlan[]>([])
+  const [catalogLoading,setCatalogLoading]=useState(false)
+  const [catalogError,setCatalogError]=useState('')
 
   async function loadLiveData() {
     try {
@@ -62,6 +66,15 @@ export default function AdminPanel({user,onSignOut}:Props) {
     getAdminSystemSettings().then(value=>{if(!active)return;setSystemSettings(value);setSettingsProvider(value.activeLlmProvider);setDefaultVoiceRate(value.defaultVoiceRate.toFixed(2))})
       .catch(e=>{if(active)setSettingsError(e instanceof Error?e.message:'Could not load settings.')})
       .finally(()=>{if(active)setSettingsLoading(false)})
+    return()=>{active=false}
+  },[section])
+  useEffect(()=>{
+    if(section!=='plans')return
+    let active=true;setCatalogLoading(true);setCatalogError('')
+    fetch('/api/admin/plans',{credentials:'include',headers:{Accept:'application/json'},cache:'no-store'})
+      .then(async response=>{const payload=await response.json();if(!response.ok||payload.source!=='database'||!Array.isArray(payload.plans))throw new Error(payload.message||'Could not load database plan catalog.');if(active)setCatalogPlans(payload.plans)})
+      .catch(e=>{if(active)setCatalogError(e instanceof Error?e.message:'Could not load plan catalog.')})
+      .finally(()=>{if(active)setCatalogLoading(false)})
     return()=>{active=false}
   },[section])
   async function saveSettings(event:FormEvent<HTMLFormElement>) {
@@ -116,6 +129,28 @@ export default function AdminPanel({user,onSignOut}:Props) {
           {section==='devices'&&<div className="cd-section">{panel('KashNode Box telemetry','Latest persisted device report per merchant; online means heartbeat within 2 minutes',<Table headers={['Merchant','Assigned Box','Reported Device','Status','SIM balance','Data','Signal','Last heartbeat']} empty="No device telemetry has been received yet." rows={data.devices.map(d=><tr key={d.merchantId}><td>{cell(d.merchantName)}</td><td>{cell(d.assignedDeviceId)}</td><td>{cell(d.deviceId)}</td><td><span className={'cd-status '+(d.online?'active':'suspended')}>{d.deviceId?(d.online?'Online':'Offline'):'No report'}</span></td><td>{money(d.balance)}</td><td>{Number(d.dataMb||0).toLocaleString()} MB</td><td>{d.signal==null?'—':d.signal}</td><td>{date(d.updatedAt)}</td></tr>)}/>)}</div>}
           {section==='integrations'&&<div className="cd-section">{panel('Merchant integrations','Provider-level connection status; credentials are never exposed',<Table headers={['Provider','Configured','Active','Failed tests','Last updated']} empty="No merchant integrations configured yet." rows={data.integrations.map(i=><tr key={i.provider}><td>{i.provider}</td><td>{i.total}</td><td>{i.active}</td><td>{i.failed_tests}</td><td>{date(i.last_updated)}</td></tr>)}/>)}</div>}
           {section==='reliability'&&<div className="cd-section">{panel('Queue health & platform reliability','Actual background job states from Supabase',<><h3>Courier fulfillment</h3><Table headers={['Status','Jobs','Attempts']} empty="No courier queue records." rows={data.courierQueue.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{r.attempts}</td></tr>)}/><h3>Voice billing recovery</h3><Table headers={['Status','Jobs','Attempts']} empty="No voice billing jobs." rows={data.voiceQueue.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{r.attempts}</td></tr>)}/><h3>Payment transaction states</h3><Table headers={['Status','Transactions','Amount']} empty="No transaction records." rows={data.transactions.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{money(r.amount)}</td></tr>)}/></>)}</div>}
+          {section==='plans'&&<div className="cd-section">
+            <div className="cd-settings-intro"><div><p className="cd-settings-kicker">DATABASE SUBSCRIPTION CATALOG</p><h2>Plans & feature comparison</h2><p>Live catalog shared with the public website. Changes to the database catalog are reflected in the pricing cards.</p></div><span className="cd-settings-live"><i/> DATABASE SOURCE</span></div>
+            {catalogLoading&&<div className="cd-panel">Loading package catalog from database…</div>}
+            {catalogError&&<div className="cd-notice" role="alert">{catalogError}</div>}
+            {!catalogLoading&&!catalogError&&catalogPlans.length===0&&<div className="cd-panel">No subscription plans are configured in the database.</div>}
+            {!catalogLoading&&!catalogError&&catalogPlans.length>0&&<>
+              <div className="cd-panel">
+                <div className="cd-card-heading"><div><h2>Voice usage rates</h2><p>Live values from public.subscription_plans.</p></div></div>
+                <div className="cd-stats cd-stats-3">{catalogPlans.filter(p=>p.slug!=='free').map(plan=><Stat key={plan.slug} label={plan.name} value={money(plan.price_per_minute)+' / min'} note={plan.tagline}/>)}</div>
+              </div>
+              <div className="cd-panel">
+                <div className="cd-card-heading"><div><h2>Feature comparison</h2><p>Included services grouped by category, sourced from the same database records as the homepage.</p></div></div>
+                <div className="cd-table-wrap"><table className="cd-table cd-plan-matrix">
+                  <thead><tr><th>Service category</th>{catalogPlans.filter(p=>p.slug!=='free').map(p=><th key={p.slug}>{p.name} · {money(p.price_per_minute)}</th>)}</tr></thead>
+                  <tbody>{Array.from(new Set(catalogPlans.flatMap(p=>(p.feature_groups||[]).map(g=>g.category)))).map(category=><tr key={category}><td><strong>{category}</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(plan=>{const group=(plan.feature_groups||[]).find(g=>g.category===category);return <td key={plan.slug}>{group?<span className="cd-plan-included"><Check size={15}/>{group.items.join(' · ')}</span>:<span aria-label="Not included">—</span>}</td>})}</tr>)}
+                  <tr><td><strong>Short feature list</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(p=><td key={p.slug}>{(p.short_features||[]).join(' · ')}</td>)}</tr>
+                  <tr><td><strong>More details</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(p=><td key={p.slug}>{(p.details||[]).join(' ')}</td>)}</tr></tbody>
+                </table></div>
+                <p className="cd-panel-note">KashNode Box: ৳8,000 one-time hardware price, same for all packages. Catalog rows are read-only in this release; edits must be made through a controlled database migration until an audited plan editor is implemented.</p>
+              </div>
+            </>}
+          </div>}
           {section==='settings'&&<div className="cd-section">
             <div className="cd-settings-intro"><div><p className="cd-settings-kicker">PLATFORM CONFIGURATION</p><h2>AI provider & voice pricing</h2><p>Provider keys remain server-side in Supabase Vault.</p></div><span className="cd-settings-live"><i/> LIVE SETTINGS</span></div>
             {settingsError&&<p className="cd-settings-error" role="alert">{settingsError}</p>}

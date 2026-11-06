@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, ChevronDown, Smartphone, Box } from 'lucide-react'
 import { BoxRender } from './SiteVisuals'
@@ -22,64 +22,61 @@ export function Faq({ items }: { items: FaqItem[] }) {
   )
 }
 
-export const PLANS = [
-  {
-    id: 'free', name: 'Free Trial', tag: 'Try it first', price: '৳0', per: 'trial', usage: '10 free AI minutes',
-    features: ['Order verification by SMS', 'AI confirmation calls', 'Payment code verification', 'Merchant dashboard'],
-    cta: 'Start Free Trial',
-  },
-  {
-    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳6.50', per: '/minute', usage: 'Pay only for voice time used',
-    features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Merchant operations dashboard'],
-    cta: 'Choose Basic',
-  },
-  {
-    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
-    popular: true,
-    features: ['Everything in Basic', 'Merchant voice rules', 'Conversation history & summaries', 'Priority support workflow'],
-    cta: 'Choose Standard',
-  },
-  {
-    id: 'premium', name: 'Premium', tag: 'For advanced operations', price: '৳5.50', per: '/minute', usage: 'Pay only for voice time used',
-    features: ['Everything in Standard', 'Priority support', 'Multi-box operations', 'Advanced reporting'],
-    cta: 'Choose Premium',
-  },
-]
+type Plan = {
+  slug: string; name: string; tagline: string; price_per_minute: number | string; currency: string;
+  billing_unit: string; short_features: string[]; details: string[]; display_order: number;
+}
+const FALLBACK_PLANS: Plan[] = []
 
 export function PricingTiers({ compact = false }: { compact?: boolean }) {
-  const plans = compact ? PLANS.slice(1) : PLANS
+  const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
+  const [loading, setLoading] = useState(true)
+  const [catalogError, setCatalogError] = useState('')
   const [gateways, setGateways] = useState<Record<string, 'app' | 'box'>>({})
+  useEffect(() => {
+    let active = true
+    fetch('/api/plans', { headers: { Accept: 'application/json' }, cache: 'no-store' })
+      .then(async response => {
+        const payload = await response.json()
+        if (!response.ok || payload.source !== 'database' || !Array.isArray(payload.plans)) throw new Error(payload.message || 'Package catalog is unavailable.')
+        if (active) { setPlans(payload.plans); setCatalogError('') }
+      })
+      .catch(error => { if (active) setCatalogError(error instanceof Error ? error.message : 'Package catalog is unavailable.') })
+      .finally(() => { if (active) setLoading(false) })
+    return () => { active = false }
+  }, [])
+  const visiblePlans = (compact ? plans.filter(plan => plan.slug !== 'free') : plans)
+  if (loading) return <div className="site-note" role="status">Loading package details…</div>
+  if (catalogError || !plans.length) return <div className="site-note" role="alert">{catalogError || 'Package information is temporarily unavailable. Please contact our team.'}</div>
   return (
     <div className="site-plans">
-      {plans.map(plan => {
-        const gateway = gateways[plan.id] || 'app'
+      {visiblePlans.map(plan => {
+        const gateway = gateways[plan.slug] || 'app'
+        const price = Number(plan.price_per_minute).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+        const features = Array.isArray(plan.short_features) ? plan.short_features : []
+        const details = Array.isArray(plan.details) ? plan.details : []
         return (
-          <article key={plan.id} className={`site-plan ${plan.popular ? 'popular' : ''}`}>
-            {plan.popular && <span className="site-plan-badge">Most Popular</span>}
-            <p className="site-plan-tag">{plan.tag}</p>
+          <article key={plan.slug} className={`site-plan ${plan.slug === 'standard' ? 'popular' : ''}`}>
+            {plan.slug === 'standard' && <span className="site-plan-badge">Most Popular</span>}
+            <p className="site-plan-tag">{plan.tagline}</p>
             <h3>{plan.name}</h3>
-            <p className="site-plan-price">{plan.price} <span>{plan.per}</span></p>
-            <p className="site-plan-allowance">{plan.usage}</p>
-            <ul>
-              {plan.features.map(feature => (
-                <li key={feature}><Check size={15} /> {feature}</li>
-              ))}
-            </ul>
-            <fieldset className="site-gateway-picker">
+            <p className="site-plan-price">৳{price} <span>{plan.billing_unit === 'minute' ? '/minute' : plan.billing_unit}</span></p>
+            <p className="site-plan-allowance">{plan.slug === 'free' ? '10 complimentary AI minutes' : 'Pay only for voice time used'}</p>
+            <ul>{features.map(feature => <li key={feature}><Check size={15} /> {feature}</li>)}</ul>
+            {details.length > 0 && <details className="site-plan-details"><summary>See details</summary><ul>{details.map(detail => <li key={detail}><Check size={14} /> {detail}</li>)}</ul></details>}
+            {plan.slug !== 'free' && <fieldset className="site-gateway-picker">
               <legend>Choose your gateway</legend>
               <label className={gateway === 'app' ? 'selected' : ''}>
-                <input type="radio" name={`gateway-${plan.id}`} value="app" checked={gateway === 'app'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'app' }))} />
-                <Smartphone size={18} />
-                <span><strong>Start with Kash AI App</strong><small>Free Android gateway · no hardware required</small></span>
+                <input type="radio" name={`gateway-${plan.slug}`} value="app" checked={gateway === 'app'} onChange={() => setGateways(current => ({ ...current, [plan.slug]: 'app' }))} />
+                <Smartphone size={18} /><span><strong>Start with Kash AI App</strong><small>Free Android gateway · no hardware required</small></span>
               </label>
               <label className={gateway === 'box' ? 'selected' : ''}>
-                <input type="radio" name={`gateway-${plan.id}`} value="box" checked={gateway === 'box'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'box' }))} />
-                <Box size={18} />
-                <span><strong>Add KashNode Box</strong><small>Dedicated hardware · ৳8,000 one-time purchase</small></span>
+                <input type="radio" name={`gateway-${plan.slug}`} value="box" checked={gateway === 'box'} onChange={() => setGateways(current => ({ ...current, [plan.slug]: 'box' }))} />
+                <Box size={18} /><span><strong>Add KashNode Box</strong><small>৳8,000 one-time hardware purchase</small></span>
               </label>
-            </fieldset>
-            <Link to={`/signup?plan=${plan.id}&gateway=${gateway}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : `site-btn-plan-${plan.id}`} site-btn-block`}>
-              {plan.cta} <ArrowRight size={16} />
+            </fieldset>}
+            <Link to={plan.slug === 'free' ? '/signup?plan=free' : `/signup?plan=${plan.slug}&gateway=${gateway}`} className={`site-btn ${plan.slug === 'standard' ? 'site-btn-primary' : `site-btn-plan-${plan.slug}`} site-btn-block`}>
+              {plan.slug === 'free' ? 'Start Free Trial' : `Choose ${plan.name}`} <ArrowRight size={16} />
             </Link>
           </article>
         )

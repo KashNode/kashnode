@@ -208,6 +208,22 @@ app.delete('/api/merchant/integrations/:provider', requireOrigin, requireMerchan
 app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
 app.post('/api/admin/settings', requireOrigin, requireAdmin, asyncRoute(adminSettingsHandlers.postSettings))
 
+// Public package catalog is read from PostgreSQL so marketing and admin views share one source.
+app.get('/api/plans', asyncRoute(async (_req, res) => {
+  if (!pool) return res.status(503).json({ status: 'error', message: 'Package catalog is temporarily unavailable.' })
+  const result = await pool.query(`SELECT slug, name, tagline, price_per_minute, currency, billing_unit,
+    short_features, details, feature_groups, display_order
+    FROM public.subscription_plans WHERE is_active = true ORDER BY display_order ASC`)
+  res.json({ source: 'database', plans: result.rows })
+}))
+app.get('/api/admin/plans', requireAdmin, asyncRoute(async (_req, res) => {
+  if (!pool) return res.status(503).json({ status: 'error', message: 'Database unavailable.' })
+  const result = await pool.query(`SELECT slug, name, tagline, price_per_minute, currency, billing_unit,
+    short_features, details, feature_groups, display_order, is_active, updated_at
+    FROM public.subscription_plans ORDER BY display_order ASC`)
+  res.json({ source: 'database', plans: result.rows })
+}))
+
 // Live Super Admin operations data. All figures below come directly from PostgreSQL;
 // every query is scoped to this server-side admin route (never exposed to merchant sessions).
 app.get('/api/admin/overview', requireAdmin, asyncRoute(async (_req, res) => {
