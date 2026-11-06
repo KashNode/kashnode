@@ -196,6 +196,7 @@ app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, 
 // Full API credential access is reserved for Premium; the route rechecks the live tier.
 app.get('/api/merchant/credentials', requireMerchantSession, requirePremiumPackage, asyncRoute(merchantOnboardingHandlers.getCredentials))
 app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCalls))
+app.get('/api/merchant/courier-orders', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCourierOrders))
 app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))
 app.get('/api/merchant/integrations', requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.list))
 app.post('/api/merchant/integrations/:provider/test', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.test))
