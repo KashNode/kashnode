@@ -186,13 +186,19 @@ app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyn
 // Package status is read from the database so the dashboard always reflects the active tier.
 app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, res) => {
   const result = await pool.query(
-    'SELECT subscription_plan FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+    'SELECT subscription_plan, overage_rate_per_min, wallet_balance, available_voice_minutes FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
     [req.session.user.merchantId, req.session.user.id],
   )
   const merchant = result.rows?.[0]
   if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' })
   const plan = normalizeMerchantPackage(merchant.subscription_plan)
-  return res.json({ package: plan, ratePerMinute: packageRateFor(plan), currency: 'BDT' })
+  return res.json({
+    package: plan,
+    ratePerMinute: Number(merchant.overage_rate_per_min ?? packageRateFor(plan) ?? 7),
+    walletBalance: Number(merchant.wallet_balance || 0),
+    availableVoiceMinutes: Number(merchant.available_voice_minutes || 0),
+    currency: 'BDT',
+  })
 }))
 // Full API credential access is reserved for Premium; the route rechecks the live tier.
 app.get('/api/merchant/credentials', requireMerchantSession, requirePremiumPackage, asyncRoute(merchantOnboardingHandlers.getCredentials))
