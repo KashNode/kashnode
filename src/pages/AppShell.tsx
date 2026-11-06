@@ -175,7 +175,7 @@ export default function AppShell({ user, onSignOut }: Props) {
         </nav>
 
         <div className="md-banner" role="note">
-          Live SIM telemetry and completed AI voice sessions are loaded from your merchant account. Orders and wallet previews are not yet connected.
+          Live SIM telemetry, wallet balance, included voice minutes and completed AI voice sessions are loaded from your merchant account. Order previews are sample data.
         </div>
 
         <main className="md-main">
