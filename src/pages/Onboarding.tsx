@@ -1,7 +1,7 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { ArrowRight, Building2, CheckCircle2, Globe, Loader2, Phone, Smartphone } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
-import { getMerchantOnboarding, saveMerchantOnboarding } from '../lib/auth'
+import { getMerchantOnboarding, saveMerchantOnboarding, requestBillingPhoneOtp, verifyBillingPhoneOtp } from '../lib/auth'
 
 type Props = {
   onComplete: () => void
@@ -24,7 +24,12 @@ const emptyForm: FormValues = {
 
 export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
   const [form, setForm] = useState<FormValues>(emptyForm)
-  const [gatewayPreference, setGatewayPreference] = useState<'app' | 'box'>('box')
+  const [gatewayPreference, setGatewayPreference] = useState<'app' | 'box'>('app')
+  const [billingPhone, setBillingPhone] = useState('')
+  const [billingOtp, setBillingOtp] = useState('')
+  const [otpSent, setOtpSent] = useState(false)
+  const [billingPhoneVerified, setBillingPhoneVerified] = useState(false)
+  const [phoneBusy, setPhoneBusy] = useState(false)
   const [selectedPlan, setSelectedPlan] = useState('basic')
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -43,7 +48,9 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
           adminContactPhone: profile.adminContactPhone || '',
           boxSimPhone: profile.boxSimPhone || '',
         })
-        setGatewayPreference(profile.gatewayPreference || 'box')
+        setGatewayPreference(profile.gatewayPreference || 'app')
+        setBillingPhone(profile.billingPhone || '')
+        setBillingPhoneVerified(Boolean(profile.isBillingPhoneVerified))
         setSelectedPlan(profile.selectedPlan || 'basic')
       })
       .catch((cause) => {
@@ -68,10 +75,11 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
     event.preventDefault()
     if (saving) return
 
+    if (!billingPhoneVerified) { setError('Verify your billing MFS number before completing setup.'); return }
     setSaving(true)
     setError('')
     try {
-      await saveMerchantOnboarding(form)
+      await saveMerchantOnboarding({ ...form, gatewayMode: gatewayPreference === 'box' ? 'kashnode_box' : 'android_app' })
       onComplete()
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save your business setup. Please try again.')
@@ -116,6 +124,11 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
           {error && <p className="onboarding-error" role="alert">{error}</p>}
 
           <form className="onboarding-form" onSubmit={handleSubmit}>
+            <div className="onboarding-gateway-choice">
+              <strong>Choose your gateway setup</strong>
+              <label><input type="radio" name="gatewayMode" checked={gatewayPreference === 'app'} onChange={() => setGatewayPreference('app')} disabled={saving || loadingProfile} /> <span><b>Kash AI Android App</b><small>Software gateway using your Android phone and SIM · Default</small></span></label>
+              <label><input type="radio" name="gatewayMode" checked={gatewayPreference === 'box'} onChange={() => setGatewayPreference('box')} disabled={saving || loadingProfile} /> <span><b>KashNode Box</b><small>Optional dedicated standalone hardware device</small></span></label>
+            </div>
             <label>
               <span>Business name <i>Required</i></span>
               <span className="onboarding-input-wrap">
@@ -171,6 +184,17 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
                 />
               </span>
               <small className="onboarding-hint">Your team’s contact number. It can be different from the Box SIM.</small>
+            </label>
+
+            <label>
+              <span>Primary billing MFS number <i>Required · bKash / Nagad / Rocket</i></span>
+              <span className="onboarding-input-wrap"><Phone size={18} /><input type="tel" value={billingPhone} onChange={(event) => { setBillingPhone(event.target.value); setBillingPhoneVerified(false); setOtpSent(false) }} placeholder="01XXXXXXXXX" inputMode="tel" autoComplete="tel" pattern="(?:\+?88)?01[3-9][0-9]{8}" required disabled={saving || loadingProfile || billingPhoneVerified} /></span>
+              <small className="onboarding-hint">This is the number you will use to Send Money for wallet top-ups.</small>
+              {!billingPhoneVerified && <div className="onboarding-phone-verify">
+                <button type="button" className="onboarding-secondary" disabled={phoneBusy || !billingPhone.trim()} onClick={async () => { setPhoneBusy(true); setError(''); try { await requestBillingPhoneOtp(billingPhone); setOtpSent(true) } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not send OTP.') } finally { setPhoneBusy(false) } }}>{phoneBusy ? 'Sending…' : otpSent ? 'Resend OTP' : 'Send 6-digit OTP'}</button>
+                {otpSent && <><input aria-label="6-digit billing phone OTP" inputMode="numeric" autoComplete="one-time-code" maxLength={6} pattern="[0-9]{6}" value={billingOtp} onChange={(event) => setBillingOtp(event.target.value.replace(/D/g, '').slice(0, 6))} placeholder="6-digit OTP" /><button type="button" className="onboarding-secondary" disabled={phoneBusy || billingOtp.length !== 6} onClick={async () => { setPhoneBusy(true); setError(''); try { const result = await verifyBillingPhoneOtp(billingOtp); setBillingPhone(result.billingPhone); setBillingPhoneVerified(result.isBillingPhoneVerified) } catch (cause) { setError(cause instanceof Error ? cause.message : 'OTP verification failed.') } finally { setPhoneBusy(false) } }}>Verify number</button></>}
+              </div>}
+              {billingPhoneVerified && <small className="onboarding-verified">✓ Billing phone verified</small>}
             </label>
 
             <label>
