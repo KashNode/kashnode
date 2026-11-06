@@ -358,6 +358,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <p>Package: {(gatewayProfile?.selectedPlan || activePackage).toString().toUpperCase()}</p>
                 {gatewayProfile?.gatewayPreference === 'box' ? (
                   <>
+                    <p>Hardware price: <strong>৳8,000 one-time</strong></p>
                     <p>Hardware fulfillment: <strong>{(gatewayProfile.boxFulfillmentStatus || 'not_requested').replaceAll('_', ' ')}</strong></p>
                     <p className="md-muted">Your Box pre-order status will appear here. SIM details can be added during setup or when the device is ready.</p>
                     <a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a>
