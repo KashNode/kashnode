@@ -384,7 +384,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                   <div className="md-card">
                     <strong>Integration configuration</strong>
                     <p className="md-muted">Store and courier credentials, connection tests, and webhook setup are managed from the Integrations page.</p>
-                    <button className="md-secondary" type="button" onClick={() => navigate('/dashboard/integrations/webhooks')}>Open webhook settings</button>
+                    <button className="md-secondary" type="button" onClick={() => navigate('/dashboard/integrations/stores')}>Open E-Commerce Stores</button>
                   </div>
                 </>
               )}
