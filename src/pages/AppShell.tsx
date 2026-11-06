@@ -95,7 +95,7 @@ export default function AppShell({ user, onSignOut }: Props) {
       .then(async (payload) => {
         if (!alive) return
         setActivePackage(payload.package)
-        setPackageRate(payload.ratePerMinute)
+        setPackageRate(Number.isFinite(Number(payload.ratePerMinute)) ? Number(payload.ratePerMinute) : 7)
         if (payload.package === 'premium') {
           try {
             const credentials = await getMerchantCredentials()
@@ -179,7 +179,7 @@ export default function AppShell({ user, onSignOut }: Props) {
             <section>
               <p className="md-eyebrow">GOOD MORNING, {firstName.toUpperCase()}</p>
               <h1 className="md-title">Is everything working?</h1>
-              <p className="md-muted">{packageLoading ? 'Loading package…' : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${packageRate.toFixed(2)}/minute`}</p>
+              <p className="md-muted">{packageLoading ? 'Loading package…' : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${(Number.isFinite(packageRate) ? packageRate : 7).toFixed(2)}/minute`}</p>
               <p className="md-sub">Live status for Kash AI, your KashNode Box and your store, in one place.</p>
               <div className="md-status-list">
                 <div className="md-status-row"><span><i className="md-dot ok" /> Kash AI</span><strong>Live</strong></div>
