@@ -1,13 +1,18 @@
 BEGIN;
 
 ALTER TABLE public.merchants
-  ADD COLUMN IF NOT EXISTS gateway_mode TEXT NOT NULL DEFAULT 'android_app'
+  ADD COLUMN IF NOT EXISTS gateway_mode TEXT
     CHECK (gateway_mode IN ('android_app', 'kashnode_box')),
   ADD COLUMN IF NOT EXISTS billing_phone TEXT,
   ADD COLUMN IF NOT EXISTS is_billing_phone_verified BOOLEAN NOT NULL DEFAULT FALSE;
 
--- New workspaces default to the Android software gateway. Existing merchants
--- retain their legacy preference until they explicitly update onboarding.
+-- Backfill existing workspaces from their legacy selection before setting the
+-- Android software gateway as the default for newly created workspaces.
+UPDATE public.merchants SET gateway_mode = CASE
+  WHEN gateway_preference = 'box' THEN 'kashnode_box' ELSE 'android_app' END
+WHERE gateway_mode IS NULL;
+ALTER TABLE public.merchants ALTER COLUMN gateway_mode SET DEFAULT 'android_app';
+ALTER TABLE public.merchants ALTER COLUMN gateway_mode SET NOT NULL;
 ALTER TABLE public.merchants ALTER COLUMN gateway_preference SET DEFAULT 'app';
 
 CREATE TABLE IF NOT EXISTS public.phone_verifications (
