@@ -53,12 +53,12 @@ export default function Sidebar({ variant }: Props) {
         <Bell size={mobile ? 20 : 18} /><span>Alerts</span>{mobile && <i className="md-nav-dot" />}
       </NavLink>
       {mobile && integrationsOpen && <div className="md-route-mobile-subnav">
-        <NavLink to="/dashboard/integrations/couriers">Couriers</NavLink>
+        <NavLink to="/dashboard/integrations/couriers" className={({ isActive }) => isActive || pathname === '/dashboard/integrations' ? 'active' : ''}>Couriers</NavLink>
         <NavLink to="/dashboard/integrations/stores">Stores</NavLink>
         <NavLink to="/dashboard/integrations/webhooks">Webhooks</NavLink>
       </div>}
       {mobile && settingsOpen && <div className="md-route-mobile-subnav">
-        <NavLink to="/dashboard/settings/profile">Profile</NavLink>
+        <NavLink to="/dashboard/settings/profile" className={({ isActive }) => isActive || pathname === '/dashboard/settings' ? 'active' : ''}>Profile</NavLink>
         <NavLink to="/dashboard/settings/billing">Billing</NavLink>
         <NavLink to="/dashboard/settings/api">API Keys</NavLink>
       </div>}
