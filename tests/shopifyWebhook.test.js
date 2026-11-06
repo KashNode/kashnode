@@ -82,6 +82,23 @@ async function createTestServer(t, {
       const normalized = String(sql).replace(/\s+/g, ' ').trim()
       queries.push({ sql: normalized, params })
       if (normalized.includes('FROM public.merchant_integrations')) return { rows: [] }
+      if (normalized.startsWith('INSERT INTO public.orders')) {
+        if (failInsert) throw new Error('simulated insert failure')
+        const key = `${params[0]}:${params[1]}`
+        const existing = state.orders.get(key)
+        if (!existing) state.nextId += 1
+        const order = existing || { id: `shopify-order-${state.nextId}`, merchant_id: params[0], platform_order_id: params[1] }
+        Object.assign(order, {
+          order_number: params[2], customer_phone: params[3], customer_name: params[4],
+          total_amount: params[5],
+          payment_status: existing?.payment_status === 'paid' && params[6] === 'unpaid' ? 'paid' : params[6],
+          delivery_status: params[7], payment_method: params[8],
+          line_items: JSON.parse(params[9]), financial_status: params[10],
+          fulfillment_status: params[11], currency: params[12], shipping_address: params[13],
+        })
+        state.orders.set(key, order)
+        return { rows: [{ id: order.id, payment_status: order.payment_status, delivery_status: order.delivery_status }], rowCount: 1 }
+      }
       if (normalized.includes('shopify_webhook_secret') && normalized.includes('shopify_domain')) {
         return { rows: [{ id: MERCHANT_ID, shopify_webhook_secret: SECRET }] }
       }
