@@ -24,24 +24,28 @@ export function Faq({ items }: { items: FaqItem[] }) {
 
 export const PLANS = [
   {
-    id: 'free', name: 'Free Trial', tag: 'Try it first', price: '৳0', per: 'trial', usage: '10 free AI minutes',
+    id: 'free', name: 'Free Trial', tag: 'Try it first', price: '৳0', per: 'trial', usage: '10 complimentary AI minutes',
     features: ['Order verification by SMS', 'AI confirmation calls', 'Payment code verification', 'Merchant dashboard'],
+    details: ['Explore the core KashNode workflow before choosing a paid package.'],
     cta: 'Start Free Trial',
   },
   {
-    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳6.50', per: '/minute', usage: 'Pay only for voice time used',
-    features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Merchant operations dashboard'],
+    id: 'basic', name: 'Basic', tag: 'Essential automation', price: '৳5.50', per: '/minute', usage: 'Pay only for voice time used',
+    features: ['AI voice order verification', 'One gateway: Android app or Basic Box', 'Standard male or female AI voice', '7-day call logs and status'],
+    details: ['Manual support through email or support ticket.', 'Designed for stores that need reliable, essential order verification.'],
     cta: 'Choose Basic',
   },
   {
-    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
+    id: 'standard', name: 'Standard', tag: 'More control for growing stores', price: '৳6.50', per: '/minute', usage: 'Pay only for voice time used',
     popular: true,
-    features: ['Everything in Basic', 'Merchant voice rules', 'Conversation history & summaries', 'Priority support workflow'],
+    features: ['Advanced AI voice verification', 'Up to 2 devices / SIMs with failover', 'bKash & Nagad payment SMS matching', 'Steadfast or Pathao courier booking'],
+    details: ['Faster, more natural AI responses.', 'Automatic TrxID matching from supported payment messages.', '30-day call and payment history.', 'Priority chat support.'],
     cta: 'Choose Standard',
   },
   {
-    id: 'premium', name: 'Premium', tag: 'For advanced operations', price: '৳5.50', per: '/minute', usage: 'Pay only for voice time used',
-    features: ['Everything in Standard', 'Priority support', 'Multi-box operations', 'Advanced reporting'],
+    id: 'premium', name: 'Premium', tag: 'Advanced business automation', price: '৳7.00', per: '/minute', usage: 'Pay only for voice time used',
+    features: ['Ultra-realistic AI voice with custom tone', 'Smart retry and dynamic scheduling', 'Unlimited multi-device / Box management', 'Advanced fraud and fake-order detection'],
+    details: ['Automatic blocklist for suspicious activity.', 'Full API and webhook access.', 'Dedicated account manager and VIP phone support.'],
     cta: 'Choose Premium',
   },
 ]
@@ -60,22 +64,20 @@ export function PricingTiers({ compact = false }: { compact?: boolean }) {
             <h3>{plan.name}</h3>
             <p className="site-plan-price">{plan.price} <span>{plan.per}</span></p>
             <p className="site-plan-allowance">{plan.usage}</p>
-            <ul>
-              {plan.features.map(feature => (
-                <li key={feature}><Check size={15} /> {feature}</li>
-              ))}
-            </ul>
+            <ul>{plan.features.map(feature => <li key={feature}><Check size={15} /> {feature}</li>)}</ul>
+            <details className="site-plan-details">
+              <summary>See details</summary>
+              <ul>{plan.details.map(detail => <li key={detail}><Check size={14} /> {detail}</li>)}</ul>
+            </details>
             <fieldset className="site-gateway-picker">
               <legend>Choose your gateway</legend>
               <label className={gateway === 'app' ? 'selected' : ''}>
                 <input type="radio" name={`gateway-${plan.id}`} value="app" checked={gateway === 'app'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'app' }))} />
-                <Smartphone size={18} />
-                <span><strong>Start with Kash AI App</strong><small>Free Android gateway · no hardware required</small></span>
+                <Smartphone size={18} /><span><strong>Start with Kash AI App</strong><small>Free Android gateway · no hardware required</small></span>
               </label>
               <label className={gateway === 'box' ? 'selected' : ''}>
                 <input type="radio" name={`gateway-${plan.id}`} value="box" checked={gateway === 'box'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'box' }))} />
-                <Box size={18} />
-                <span><strong>Add KashNode Box</strong><small>Dedicated hardware · ৳8,000 one-time purchase</small></span>
+                <Box size={18} /><span><strong>Add KashNode Box</strong><small>৳8,000 one-time hardware purchase</small></span>
               </label>
             </fieldset>
             <Link to={`/signup?plan=${plan.id}&gateway=${gateway}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : `site-btn-plan-${plan.id}`} site-btn-block`}>
