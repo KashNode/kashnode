@@ -74,22 +74,26 @@ export function createMerchantOnboardingHandlers({ pool }) {
     const businessName = cleanText(req.body?.businessName, 255);
     const adminContactPhone = normalizeBangladeshPhone(req.body?.adminContactPhone);
     const boxSimPhone = normalizeBangladeshPhone(req.body?.boxSimPhone);
-    const current = await pool.query('SELECT gateway_preference FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1', [identity.merchantId, identity.userId]);
-    if (!current.rows[0]) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
-    const gatewayPreference = current.rows[0].gateway_preference || 'box';
     const website = normalizeWebsiteUrl(req.body?.websiteUrl);
 
+    // Reject malformed input before any database access. Besides avoiding
+    // unnecessary queries, this keeps validation errors deterministic even
+    // when the merchant workspace does not exist.
     if (businessName.length < 2) {
       return res.status(400).json({ status: 'error', message: 'Business name must be at least 2 characters.' });
     }
     if (!adminContactPhone) {
       return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the admin contact.' });
     }
-    if (gatewayPreference === 'box' && !boxSimPhone) {
-      return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the Pocket Box SIM.' });
-    }
     if (website.error) {
       return res.status(400).json({ status: 'error', message: 'Website must be a valid http:// or https:// URL.' });
+    }
+
+    const current = await pool.query('SELECT gateway_preference FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1', [identity.merchantId, identity.userId]);
+    if (!current.rows[0]) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
+    const gatewayPreference = current.rows[0].gateway_preference || 'box';
+    if (gatewayPreference === 'box' && !boxSimPhone) {
+      return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the Pocket Box SIM.' });
     }
 
     const result = await pool.query(
