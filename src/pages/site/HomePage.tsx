@@ -190,7 +190,7 @@ export default function HomePage() {
             <p className="site-body">Spend less time on manual calls, SMS checks and order follow-ups — and more time growing your business.</p>
           </div>
           <div className="site-ledger">
-            {OUTCOMES.map((item, index) => (
+            {OUTCOMES.map(item => (
               <div key={item.title} className="site-ledger-row">
                 <div>
                   <h3>{item.title}</h3>
