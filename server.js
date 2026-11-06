@@ -18,6 +18,7 @@ import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
 import { createAdminSettingsHandlers } from './server/routes/adminSettings.js'
 import { createMerchantDashboardHandlers } from './server/routes/merchantDashboard.js'
 import { createDeviceStatusHandler } from './server/routes/deviceStatus.js'
+import { createRequirePackage, packageRateFor, normalizeMerchantPackage } from './server/middleware/packageAccess.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 import { createAuthController } from './server/controllers/authController.js'
@@ -168,14 +169,27 @@ const merchantOnboardingHandlers = createMerchantOnboardingHandlers({ pool })
 const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
 const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaultDataQuotaMb: DATA_QUOTA_MB })
 const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
+const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
+const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
 // Merchant ownership is resolved from the signed server session, never from request body input.
 app.get('/api/merchant/onboarding', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getOnboarding))
 app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyncRoute(merchantOnboardingHandlers.postOnboarding))
-// Reveal integration credentials only to the merchant owner after onboarding is complete.
-app.get('/api/merchant/credentials', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getCredentials))
+// Package status is read from the database so the dashboard always reflects the active tier.
+app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, res) => {
+  const result = await pool.query(
+    'SELECT subscription_plan FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+    [req.session.user.merchantId, req.session.user.id],
+  )
+  const merchant = result.rows?.[0]
+  if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' })
+  const plan = normalizeMerchantPackage(merchant.subscription_plan)
+  return res.json({ package: plan, ratePerMinute: packageRateFor(plan), currency: 'BDT' })
+}))
+// Full API credential access is reserved for Premium; the route rechecks the live tier.
+app.get('/api/merchant/credentials', requireMerchantSession, requirePremiumPackage, asyncRoute(merchantOnboardingHandlers.getCredentials))
 app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCalls))
 app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))
 
@@ -183,7 +197,7 @@ app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboar
 app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
 app.post('/api/admin/settings', requireOrigin, requireAdmin, asyncRoute(adminSettingsHandlers.postSettings))
 
-app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({
+app.post('/api/v1/edge/sms', requireStandardPackage, asyncRoute(createEdgeSmsHandler({
   pool,
   onPersist: smsId => reconcileSms({ pool, smsId }),
 })))
