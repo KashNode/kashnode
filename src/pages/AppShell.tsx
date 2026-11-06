@@ -31,8 +31,7 @@ export default function AppShell({ user, onSignOut }: Props) {
               : pathname.startsWith('/dashboard/settings') ? 'settings'
                 : pathname === '/dashboard/alerts' ? 'alerts' : 'home'
   const settingsSection = pathname === '/dashboard/settings/billing' ? 'billing' : pathname === '/dashboard/settings/api' ? 'api' : 'profile'
-  const oauthReturnStatus = new URLSearchParams(location.search).get('status')
-  const integrationSection = pathname === '/dashboard/integrations/stores' || ['connected', 'error'].includes(oauthReturnStatus || '') ? 'stores' : pathname === '/dashboard/integrations/webhooks' ? 'webhooks' : 'couriers'
+  const integrationSection = pathname === '/dashboard/integrations/stores' ? 'stores' : pathname === '/dashboard/integrations/webhooks' ? 'webhooks' : 'couriers'
   const validDashboardPaths = ['/dashboard', '/dashboard/orders', '/dashboard/calls', '/dashboard/box', '/dashboard/wallet', '/dashboard/alerts', '/dashboard/integrations', '/dashboard/integrations/couriers', '/dashboard/integrations/stores', '/dashboard/integrations/webhooks', '/dashboard/settings', '/dashboard/settings/profile', '/dashboard/settings/billing', '/dashboard/settings/api']
   useEffect(() => {
     if (!validDashboardPaths.includes(pathname)) navigate('/dashboard', { replace: true })
@@ -315,10 +314,9 @@ export default function AppShell({ user, onSignOut }: Props) {
               </div>
               <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
               <div className="md-card">
-                <strong>Store connection</strong>
-                <p>WooCommerce: Connected</p>
-                <p>Shopify: Not connected</p>
-                <p>Custom store: Not connected</p>
+                <strong>Store connections</strong>
+                <p className="md-muted">Manage Shopify and WooCommerce credentials in one place.</p>
+                <button className="md-secondary" onClick={() => navigate('/dashboard/integrations/stores')}>Manage integrations</button>
               </div>
             </section>
           )}
