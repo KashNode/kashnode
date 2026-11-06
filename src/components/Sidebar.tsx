@@ -53,7 +53,7 @@ export default function Sidebar({ variant }: Props) {
       </NavLink>
       {mobile && integrationsOpen && <div className="md-route-mobile-subnav">
         <NavLink to="/dashboard/integrations/couriers" className={({ isActive }) => isActive || pathname === '/dashboard/integrations' ? 'active' : ''}>Couriers</NavLink>
-        <NavLink to="/dashboard/integrations/stores">Stores</NavLink>
+        <NavLink to="/dashboard/integrations/stores">E-Commerce Stores</NavLink>
       </div>}
       {mobile && settingsOpen && <div className="md-route-mobile-subnav">
         <NavLink to="/dashboard/settings/profile" className={({ isActive }) => isActive || pathname === '/dashboard/settings' ? 'active' : ''}>Profile</NavLink>
