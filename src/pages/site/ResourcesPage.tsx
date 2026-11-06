@@ -5,15 +5,15 @@ import { Faq, FinalCta } from '../../components/site/SiteSections'
 
 const GUIDES = [
   { icon: BookOpen, title: 'Getting started', text: 'Create a workspace, connect your store, and verify your first order with Kash.' },
-  { icon: FileText, title: 'Connect WooCommerce', text: 'Install the plugin, link your store, and let orders flow into KashNode.' },
-  { icon: FileText, title: 'Connect Shopify', text: 'Connect your Shopify store and start automating confirmation for every order.' },
+  { icon: FileText, title: 'Store connection readiness', text: 'Learn what information is needed to assess a store connection and confirm connector availability with the team.' },
+  { icon: FileText, title: 'Payment signal setup', text: 'Understand the device, SIM and message-format requirements for payment signal ingestion.' },
   { icon: PlayCircle, title: 'Your first Kash call', text: 'What happens on a Kash confirmation call, and how to read the call summary.' },
   { icon: BookOpen, title: 'KashNode Box setup', text: 'Plug in the Box, insert your business SIM, and connect it to your workspace.' },
   { icon: BookOpen, title: 'Minutes & packages', text: 'How order and minute bundles work, and what happens when minutes run out.' },
 ]
 
 const FAQS = [
-  { q: 'How do I start with KashNode?', a: 'Create a free workspace from the sign-in page, connect your store, and verify your first order. The Free Trial includes 10 orders and 10 AI minutes.' },
+  { q: 'How do I start with KashNode?', a: 'Create a free workspace from the sign-in page and explore the merchant platform. Store connector availability and first-order setup are confirmed during onboarding. The Free Trial includes 10 orders and 10 AI minutes.' },
   { q: 'Where do I see whether the system is working?', a: 'Your merchant dashboard shows live status for Kash AI, your Box and your store, plus today’s orders, calls and remaining minutes.' },
   { q: 'How do I change the AI voice?', a: 'In your merchant dashboard, open Alerts & Settings and switch the Kash voice between male and female.' },
   { q: 'What if a verification fails?', a: 'Failed verifications appear in the review queue in your dashboard, so your team can check them and decide what happens next.' },
