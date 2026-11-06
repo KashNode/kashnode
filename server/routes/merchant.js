@@ -43,7 +43,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
 
     const result = await pool.query(
-      'SELECT is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+      'SELECT is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone, subscription_plan, gateway_preference, box_fulfillment_status, box_preorder_requested_at FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
       [identity.merchantId, identity.userId],
     );
     const merchant = result.rows[0];
@@ -57,6 +57,10 @@ export function createMerchantOnboardingHandlers({ pool }) {
         websiteUrl: merchant.website_url || '',
         adminContactPhone: merchant.admin_contact_phone || '',
         boxSimPhone: merchant.box_sim_phone || '',
+        selectedPlan: merchant.subscription_plan || 'basic',
+        gatewayPreference: merchant.gateway_preference || 'box',
+        boxFulfillmentStatus: merchant.box_fulfillment_status || 'not_requested',
+        boxPreorderRequestedAt: merchant.box_preorder_requested_at || null,
       },
     });
   }
@@ -70,6 +74,9 @@ export function createMerchantOnboardingHandlers({ pool }) {
     const businessName = cleanText(req.body?.businessName, 255);
     const adminContactPhone = normalizeBangladeshPhone(req.body?.adminContactPhone);
     const boxSimPhone = normalizeBangladeshPhone(req.body?.boxSimPhone);
+    const current = await pool.query('SELECT gateway_preference FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1', [identity.merchantId, identity.userId]);
+    if (!current.rows[0]) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
+    const gatewayPreference = current.rows[0].gateway_preference || 'box';
     const website = normalizeWebsiteUrl(req.body?.websiteUrl);
 
     if (businessName.length < 2) {
@@ -78,7 +85,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!adminContactPhone) {
       return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the admin contact.' });
     }
-    if (!boxSimPhone) {
+    if (gatewayPreference === 'box' && !boxSimPhone) {
       return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the Pocket Box SIM.' });
     }
     if (website.error) {
@@ -108,7 +115,10 @@ export function createMerchantOnboardingHandlers({ pool }) {
         businessName: merchant.business_name,
         websiteUrl: merchant.website_url || '',
         adminContactPhone: merchant.admin_contact_phone,
-        boxSimPhone: merchant.box_sim_phone,
+        boxSimPhone: merchant.box_sim_phone || '',
+        gatewayPreference,
+        selectedPlan: (await pool.query('SELECT subscription_plan FROM public.merchants WHERE id = $1', [identity.merchantId])).rows[0]?.subscription_plan || 'basic',
+        boxFulfillmentStatus: (await pool.query('SELECT box_fulfillment_status FROM public.merchants WHERE id = $1', [identity.merchantId])).rows[0]?.box_fulfillment_status || 'not_requested',
       },
     });
   }
