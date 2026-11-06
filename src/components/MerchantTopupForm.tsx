@@ -2,7 +2,7 @@ import { useState, type FormEvent } from 'react'
 
 type Gateway = 'bKash' | 'Nagad' | 'Rocket' | 'Upay'
 
-export default function MerchantTopupForm({ billingPhone = '' }: { billingPhone?: string }) {
+export default function MerchantTopupForm({ billingPhone = '', billingPhoneVerified = false }: { billingPhone?: string; billingPhoneVerified?: boolean }) {
   const [gateway, setGateway] = useState<Gateway>('bKash')
   const [trxId, setTrxId] = useState('')
   const [amount, setAmount] = useState('500')
@@ -34,7 +34,7 @@ export default function MerchantTopupForm({ billingPhone = '' }: { billingPhone?
   return (
     <form className="md-card" onSubmit={submit}>
       <strong>Automated wallet top-up</strong>
-      <p className="md-muted">Send Money from your verified billing number, then enter the transfer details below.</p>
+      <p className="md-muted">Send Money from your verified billing number, then enter the transfer details below. Verify your number in Settings to enable top-ups.</p>
       <label className="md-field-label">Sender phone (verified billing number)
         <input type="tel" value={billingPhone} readOnly placeholder="Verify your billing phone in Settings first" required />
       </label>
@@ -49,7 +49,7 @@ export default function MerchantTopupForm({ billingPhone = '' }: { billingPhone?
       <label className="md-field-label">Transaction ID
         <input required minLength={5} maxLength={40} value={trxId} onChange={event => setTrxId(event.target.value.toUpperCase())} placeholder="Enter Send Money TrxID" />
       </label>
-      <button className="md-primary" type="submit" disabled={busy || !trxId.trim() || !billingPhone}>{busy ? 'Submitting…' : 'Submit for automatic matching'}</button>
+      <button className="md-primary" type="submit" disabled={busy || !trxId.trim() || !billingPhone || !billingPhoneVerified}>{busy ? 'Submitting…' : 'Submit for automatic matching'}</button>
       {message && <p className="md-muted" role="status">{message}</p>}
     </form>
   )
