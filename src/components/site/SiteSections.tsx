@@ -29,12 +29,12 @@ export const PLANS = [
     cta: 'Start Free Trial',
   },
   {
-    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
+    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳6.50', per: '/minute', usage: 'Pay only for voice time used',
     features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Merchant operations dashboard'],
     cta: 'Choose Basic',
   },
   {
-    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳6.50', per: '/minute', usage: 'Pay only for voice time used',
+    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
     popular: true,
     features: ['Everything in Basic', 'Merchant voice rules', 'Conversation history & summaries', 'Priority support workflow'],
     cta: 'Choose Standard',
