@@ -29,7 +29,7 @@ const FAQS = [
   { q: 'How does KashNode verify a COD order?', a: 'When a customer places an order, KashNode sends a verification SMS from your business SIM in the KashNode Box. The customer confirms with the code, proving the order comes from a real person with a real phone number.' },
   { q: 'Do I need the KashNode Box to start?', a: 'No. You can start with the KashNode Platform — your merchant web dashboard — and explore it first. The Box is a dedicated device for merchants who want 24/7 reliability with their business SIM always connected.' },
   { q: 'Which stores and payments does KashNode work with?', a: 'Available store, payment and courier connections depend on the current production setup. Payment SMS ingestion and device requirements are confirmed during onboarding. Contact the team before relying on a specific provider integration.' },
-  { q: 'How does pricing work?', a: 'You choose a monthly package by orders, and each package includes an AI minute bundle — Free Trial is 10 orders and 10 minutes at ৳0. Extra AI minutes are a flat ৳7 per minute with in-app recharge.' },
+  { q: 'How does pricing work?', a: 'KashNode uses pay-as-you-go voice billing: Basic is ৳7.00/minute, Standard is ৳6.50/minute, and Premium is ৳6.00/minute. The Free Trial includes 10 complimentary AI minutes.' },
   { q: 'Does Kash speak Bangla?', a: 'Yes. Kash talks with customers in Bangla on confirmation calls. The website and dashboard are in English.' },
 ]
 
@@ -219,7 +219,7 @@ export default function HomePage() {
         <div className="site-wrap">
           <Eyebrow>Simple &amp; predictable pricing</Eyebrow>
           <h2 className="site-h2">Packages for every stage of your business.</h2>
-          <p className="site-body">Choose a plan based on your monthly order volume and voice usage.</p>
+          <p className="site-body">Choose a feature package; AI voice calls are charged per minute at that package’s rate.</p>
           <PricingTiers compact />
           <OverageNote />
           <p className="site-center"><Link to="/pricing" className="site-btn site-btn-outline-dark">Compare all plans <ArrowRight size={16} /></Link></p>
