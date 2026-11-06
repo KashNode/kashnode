@@ -6,7 +6,7 @@ import { BoxRender, CallInterface, DashboardMock, WorkflowSteps } from '../../co
 
 const HERO_STRIP = [
   { icon: ShieldCheck, title: 'Order Verification', text: 'Confirm real customers' },
-  { icon: CreditCard, title: 'Payment Matching', text: 'Auto-match bKash, Nagad, Rocket' },
+  { icon: CreditCard, title: 'Payment Matching', text: 'Match configured payment messages' },
   { icon: PhoneCall, title: 'Kash AI Calls', text: 'Talk to customers automatically' },
   { icon: Truck, title: 'Fulfilment Handoff', text: 'Prepare verified orders for dispatch' },
   { icon: BarChart3, title: 'Higher Efficiency', text: 'Save time, reduce cost' },
@@ -14,7 +14,7 @@ const HERO_STRIP = [
 
 const PILLARS = [
   { icon: PhoneCall, title: 'AI Voice Order Verification', text: 'Kash calls your customers in a natural Bangla voice to confirm orders — no human touch, no missed calls, no manual follow-ups.' },
-  { icon: Wallet, title: 'Instant Payment Matching', text: 'Mobile payments are verified automatically by code and TrxID, so you know which orders are really paid before you dispatch.' },
+  { icon: Wallet, title: 'Payment Message Matching', text: 'Configured payment messages can be checked against order references. Supported message formats and provider availability are confirmed during onboarding.' },
   { icon: Truck, title: 'Courier & Fulfilment Handoff', text: 'Keep verified order details ready for fulfilment. Live courier booking and tracking are not generally available until a provider adapter and credentials are configured.' },
 ]
 
