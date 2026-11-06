@@ -1,4 +1,4 @@
-import { encryptIntegrationCredentials, decryptIntegrationCredentials } from '../services/integrationCrypto.js';
+import { encryptIntegrationCredentials } from '../services/integrationCrypto.js';
 import { validateIntegrationCredentials, testProviderCredentials } from '../services/integrationProviderService.js';
 
 const COURIER_PROVIDERS = new Set(['steadfast', 'pathao']);
@@ -94,12 +94,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
       // Re-test on the server at save time; the browser's earlier test result is not trusted.
       const testMessage = await testProviderCredentials(provider, credentials);
       const encrypted = encryptIntegrationCredentials(credentials, env);
-      const config = req.body?.config && typeof req.body.config === 'object' && !Array.isArray(req.body.config)
-        ? req.body.config
-        : {};
-      const allowedConfig = provider === 'pathao'
-        ? { autoBook: req.body?.config?.autoBook !== false }
-        : { autoBook: req.body?.config?.autoBook !== false };
+      const allowedConfig = { autoBook: COURIER_PROVIDERS.has(provider) ? req.body?.config?.autoBook !== false : false };
       await pool.query(
         `INSERT INTO public.merchant_integrations
           (merchant_id, provider, credentials_ciphertext, credentials_nonce, credentials_auth_tag,
@@ -117,7 +112,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
            last_test_message = EXCLUDED.last_test_message,
            updated_at = NOW()`,
         [id.merchantId, provider, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion,
-          JSON.stringify({ ...allowedConfig, ...config }), testMessage],
+          JSON.stringify(allowedConfig), testMessage],
       );
       return res.json({ status: 'success', provider, configured: true, message: 'Connection verified and saved.' });
     } catch (error) {
@@ -128,6 +123,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
   async function remove(req, res) {
     const id = identity(req);
     if (!id) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
+    if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Integrations are unavailable.' });
     const provider = String(req.params.provider || '').toLowerCase();
     if (!ALL_PROVIDERS.has(provider)) return res.status(400).json({ status: 'error', message: 'Unsupported integration provider.' });
     const merchant = await verifyMerchant(pool, id);
