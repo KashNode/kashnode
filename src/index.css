@@ -2706,3 +2706,30 @@ body { min-height: 100dvh; overflow-x: hidden; }
 @media(prefers-reduced-motion:reduce){
   .site-page *, .site-page *::before, .site-page *::after{scroll-behavior:auto!important;animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+
+/* URL-driven dashboard navigation */
+.md-route-nav a,.md-route-subnav a,.md-route-mobile-subnav a{color:inherit;text-decoration:none}
+.md-route-nav>a,.md-route-group>a{display:flex;align-items:center;gap:8px}
+.md-route-group{display:flex;flex-direction:column;gap:7px}
+.md-route-subnav{display:flex;gap:6px;padding-left:14px;align-items:center;flex-wrap:wrap}
+.md-route-subnav a{font-size:13px;padding:7px 10px;border-radius:999px;color:#a8a29e}
+.md-light .md-route-subnav a{color:#737373}
+.md-route-subnav a.active{background:#29292f;color:#fff}
+.md-light .md-route-subnav a.active{background:#171717;color:#fff}
+.md-route-nav-mobile{flex-wrap:wrap;overflow:visible}
+.md-route-nav-mobile>a{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;min-width:48px;text-decoration:none}
+.md-route-mobile-subnav{position:absolute;bottom:100%;left:0;right:0;display:flex;justify-content:center;gap:8px;padding:9px 8px;background:#101012;border-top:1px solid #26262b}
+.md-light .md-route-mobile-subnav{background:#f5f5f4;border-color:#e5e5e5}
+.md-route-mobile-subnav a{font-size:12px;padding:6px 9px;border:1px solid #3f3f46;border-radius:999px;color:#a8a29e}
+.md-route-mobile-subnav a.active{color:#fff;background:#29292f}
+.md-light .md-route-mobile-subnav a{border-color:#d4d4d4;color:#525252}
+.md-light .md-route-mobile-subnav a.active{background:#171717;color:#fff}
+.md-route-nav-mobile>a.active{color:#fff}
+.md-light .md-route-nav-mobile>a.active{color:#171717}
+@media(min-width:900px){
+  .md-route-nav-mobile{display:none}
+  .md-route-nav{align-items:flex-start}
+  .md-route-nav>a.active,.md-route-group>a.active{background:#f5f5f4;color:#101012;border-color:#f5f5f4}
+  .md-light .md-route-nav>a.active,.md-light .md-route-group>a.active{background:#171717;color:#f5f5f4;border-color:#171717}
+}
