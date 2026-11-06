@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import crypto from 'node:crypto'
 import express from 'express'
 import { createShopifyWebhookHandler } from '../server/routes/shopifyWebhook.js'
+import { encryptIntegrationCredentials } from '../server/services/integrationCrypto.js'
 
 const MERCHANT_ID = '11111111-1111-4111-8111-111111111111'
 const SHOP_DOMAIN = 'test-shop.myshopify.com'
@@ -12,6 +13,7 @@ async function createTestServer(t, {
   walletBalance = 50,
   voiceMinutes = 0,
   failInsert = false,
+  integrationCredentials = null,
   onOrderPersist = async () => {},
 } = {}) {
   const queries = []
@@ -81,7 +83,7 @@ async function createTestServer(t, {
     async query(sql, params = []) {
       const normalized = String(sql).replace(/\s+/g, ' ').trim()
       queries.push({ sql: normalized, params })
-      if (normalized.includes('FROM public.merchant_integrations')) return { rows: [] }
+      if (normalized.includes('FROM public.merchant_integrations')) return { rows: integrationCredentials ? [{ merchant_id: MERCHANT_ID, ...integrationCredentials }] : [] }
       if (normalized.startsWith('INSERT INTO public.orders')) {
         if (failInsert) throw new Error('simulated insert failure')
         const key = `${params[0]}:${params[1]}`
@@ -185,6 +187,27 @@ test('accepts Shopify HMAC and maps customer, total, financial status and line i
   assert.ok(queries.some(item => item.sql.startsWith('INSERT INTO public.orders') && item.sql.includes('ON CONFLICT (merchant_id, platform_order_id)')))
   const merchantLookup = queries.find(item => item.sql.includes('shopify_webhook_secret'))
   assert.deepEqual(merchantLookup.params, [SHOP_DOMAIN])
+})
+
+test('falls back from Admin webhook secret to app Client Secret when validating HMAC', async t => {
+  const encryptionEnv = { INTEGRATION_ENCRYPTION_KEY: Buffer.alloc(32, 9).toString('base64') }
+  const encrypted = encryptIntegrationCredentials({
+    shopDomain: SHOP_DOMAIN,
+    admin_webhook_secret: 'shpss_admin_signing_secret',
+    clientSecret: 'app-client-secret',
+  }, encryptionEnv)
+  const { server, state } = await createTestServer(t, {
+    integrationCredentials: {
+      credentials_ciphertext: encrypted.ciphertext,
+      credentials_nonce: encrypted.nonce,
+      credentials_auth_tag: encrypted.authTag,
+      credentials_key_version: encrypted.keyVersion,
+    },
+  })
+  const raw = JSON.stringify(sampleOrder)
+  const response = await postWebhook(server, raw, { secret: 'app-client-secret' })
+  assert.equal(response.status, 200)
+  assert.equal(state.orders.size, 1)
 })
 
 test('uses exact raw bytes for Shopify HMAC validation', async t => {
