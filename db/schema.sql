@@ -377,3 +377,31 @@ DROP TRIGGER IF EXISTS merchants_default_voice_rate_before_insert ON public.merc
 CREATE TRIGGER merchants_default_voice_rate_before_insert
 BEFORE INSERT ON public.merchants
 FOR EACH ROW EXECUTE FUNCTION public.apply_default_merchant_voice_rate();
+
+-- Package-specific per-minute voice pricing.
+CREATE OR REPLACE FUNCTION public.set_merchant_package_voice_rate()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $function$
+BEGIN
+  NEW.overage_rate_per_min := CASE lower(COALESCE(NEW.subscription_plan, 'free'))
+    WHEN 'basic' THEN 7.00
+    WHEN 'standard' THEN 6.50
+    WHEN 'premium' THEN 6.00
+    ELSE 7.00
+  END;
+  RETURN NEW;
+END;
+$function$;
+DROP TRIGGER IF EXISTS merchants_package_voice_rate_before_write ON public.merchants;
+CREATE TRIGGER merchants_package_voice_rate_before_write
+BEFORE INSERT OR UPDATE OF subscription_plan ON public.merchants
+FOR EACH ROW EXECUTE FUNCTION public.set_merchant_package_voice_rate();
+UPDATE public.merchants
+   SET overage_rate_per_min = CASE lower(COALESCE(subscription_plan, 'free'))
+     WHEN 'basic' THEN 7.00
+     WHEN 'standard' THEN 6.50
+     WHEN 'premium' THEN 6.00
+     ELSE 7.00
+   END;
