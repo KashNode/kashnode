@@ -45,8 +45,6 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
         })
         setGatewayPreference(profile.gatewayPreference || 'box')
         setSelectedPlan(profile.selectedPlan || 'basic')
-
-        })
       })
       .catch((cause) => {
         if (active && !setupLoadError) {
