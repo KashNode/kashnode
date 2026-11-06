@@ -183,12 +183,15 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
     const shipping = body.shipping || {};
     const shippingAddress = [shipping.address_1, shipping.address_2, shipping.city, shipping.state, shipping.postcode]
       .filter(value => typeof value === 'string' && value.trim()).join(', ').slice(0, 1000) || null;
-    const shippingCity = typeof shipping.pathao_city_id === 'string' || typeof shipping.pathao_city_id === 'number'
-      ? String(shipping.pathao_city_id).slice(0, 20) : null;
-    const shippingZone = typeof shipping.pathao_zone_id === 'string' || typeof shipping.pathao_zone_id === 'number'
-      ? String(shipping.pathao_zone_id).slice(0, 20) : null;
-    const shippingArea = typeof shipping.pathao_area_id === 'string' || typeof shipping.pathao_area_id === 'number'
-      ? String(shipping.pathao_area_id).slice(0, 20) : null;
+    const orderMeta = Array.isArray(body.meta_data) ? body.meta_data : [];
+    const metaValue = key => orderMeta.find(item => String(item?.key || '').toLowerCase() === key)?.value;
+    const pathaoValue = (field, key) => shipping[field] ?? metaValue(key);
+    const shippingCityValue = pathaoValue('pathao_city_id', '_pathao_city_id');
+    const shippingZoneValue = pathaoValue('pathao_zone_id', '_pathao_zone_id');
+    const shippingAreaValue = pathaoValue('pathao_area_id', '_pathao_area_id');
+    const shippingCity = shippingCityValue == null ? null : String(shippingCityValue).slice(0, 20);
+    const shippingZone = shippingZoneValue == null ? null : String(shippingZoneValue).slice(0, 20);
+    const shippingArea = shippingAreaValue == null ? null : String(shippingAreaValue).slice(0, 20);
     const shippingPostcode = typeof shipping.postcode === 'string' ? shipping.postcode.trim().slice(0, 20) : null;
     const alternativePhone = normalizeBdPhone(shipping.phone);
 
