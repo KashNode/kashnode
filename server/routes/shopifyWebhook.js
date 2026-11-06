@@ -278,11 +278,10 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     }
 
     const platformOrderId = String(extractTopLevelOrderId(rawBody.toString('utf8'), orderPayload?.id) ?? '').trim();
-    const customerPhone = normalizePhone(
-      orderPayload?.customer?.phone
-      || orderPayload?.shipping_address?.phone
-      || orderPayload?.billing_address?.phone
-      || orderPayload?.phone,
+    const customerPhone = cleanText(
+      orderPayload?.phone || orderPayload?.customer?.phone
+      || orderPayload?.shipping_address?.phone || orderPayload?.billing_address?.phone,
+      30,
     );
     const customerName = getCustomerName(orderPayload || {});
     const totalAmount = normalizeAmount(orderPayload?.total_price);
@@ -309,11 +308,11 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     const alternativePhone = normalizePhone(shipping.phone);
 
     if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH
-      || !customerPhone || totalAmount === null || lineItems === null) {
+      || totalAmount === null || lineItems === null) {
       console.error(`[Shopify Webhook] Order validation failed for ${shopDomain}: id=${Boolean(platformOrderId)}, phone=${Boolean(customerPhone)}, total=${totalAmount !== null}, line_items=${lineItems !== null}`);
       return res.status(400).json({
         status: 'error',
-        message: 'Shopify order must include a valid ID, Bangladesh customer phone, total_price and up to 250 line items.',
+        message: 'Shopify order must include a valid ID, total_price and up to 250 line items.',
       });
     }
 
@@ -371,22 +370,6 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
         order = updated.rows[0];
         if (!order) throw new Error('Shopify order update did not return the updated order.');
       } else {
-        const lockedMerchant = merchantLock.rows[0];
-        const walletBalance = Number(lockedMerchant.wallet_balance ?? 0);
-        const availableVoiceMinutes = Number(lockedMerchant.available_voice_minutes ?? 0);
-        const hasWalletCredit = Number.isFinite(walletBalance) && walletBalance > 0;
-        const hasPrepaidVoiceMinutes = Number.isFinite(availableVoiceMinutes) && availableVoiceMinutes > 0;
-
-        if (!hasWalletCredit && !hasPrepaidVoiceMinutes) {
-          await client.query('ROLLBACK');
-          transactionOpen = false;
-          return res.status(402).json({
-            status: 'error',
-            code: 'INSUFFICIENT_VOICE_CREDIT',
-            message: 'A positive wallet balance or available voice minutes are required before accepting a new order for AI processing.',
-          });
-        }
-
         const inserted = await client.query(INSERT_ORDER_SQL, [
           resolvedMerchantId,
           platformOrderId,
