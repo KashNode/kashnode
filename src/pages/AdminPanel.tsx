@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
-import { Activity, Box, Building2, ClipboardList, LayoutDashboard, Phone, RefreshCw, Settings, Truck, Wifi } from 'lucide-react'
+import { Activity, Box, Building2, Check, ClipboardList, LayoutDashboard, Phone, RefreshCw, Settings, Truck, Wifi } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
 import { getAdminSystemSettings, saveAdminSystemSettings, type AdminSystemSettings, type LlmProvider } from '../lib/adminSettings'
 
 type Props = { user: AuthUser; onSignOut: () => void }
-type Section = 'overview' | 'merchants' | 'orders' | 'calls' | 'courier' | 'devices' | 'integrations' | 'reliability' | 'settings'
+type Section = 'overview' | 'merchants' | 'orders' | 'calls' | 'courier' | 'devices' | 'integrations' | 'reliability' | 'plans' | 'settings'
 type LiveData = {
   source: 'database'; generatedAt: string
   summary: { merchants: number; onboardedMerchants: number; walletBalance: number; orders: Record<string, number | string>; calls: Record<string, number | string>; devices: { assigned: number; reporting: number; online: number }; sms: Record<string, number | string> }
@@ -19,7 +19,7 @@ const sections: {id:Section;label:string;icon:typeof LayoutDashboard}[] = [
   {id:'orders',label:'Orders & Payments',icon:ClipboardList},{id:'calls',label:'Voice & Billing',icon:Phone},
   {id:'courier',label:'Courier',icon:Truck},{id:'devices',label:'KashNode Boxes',icon:Box},
   {id:'integrations',label:'Integrations',icon:Wifi},{id:'reliability',label:'Queues & Reliability',icon:Activity},
-  {id:'settings',label:'System Settings',icon:Settings},
+  {id:'plans',label:'Plans & Features',icon:ClipboardList},{id:'settings',label:'System Settings',icon:Settings},
 ]
 const money=(value:unknown)=>'৳'+Number(value||0).toLocaleString('en-BD',{minimumFractionDigits:2,maximumFractionDigits:2})
 const date=(value:unknown)=>value?new Date(String(value)).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—'
@@ -116,6 +116,38 @@ export default function AdminPanel({user,onSignOut}:Props) {
           {section==='devices'&&<div className="cd-section">{panel('KashNode Box telemetry','Latest persisted device report per merchant; online means heartbeat within 2 minutes',<Table headers={['Merchant','Assigned Box','Reported Device','Status','SIM balance','Data','Signal','Last heartbeat']} empty="No device telemetry has been received yet." rows={data.devices.map(d=><tr key={d.merchantId}><td>{cell(d.merchantName)}</td><td>{cell(d.assignedDeviceId)}</td><td>{cell(d.deviceId)}</td><td><span className={'cd-status '+(d.online?'active':'suspended')}>{d.deviceId?(d.online?'Online':'Offline'):'No report'}</span></td><td>{money(d.balance)}</td><td>{Number(d.dataMb||0).toLocaleString()} MB</td><td>{d.signal==null?'—':d.signal}</td><td>{date(d.updatedAt)}</td></tr>)}/>)}</div>}
           {section==='integrations'&&<div className="cd-section">{panel('Merchant integrations','Provider-level connection status; credentials are never exposed',<Table headers={['Provider','Configured','Active','Failed tests','Last updated']} empty="No merchant integrations configured yet." rows={data.integrations.map(i=><tr key={i.provider}><td>{i.provider}</td><td>{i.total}</td><td>{i.active}</td><td>{i.failed_tests}</td><td>{date(i.last_updated)}</td></tr>)}/>)}</div>}
           {section==='reliability'&&<div className="cd-section">{panel('Queue health & platform reliability','Actual background job states from Supabase',<><h3>Courier fulfillment</h3><Table headers={['Status','Jobs','Attempts']} empty="No courier queue records." rows={data.courierQueue.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{r.attempts}</td></tr>)}/><h3>Voice billing recovery</h3><Table headers={['Status','Jobs','Attempts']} empty="No voice billing jobs." rows={data.voiceQueue.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{r.attempts}</td></tr>)}/><h3>Payment transaction states</h3><Table headers={['Status','Transactions','Amount']} empty="No transaction records." rows={data.transactions.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{money(r.amount)}</td></tr>)}/></>)}</div>}
+          {section==='plans'&&<div className="cd-section">
+            <div className="cd-settings-intro"><div><p className="cd-settings-kicker">SUBSCRIPTION CATALOG</p><h2>Plans & feature comparison</h2><p>Standardized plan matrix for clear package comparison. Box hardware is a separate one-time purchase for every plan.</p></div><span className="cd-settings-live"><i/> PLAN CATALOG</span></div>
+            <div className="cd-panel">
+              <div className="cd-card-heading"><div><h2>Voice usage rates</h2><p>Pay per actual AI call duration. No monthly subscription or per-order fee.</p></div></div>
+              <div className="cd-stats cd-stats-3">
+                <Stat label="Basic" value="৳5.50 / min" note="Essential automation"/>
+                <Stat label="Standard" value="৳6.50 / min" note="Advanced workflows · Most popular"/>
+                <Stat label="Premium" value="৳7.00 / min" note="Full-featured automation"/>
+              </div>
+            </div>
+            <div className="cd-panel">
+              <div className="cd-card-heading"><div><h2>Feature comparison</h2><p>Check marks show which capabilities are included in each package.</p></div></div>
+              <div className="cd-table-wrap"><table className="cd-table cd-plan-matrix">
+                <thead><tr><th>Service / Feature</th><th>Basic · ৳5.50</th><th>Standard · ৳6.50</th><th>Premium · ৳7.00</th></tr></thead>
+                <tbody>
+                  {[
+                    ['AI voice order verification','Standard','Advanced','Ultra-realistic · custom tone'],
+                    ['Gateway devices','1 app or Basic Box','Up to 2 devices / SIMs','Unlimited devices / Boxes'],
+                    ['AI voice quality','Standard male / female','Faster, natural response','Custom voice tone'],
+                    ['Call history','7 days','30 days','Extended history'],
+                    ['Payment SMS matching','—','bKash & Nagad · TrxID auto-match','Included'],
+                    ['Courier booking','—','Steadfast or Pathao API','Included'],
+                    ['Smart retry & scheduling','—','—','✓'],
+                    ['Fraud / fake-order detection','—','—','Advanced detection + blocklist'],
+                    ['API & webhooks','—','—','Full access'],
+                    ['Support','Email / ticket','Priority chat','Dedicated manager + VIP phone'],
+                  ].map(row=><tr key={row[0]}><td><strong>{row[0]}</strong></td>{row.slice(1).map((value,i)=><td key={i}>{value==='—'?<span aria-label="Not included">—</span>:<span className="cd-plan-included"><Check size={15}/>{value}</span>}</td>)}</tr>)}
+                </tbody>
+              </table></div>
+              <p className="cd-panel-note">KashNode Box: ৳8,000 one-time hardware price, same for all packages. Existing device / gateway eligibility is subject to the selected plan.</p>
+            </div>
+          </div>}
           {section==='settings'&&<div className="cd-section">
             <div className="cd-settings-intro"><div><p className="cd-settings-kicker">PLATFORM CONFIGURATION</p><h2>AI provider & voice pricing</h2><p>Provider keys remain server-side in Supabase Vault.</p></div><span className="cd-settings-live"><i/> LIVE SETTINGS</span></div>
             {settingsError&&<p className="cd-settings-error" role="alert">{settingsError}</p>}
