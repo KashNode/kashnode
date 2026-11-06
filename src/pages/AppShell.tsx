@@ -279,7 +279,7 @@ export default function AppShell({ user, onSignOut }: Props) {
               <div className="md-card">
                 <div className="md-card-top"><strong>AI Minutes Used</strong><span className="md-badge">Sample preview</span></div>
                 <h2>236 min</h2>
-                <p className="md-muted">Voice usage billed at the sample rate of ৳7 per minute.</p>
+                <p className="md-muted">Voice usage is billed per minute at your selected package rate.</p>
               </div>
               {rechargeOpen && (
                 <div className="md-card">
