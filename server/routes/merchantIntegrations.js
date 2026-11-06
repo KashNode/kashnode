@@ -94,7 +94,10 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
       // Re-test on the server at save time; the browser's earlier test result is not trusted.
       const testMessage = await testProviderCredentials(provider, credentials);
       const encrypted = encryptIntegrationCredentials(credentials, env);
-      const allowedConfig = { autoBook: COURIER_PROVIDERS.has(provider) ? req.body?.config?.autoBook !== false : false };
+      const allowedConfig = {
+        autoBook: COURIER_PROVIDERS.has(provider) ? req.body?.config?.autoBook !== false : false,
+        ...(provider === 'shopify' ? { shopDomain: credentials.shopDomain } : {}),
+      };
       const client = await pool.connect();
       try {
         await client.query('BEGIN');
