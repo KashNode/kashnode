@@ -146,10 +146,6 @@ export function createMerchantOnboardingHandlers({ pool }) {
     );
     const merchant = result.rows[0];
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
-    if (!merchant.is_onboarding_complete) {
-      return res.status(403).json({ status: 'error', message: 'Complete merchant onboarding before viewing API credentials.' });
-    }
-
     return res.json({
       status: 'success',
       merchantId: merchant.id,
