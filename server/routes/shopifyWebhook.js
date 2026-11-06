@@ -160,32 +160,35 @@ function mapPaymentMethod(order) {
 
 const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
-    (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
-     payment_status, delivery_status, payment_method, line_items, financial_status, currency, store_provider,
-     shipping_address, shipping_city, shipping_zone, shipping_area, shipping_postcode, alternative_phone)
-  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10, 'shopify', $11, $12, $13, $14, $15, $16)
+    (merchant_id, platform_order_id, order_number, customer_phone, customer_name, total_amount,
+     payment_status, delivery_status, payment_method, line_items, financial_status, fulfillment_status,
+     currency, store_provider, shipping_address, shipping_city, shipping_zone, shipping_area,
+     shipping_postcode, alternative_phone)
+  VALUES ($1, $2, $3, $4, $5, $6::numeric, $7, 'pending', $8, $9::jsonb, $10, $11, $12, 'shopify', $13, $14, $15, $16, $17, $18)
   RETURNING id, payment_status, delivery_status
 `;
 
 const UPDATE_ORDER_SQL = `
   UPDATE public.orders
-  SET customer_phone = $2,
-      customer_name = $3,
-      total_amount = $4::numeric,
-      payment_method = $5,
-      line_items = $6::jsonb,
-      financial_status = $7,
-      currency = $8,
+  SET order_number = $2,
+      customer_phone = $3,
+      customer_name = $4,
+      total_amount = $5::numeric,
+      payment_method = $6,
+      line_items = $7::jsonb,
+      financial_status = $8,
+      fulfillment_status = $9,
+      currency = $10,
       store_provider = 'shopify',
-      shipping_address = COALESCE($10, shipping_address),
-      shipping_city = COALESCE($11, shipping_city),
-      shipping_zone = COALESCE($12, shipping_zone),
-      shipping_area = COALESCE($13, shipping_area),
-      shipping_postcode = COALESCE($14, shipping_postcode),
-      alternative_phone = COALESCE($15, alternative_phone),
+      shipping_address = COALESCE($12, shipping_address),
+      shipping_city = COALESCE($13, shipping_city),
+      shipping_zone = COALESCE($14, shipping_zone),
+      shipping_area = COALESCE($15, shipping_area),
+      shipping_postcode = COALESCE($16, shipping_postcode),
+      alternative_phone = COALESCE($17, alternative_phone),
       payment_status = CASE
-        WHEN payment_status = 'paid' AND $9 = 'unpaid' THEN 'paid'
-        ELSE $9
+        WHEN payment_status = 'paid' AND $11 = 'unpaid' THEN 'paid'
+        ELSE $11
       END
   WHERE id = $1
   RETURNING id, payment_status, delivery_status
@@ -198,13 +201,20 @@ const UPDATE_ORDER_SQL = `
  */
 export function createShopifyWebhookHandler({ pool, onOrderPersist = async () => {} }) {
   return async function ingestShopifyOrder(req, res) {
-    if (!pool) return res.status(503).json({ status: 'error', message: 'Database unavailable.' });
+    if (!pool) {
+      console.error('[Shopify Webhook] Database unavailable.');
+      return res.status(503).json({ status: 'error', message: 'Database unavailable.' });
+    }
 
     const rawBody = req.body;
     const signature = req.get('x-shopify-hmac-sha256');
     const shopDomain = normalizeShopDomain(req.get('x-shopify-shop-domain'));
+    const topic = cleanText(req.get('x-shopify-topic'), 100)?.toLowerCase();
+    console.info(`[Shopify Webhook] Received event: ${topic || 'unknown'} for store: ${shopDomain || 'unknown'}`);
 
     if (!Buffer.isBuffer(rawBody) || rawBody.length === 0 || !signature || !shopDomain) {
+      console.error('[Shopify Webhook] Validation failed: missing raw body, HMAC header, or valid shop domain.');
+      console.error(new Error('Invalid Shopify webhook request').stack);
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
@@ -221,6 +231,8 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     let webhookSecret = null;
     if (integrationResult.rows[0]) {
       const credentials = decryptIntegrationCredentials(integrationResult.rows[0]);
+      // Admin-created webhooks may use a separately supplied store webhook secret.
+      // App-registered webhooks use the Shopify app Client Secret.
       webhookSecret = credentials.webhookSecret || credentials.clientSecret;
     } else {
       const legacy = await pool.query(
@@ -232,6 +244,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       webhookSecret = legacy.rows[0]?.shopify_webhook_secret;
     }
     if (!merchantId || !webhookSecret) {
+      console.error(`[Shopify Webhook] Validation failed: no active integration/secret found for ${shopDomain}.`);
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
@@ -239,21 +252,25 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       .update(rawBody)
       .digest('base64');
     if (!safeEqualBase64(signature, expected)) {
+      console.error(`[Shopify Webhook] HMAC verification: FAILED for ${shopDomain} (${topic || 'unknown'})`);
       return res.status(401).json({ status: 'error', message: 'Invalid webhook signature.' });
     }
+    console.info(`[Shopify Webhook] HMAC verification: PASSED for ${shopDomain}`);
 
-    const topic = cleanText(req.get('x-shopify-topic'), 100)?.toLowerCase();
+
     if (!topic) {
       return res.status(400).json({ status: 'error', message: 'Shopify webhook topic header is required.' });
     }
-    if (topic !== 'orders/create') {
+    if (!['orders/create', 'orders/updated'].includes(topic)) {
+      console.info(`[Shopify Webhook] Ignored unsupported event: ${topic} for store: ${shopDomain}`);
       return res.status(200).json({ status: 'ignored', reason: 'unsupported_topic' });
     }
 
     let orderPayload;
     try {
       orderPayload = JSON.parse(rawBody.toString('utf8'));
-    } catch {
+    } catch (error) {
+      console.error(`[Shopify Webhook] Invalid JSON payload for ${shopDomain}:`, error?.stack || error);
       return res.status(400).json({ status: 'error', message: 'Webhook payload must be valid JSON.' });
     }
     if (!orderPayload || typeof orderPayload !== 'object' || Array.isArray(orderPayload)) {
@@ -261,18 +278,23 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     }
 
     const platformOrderId = String(extractTopLevelOrderId(rawBody.toString('utf8'), orderPayload?.id) ?? '').trim();
-    const customerPhone = normalizePhone(
-      orderPayload?.customer?.phone
-      || orderPayload?.shipping_address?.phone
-      || orderPayload?.billing_address?.phone
-      || orderPayload?.phone,
+    const customerPhone = cleanText(
+      orderPayload?.phone || orderPayload?.customer?.phone
+      || orderPayload?.shipping_address?.phone || orderPayload?.billing_address?.phone,
+      30,
     );
     const customerName = getCustomerName(orderPayload || {});
     const totalAmount = normalizeAmount(orderPayload?.total_price);
     const lineItems = getLineItems(orderPayload?.line_items);
     const financialStatus = cleanText(orderPayload?.financial_status, 50)?.toLowerCase() || 'pending';
-    const paymentStatus = mapFinancialStatus(financialStatus);
     const paymentMethod = mapPaymentMethod(orderPayload || {});
+    const isCod = /cash on delivery|\bcod\b/i.test(paymentMethod || '');
+    const paymentStatus = isCod ? 'unpaid' : mapFinancialStatus(financialStatus);
+    const fulfillmentStatus = cleanText(orderPayload?.fulfillment_status, 50)?.toLowerCase() || 'unfulfilled';
+    const deliveryStatus = fulfillmentStatus === 'fulfilled' ? 'fulfilled'
+      : fulfillmentStatus === 'partial' ? 'partially_fulfilled' : 'pending';
+    const orderNumber = cleanText(orderPayload?.name || (orderPayload?.order_number == null ? null : String(orderPayload.order_number)), 100)
+      || platformOrderId;
     const currency = cleanText(orderPayload?.currency, 3)?.toUpperCase() || null;
     const shipping = orderPayload?.shipping_address || orderPayload?.billing_address || {};
     const shippingAddress = [shipping.address1, shipping.address2, shipping.city, shipping.province, shipping.zip]
@@ -286,10 +308,11 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     const alternativePhone = normalizePhone(shipping.phone);
 
     if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH
-      || !customerPhone || totalAmount === null || lineItems === null) {
+      || totalAmount === null || lineItems === null) {
+      console.error(`[Shopify Webhook] Order validation failed for ${shopDomain}: id=${Boolean(platformOrderId)}, phone=${Boolean(customerPhone)}, total=${totalAmount !== null}, line_items=${lineItems !== null}`);
       return res.status(400).json({
         status: 'error',
-        message: 'Shopify order must include a valid ID, Bangladesh customer phone, total_price and up to 250 line items.',
+        message: 'Shopify order must include a valid ID, total_price and up to 250 line items.',
       });
     }
 
@@ -327,12 +350,14 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       if (existingOrder.rows[0]) {
         const updated = await client.query(UPDATE_ORDER_SQL, [
           existingOrder.rows[0].id,
+          orderNumber,
           customerPhone,
           customerName,
           totalAmount,
-          paymentMethod,
+          isCod ? 'Cash on Delivery' : paymentMethod,
           JSON.stringify(lineItems),
           financialStatus,
+          fulfillmentStatus,
           currency,
           paymentStatus,
           shippingAddress,
@@ -345,32 +370,18 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
         order = updated.rows[0];
         if (!order) throw new Error('Shopify order update did not return the updated order.');
       } else {
-        const lockedMerchant = merchantLock.rows[0];
-        const walletBalance = Number(lockedMerchant.wallet_balance ?? 0);
-        const availableVoiceMinutes = Number(lockedMerchant.available_voice_minutes ?? 0);
-        const hasWalletCredit = Number.isFinite(walletBalance) && walletBalance > 0;
-        const hasPrepaidVoiceMinutes = Number.isFinite(availableVoiceMinutes) && availableVoiceMinutes > 0;
-
-        if (!hasWalletCredit && !hasPrepaidVoiceMinutes) {
-          await client.query('ROLLBACK');
-          transactionOpen = false;
-          return res.status(402).json({
-            status: 'error',
-            code: 'INSUFFICIENT_VOICE_CREDIT',
-            message: 'A positive wallet balance or available voice minutes are required before accepting a new order for AI processing.',
-          });
-        }
-
         const inserted = await client.query(INSERT_ORDER_SQL, [
           resolvedMerchantId,
           platformOrderId,
+          orderNumber,
           customerPhone,
           customerName,
           totalAmount,
           paymentStatus,
-          paymentMethod,
+          isCod ? 'Cash on Delivery' : paymentMethod,
           JSON.stringify(lineItems),
           financialStatus,
+          fulfillmentStatus,
           currency,
           shippingAddress,
           shippingCity,
@@ -385,7 +396,9 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
 
       await client.query('COMMIT');
       transactionOpen = false;
+      console.info(`[Shopify Webhook] Upserted order #${cleanText(orderPayload.order_number == null ? orderPayload.name : String(orderPayload.order_number), 100) || platformOrderId} into database (store: ${shopDomain}, topic: ${topic})`);
     } catch (error) {
+      console.error(`[Shopify Webhook] Database error for order ${platformOrderId} at ${shopDomain}:`, error?.stack || error);
       if (transactionOpen) {
         await client.query('ROLLBACK').catch(() => {});
         transactionOpen = false;
@@ -398,7 +411,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     try {
       await onOrderPersist(resolvedMerchantId);
     } catch (error) {
-      console.error('[KashNode] Pending SMS reconciliation deferred after Shopify order:', error);
+      console.error('[Shopify Webhook] Pending SMS reconciliation deferred:', error?.stack || error);
     }
 
     return res.status(202).json({
