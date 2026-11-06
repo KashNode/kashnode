@@ -173,7 +173,7 @@ export default function AppShell({ user, onSignOut }: Props) {
             <section>
               <p className="md-eyebrow">GOOD MORNING, {firstName.toUpperCase()}</p>
               <h1 className="md-title">Is everything working?</h1>
-              <p className="md-muted">{packageLoading ? 'Loading package…' : activePackage === 'free' ? `Free Trial · ${availableVoiceMinutes ?? 0} mins included` : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${(Number.isFinite(packageRate) ? packageRate : 7).toFixed(2)}/minute`}</p>
+              <p className="md-muted">{packageLoading ? 'Loading package…' : activePackage === 'free' ? `Free Trial · ${availableVoiceMinutes ?? 0} mins remaining (10 mins included)` : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${(Number.isFinite(packageRate) ? packageRate : 7).toFixed(2)}/minute`}</p>
               {activePackage === 'free' && <p className="md-muted">৳{packageRate.toFixed(2)}/minute applies only after your included free minutes are used. No per-minute charge while included minutes remain.</p>}
               <p className="md-sub">Live status for Kash AI, your KashNode Box and your store, in one place.</p>
               <div className="md-status-list">
@@ -314,7 +314,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <h2>{availableVoiceMinutes == null ? 'Loading…' : `${availableVoiceMinutes} min`}</h2>
                 <p className="md-muted">{activePackage === 'free' ? `Your first 10 AI voice minutes are included. ৳${packageRate.toFixed(2)}/minute is charged only after those free minutes expire.` : `Your current overage rate is ৳${packageRate.toFixed(2)}/minute after available minutes are used.`}</p>
               </div>
-              <MerchantTopupForm />
+              <MerchantTopupForm billingPhone={gatewayProfile?.billingPhone || ''} />
             </section>
           )}
 
@@ -345,7 +345,7 @@ export default function AppShell({ user, onSignOut }: Props) {
               </div>
               <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
               <BillingPhoneSettings phone={gatewayProfile?.billingPhone || ''} verified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
-              <MerchantIntegrationsSettings activePackage={activePackage} onNotify={notify} />
+              <MerchantIntegrationsSettings onNotify={notify} />
             </section>
           )}
 
