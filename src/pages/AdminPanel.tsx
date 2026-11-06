@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react'
 import { Activity, Box, Building2, ClipboardList, CreditCard, LayoutDashboard, Phone, RefreshCw, Settings, ShieldCheck, Truck, Wifi } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
@@ -25,7 +25,7 @@ const money=(value:unknown)=>'৳'+Number(value||0).toLocaleString('en-BD',{mini
 const date=(value:unknown)=>value?new Date(String(value)).toLocaleString('en-GB',{dateStyle:'medium',timeStyle:'short'}):'—'
 const cell=(value:unknown)=>value==null||value===''?'—':String(value)
 function Stat({label,value,note}:{label:string;value:string;note:string}) { return <article className="cd-panel"><small className="cd-eyebrow">{label}</small><strong className="cd-live-stat">{value}</strong><p className="cd-panel-note">{note}</p></article> }
-function Table({headers,rows,empty}:{headers:string[];rows:React.ReactNode[];empty:string}) { return <div className="cd-table-wrap"><table className="cd-table"><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.length?rows:<tr><td colSpan={headers.length} className="cd-empty">{empty}</td></tr>}</tbody></table></div> }
+function Table({headers,rows,empty}:{headers:string[];rows:ReactNode[];empty:string}) { return <div className="cd-table-wrap"><table className="cd-table"><thead><tr>{headers.map(h=><th key={h}>{h}</th>)}</tr></thead><tbody>{rows.length?rows:<tr><td colSpan={headers.length} className="cd-empty">{empty}</td></tr>}</tbody></table></div> }
 
 export default function AdminPanel({user,onSignOut}:Props) {
   const [section,setSection]=useState<Section>('overview')
@@ -77,7 +77,7 @@ export default function AdminPanel({user,onSignOut}:Props) {
   const merchants=useMemo(()=>data?.merchants.filter(m=>[m.name,m.email,m.plan].join(' ').toLowerCase().includes(search.toLowerCase()))||[],[data,search])
   const title=sections.find(s=>s.id===section)?.label||'Overview'
   const summary=data?.summary
-  const panel=(heading:string,sub:string,children:React.ReactNode)=><section className="cd-panel"><div className="cd-card-heading"><div><h2>{heading}</h2><p>{sub}</p></div><span className="cd-preview-chip">LIVE DATA</span></div>{children}</section>
+  const panel=(heading:string,sub:string,children:ReactNode)=><section className="cd-panel"><div className="cd-card-heading"><div><h2>{heading}</h2><p>{sub}</p></div><span className="cd-preview-chip">LIVE DATA</span></div>{children}</section>
 
   return <div className="cd-page">
     <div className="cd-shell">
