@@ -29,6 +29,9 @@ import { isDisposableEmail } from './server/services/disposableEmail.js'
 import { sendSignupOtpEmail } from './server/services/emailService.js'
 import { verifyGoogleIdToken } from './server/services/googleIdToken.js'
 import { createVoiceStreamingService } from './server/services/voiceStreamingService.js'
+import { createMerchantPaymentHandlers } from './server/routes/merchantPayments.js'
+import { createPaymentProcessor } from './server/services/paymentProcessor.js'
+import { sendPlatformSms } from './server/services/platformSmsService.js'
 
 const { Pool } = pg
 const app = express()
@@ -174,6 +177,13 @@ const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
 const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaultDataQuotaMb: DATA_QUOTA_MB })
 const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
 const merchantIntegrationHandlers = createMerchantIntegrationHandlers({ pool })
+const paymentProcessor = pool ? createPaymentProcessor({ pool }) : null
+const merchantPaymentHandlers = createMerchantPaymentHandlers({
+  pool,
+  sendSms: sendPlatformSms,
+  otpSecret: process.env.BILLING_PHONE_OTP_SECRET || process.env.AUTH_OTP_SECRET || '',
+  processor: paymentProcessor,
+})
 let stopCourierFulfillmentWorker = () => {}
 const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
 const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
@@ -183,6 +193,13 @@ app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'Ka
 // Merchant ownership is resolved from the signed server session, never from request body input.
 app.get('/api/merchant/onboarding', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getOnboarding))
 app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyncRoute(merchantOnboardingHandlers.postOnboarding))
+app.post('/api/merchant/billing-phone/otp', requireOrigin, requireMerchantSession, otpLimiter, asyncRoute(merchantPaymentHandlers.requestBillingPhoneOtp))
+app.post('/api/merchant/billing-phone/verify', requireOrigin, requireMerchantSession, otpLimiter, asyncRoute(merchantPaymentHandlers.verifyBillingPhoneOtp))
+app.post('/api/merchant/topup', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createTopup))
+app.post('/api/admin/device/payment-sms', requireDevice, asyncRoute((req, res) => {
+  if (DEVICE_ID && req.body?.device_id !== DEVICE_ID) return res.status(403).json({ message: 'Unrecognized payment collection device.' })
+  return merchantPaymentHandlers.ingestAdminPaymentSms(req, res)
+}))
 // Package status is read from the database so the dashboard always reflects the active tier.
 app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, res) => {
   const result = await pool.query(
