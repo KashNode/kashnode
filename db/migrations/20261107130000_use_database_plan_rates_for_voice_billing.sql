@@ -2,6 +2,25 @@ BEGIN;
 
 ALTER TABLE public.merchants DROP CONSTRAINT IF EXISTS merchants_subscription_plan_allowed;
 
+CREATE OR REPLACE FUNCTION public.set_merchant_package_voice_rate()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SET search_path = public, pg_temp
+AS $function$
+DECLARE
+  configured_rate numeric(10,2);
+BEGIN
+  SELECT price_per_minute INTO configured_rate
+    FROM public.subscription_plans
+   WHERE lower(slug)=lower(NEW.subscription_plan) AND is_active=TRUE;
+  IF NOT FOUND OR configured_rate IS NULL OR configured_rate<0 THEN
+    RAISE EXCEPTION 'MERCHANT_PLAN_NOT_CONFIGURED';
+  END IF;
+  NEW.overage_rate_per_min:=configured_rate;
+  RETURN NEW;
+END;
+$function$;
+
 CREATE OR REPLACE FUNCTION public.finalize_voice_call_billing(
   p_merchant_id UUID,
   p_order_id UUID,
