@@ -1,5 +1,5 @@
-import { encryptIntegrationCredentials } from '../services/integrationCrypto.js';
-import { validateIntegrationCredentials, testProviderCredentials, requestShopifyClientCredentialsToken, normalizeShopifyDomain } from '../services/integrationProviderService.js';
+import { decryptIntegrationCredentials, encryptIntegrationCredentials } from '../services/integrationCrypto.js';
+import { validateIntegrationCredentials, testProviderCredentials, requestShopifyClientCredentialsToken, normalizeShopifyDomain, refreshShopifyAccessToken } from '../services/integrationProviderService.js';
 
 const COURIER_PROVIDERS = new Set(['steadfast', 'pathao']);
 const ALL_PROVIDERS = new Set(['steadfast', 'pathao', 'woocommerce', 'shopify']);
@@ -118,6 +118,186 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env, fet
     }
   }
 
+
+  function normalizeShopifyOrder(order) {
+    const shipping = order.shipping_address || order.billing_address || {};
+    const customer = order.customer || {};
+    const phone = String(order.phone || customer.phone || shipping.phone || order.billing_address?.phone || '').trim() || null;
+    const name = [customer.first_name || shipping.first_name, customer.last_name || shipping.last_name]
+      .filter(Boolean).join(' ').trim() || shipping.name || customer.name || 'Shopify customer';
+    const gatewayNames = Array.isArray(order.payment_gateway_names) ? order.payment_gateway_names : [];
+    const gateway = gatewayNames.find(Boolean) || order.gateway || 'Unknown';
+    const isCod = /cash on delivery|cod|cash on delivery \(.*\)/i.test(String(gateway));
+    const financialStatus = String(order.financial_status || 'pending').toLowerCase();
+    const paymentStatus = financialStatus === 'paid' ? 'paid'
+      : ['partially_paid', 'refunded', 'voided', 'partially_refunded'].includes(financialStatus) ? 'manual_review' : 'unpaid';
+    const fulfillmentStatus = String(order.fulfillment_status || 'unfulfilled').toLowerCase();
+    const deliveryStatus = fulfillmentStatus === 'fulfilled' ? 'fulfilled'
+      : fulfillmentStatus === 'partial' ? 'partially_fulfilled' : 'pending';
+    const lineItems = (Array.isArray(order.line_items) ? order.line_items : []).slice(0, 250).map(item => ({
+      id: item.id == null ? null : String(item.id),
+      product_id: item.product_id == null ? null : String(item.product_id),
+      variant_id: item.variant_id == null ? null : String(item.variant_id),
+      title: String(item.title || item.name || '').slice(0, 255),
+      sku: item.sku ? String(item.sku).slice(0, 100) : null,
+      quantity: Math.max(0, Number(item.quantity) || 0),
+      price: Number(item.price || 0).toFixed(2),
+      vendor: item.vendor ? String(item.vendor).slice(0, 255) : null,
+    }));
+    const address = [shipping.address1, shipping.address2, shipping.city, shipping.province, shipping.zip, shipping.country]
+      .filter(Boolean).join(', ').slice(0, 1000) || null;
+    const amount = Number(order.total_price);
+    if (!order.id || !Number.isFinite(amount) || amount < 0) return null;
+    return {
+      platformOrderId: String(order.id),
+      orderNumber: String(order.name || order.order_number || order.number || order.id).slice(0, 100),
+      customerName: String(name).slice(0, 255),
+      customerPhone: phone,
+      totalAmount: amount.toFixed(2),
+      paymentStatus: isCod ? 'unpaid' : paymentStatus,
+      paymentMethod: isCod ? 'Cash on Delivery' : String(gateway).slice(0, 80),
+      financialStatus,
+      fulfillmentStatus,
+      deliveryStatus,
+      currency: String(order.currency || 'BDT').slice(0, 3).toUpperCase(),
+      shippingAddress: address,
+      shippingPostcode: shipping.zip ? String(shipping.zip).slice(0, 20) : null,
+      alternativePhone: shipping.phone && String(shipping.phone) !== phone ? String(shipping.phone).slice(0, 20) : null,
+      lineItems,
+      createdAt: order.created_at || null,
+    };
+  }
+
+  async function getShopifyCredentials(merchantId) {
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const result = await client.query(
+        `SELECT credentials_ciphertext, credentials_nonce, credentials_auth_tag, credentials_key_version
+         FROM public.merchant_integrations
+         WHERE merchant_id = $1 AND provider = 'shopify' AND is_active = TRUE
+         LIMIT 1 FOR UPDATE`,
+        [merchantId],
+      );
+      if (!result.rows[0]) throw new Error('Connect your Shopify store before syncing orders.');
+      const credentials = decryptIntegrationCredentials(result.rows[0], env);
+      if (!credentials.shopDomain || !credentials.accessToken) throw new Error('Shopify connection is missing its access token. Reconnect the store.');
+      const refreshed = await refreshShopifyAccessToken(credentials, { env, fetchImpl });
+      if (refreshed !== credentials) {
+        const encrypted = encryptIntegrationCredentials(refreshed, env);
+        await client.query(
+          `UPDATE public.merchant_integrations
+           SET credentials_ciphertext = $3, credentials_nonce = $4, credentials_auth_tag = $5,
+               credentials_key_version = $6, updated_at = NOW()
+           WHERE merchant_id = $1 AND provider = 'shopify'`,
+          [merchantId, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion],
+        );
+      }
+      await client.query('COMMIT');
+      return refreshed;
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  async function getOrders(req, res) {
+    const id = identity(req);
+    if (!id) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
+    if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Orders are unavailable.' });
+    const merchant = await verifyMerchant(pool, id);
+    if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
+    const result = await pool.query(
+      `SELECT id, platform_order_id, order_number, customer_name, customer_phone, total_amount,
+              payment_status, delivery_status, payment_method, financial_status, fulfillment_status,
+              currency, shipping_address, line_items, created_at
+       FROM public.orders WHERE merchant_id = $1
+       ORDER BY created_at DESC LIMIT 200`,
+      [id.merchantId],
+    );
+    return res.json({ source: 'database', orders: result.rows });
+  }
+
+  async function syncShopifyOrders(req, res) {
+    const id = identity(req);
+    if (!id) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
+    if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Order sync is unavailable.' });
+    const merchant = await verifyMerchant(pool, id);
+    if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
+
+    try {
+      const credentials = await getShopifyCredentials(id.merchantId);
+      const shopDomain = normalizeShopifyDomain(credentials.shopDomain);
+      const apiVersion = credentials.apiVersion || '2026-10';
+      const response = await fetchImpl(`https://${shopDomain}/admin/api/${apiVersion}/orders.json?status=any&limit=50`, {
+        method: 'GET',
+        redirect: 'error',
+        headers: { Accept: 'application/json', 'X-Shopify-Access-Token': credentials.accessToken },
+        signal: AbortSignal.timeout(15000),
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403) throw new Error('Shopify rejected the saved access token. Reconnect your store and try again.');
+        throw new Error('Shopify could not return orders right now. Please try again later.');
+      }
+      if (!Array.isArray(payload.orders)) throw new Error('Shopify returned an unexpected orders response.');
+
+      let synced = 0;
+      let updated = 0;
+      for (const rawOrder of payload.orders) {
+        const order = normalizeShopifyOrder(rawOrder);
+        if (!order) continue;
+        const result = await pool.query(
+          `INSERT INTO public.orders
+            (merchant_id, platform_order_id, order_number, customer_phone, customer_name, total_amount,
+             payment_status, delivery_status, payment_method, line_items, financial_status,
+             fulfillment_status, currency, store_provider, shipping_address, shipping_postcode,
+             alternative_phone, created_at)
+           VALUES ($1,$2,$3,$4,$5,$6::numeric,$7,$8,$9,$10::jsonb,$11,$12,$13,'shopify',$14,$15,$16,
+                   COALESCE($17::timestamptz,NOW()))
+           ON CONFLICT (merchant_id, platform_order_id) DO UPDATE SET
+             order_number = EXCLUDED.order_number,
+             customer_phone = EXCLUDED.customer_phone,
+             customer_name = EXCLUDED.customer_name,
+             total_amount = EXCLUDED.total_amount,
+             payment_status = CASE WHEN public.orders.payment_status = 'paid' AND EXCLUDED.payment_status = 'unpaid'
+                                   THEN public.orders.payment_status ELSE EXCLUDED.payment_status END,
+             delivery_status = EXCLUDED.delivery_status,
+             payment_method = EXCLUDED.payment_method,
+             line_items = EXCLUDED.line_items,
+             financial_status = EXCLUDED.financial_status,
+             fulfillment_status = EXCLUDED.fulfillment_status,
+             currency = EXCLUDED.currency,
+             store_provider = 'shopify',
+             shipping_address = EXCLUDED.shipping_address,
+             shipping_postcode = EXCLUDED.shipping_postcode,
+             alternative_phone = EXCLUDED.alternative_phone
+           RETURNING (xmax = 0) AS inserted`,
+          [id.merchantId, order.platformOrderId, order.orderNumber, order.customerPhone, order.customerName,
+            order.totalAmount, order.paymentStatus, order.deliveryStatus, order.paymentMethod,
+            JSON.stringify(order.lineItems), order.financialStatus, order.fulfillmentStatus, order.currency,
+            order.shippingAddress, order.shippingPostcode, order.alternativePhone, order.createdAt],
+        );
+        if (result.rows[0]?.inserted) synced += 1;
+        else updated += 1;
+      }
+
+      const orders = await pool.query(
+        `SELECT id, platform_order_id, order_number, customer_name, customer_phone, total_amount,
+                payment_status, delivery_status, payment_method, financial_status, fulfillment_status,
+                currency, shipping_address, line_items, created_at
+         FROM public.orders WHERE merchant_id = $1
+         ORDER BY created_at DESC LIMIT 200`,
+        [id.merchantId],
+      );
+      return res.json({ status: 'success', synced, updated, fetched: payload.orders.length, orders: orders.rows });
+    } catch (error) {
+      return res.status(422).json({ status: 'error', message: error.message || 'Shopify order sync failed.' });
+    }
+  }
+
   async function test(req, res) {
     const id = identity(req);
     if (!id) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
@@ -219,5 +399,5 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env, fet
     return res.json({ status: 'success', provider, configured: false });
   }
 
-  return { list, connectShopify, test, save, remove };
+  return { list, connectShopify, getOrders, syncShopifyOrders, test, save, remove };
 }
