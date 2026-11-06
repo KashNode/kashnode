@@ -107,10 +107,11 @@ export function validateIntegrationCredentials(provider, input) {
   const shopDomain = clean(value.shopDomain, 255).toLowerCase();
   const accessToken = clean(value.accessToken, 1000);
   const apiVersion = '2026-10';
-  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain) || !accessToken) {
+  const webhookSecret = clean(value.webhookSecret, 1000);
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain) || !accessToken || !webhookSecret) {
     throw new Error('Enter a valid Shopify myshopify.com domain and Admin API access token.');
   }
-  return { shopDomain, accessToken, apiVersion };
+  return { shopDomain, accessToken, webhookSecret, apiVersion };
 }
 
 async function testSteadfast(credentials) {
