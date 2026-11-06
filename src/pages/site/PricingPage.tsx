@@ -16,7 +16,7 @@ export default function PricingPage() {
         <div className="site-wrap">
           <Eyebrow>Plans & pricing</Eyebrow>
           <h1>Choose a plan for <em>your store operations.</em></h1>
-          <p className="site-lede">Choose your feature package and gateway. Start with the free Kash AI Android app, or request the dedicated KashNode Box (one-time hardware fee / pre-order inquiry). AI voice usage is billed per minute, with no monthly subscription or per-order fee.</p>
+          <p className="site-lede">Choose your feature package and gateway. Start with the free Kash AI Android app, or add the dedicated KashNode Box for ৳8,000 (one-time hardware purchase). AI voice usage is billed per minute, with no monthly subscription or per-order fee.</p>
         </div>
       </section>
       <section className="site-section">
