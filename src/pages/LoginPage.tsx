@@ -85,7 +85,7 @@ export default function LoginPage({ onLogin, sessionError, initialMode = 'login'
   const params = new URLSearchParams(location.search)
   const requestedPlan = params.get('plan')?.toLowerCase() || 'basic'
   const requestedGateway = params.get('gateway')?.toLowerCase() || 'app'
-  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'standard' | 'premium'>(['basic', 'standard', 'premium'].includes(requestedPlan) ? requestedPlan as 'basic' | 'standard' | 'premium' : 'basic')
+  const [selectedPlan] = useState<'basic' | 'standard' | 'premium'>(['basic', 'standard', 'premium'].includes(requestedPlan) ? requestedPlan as 'basic' | 'standard' | 'premium' : 'basic')
   const [selectedGateway, setSelectedGateway] = useState<'app' | 'box'>(requestedGateway === 'box' ? 'box' : 'app')
   const [mode, setMode] = useState<Mode>(initialMode)
   const [signupStep, setSignupStep] = useState<SignupStep>('details')
