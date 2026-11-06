@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 export default function BillingPhoneSettings({ phone = '', verified = false }: { phone?: string; verified?: boolean }) {
   const [value, setValue] = useState(phone)
@@ -7,6 +7,7 @@ export default function BillingPhoneSettings({ phone = '', verified = false }: {
   const [isVerified, setIsVerified] = useState(verified)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
+  useEffect(() => { setValue(phone); setIsVerified(verified) }, [phone, verified])
 
   async function post(path: string, body: unknown) {
     const response = await fetch(path, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body) })
