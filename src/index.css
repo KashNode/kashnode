@@ -2559,3 +2559,32 @@ body { min-height: 100dvh; overflow-x: hidden; }
   border-color: #344f80;
   background: linear-gradient(135deg, #304b79, #172747);
 }
+
+
+/* Merchant self-service integrations — shared dashboard theme, desktop and mobile. */
+.md-integrations-settings{width:100%}
+.md-integration-section{margin-top:26px}
+.md-integration-section>h2{display:flex;align-items:center;gap:9px;font-size:18px;margin:0 0 6px}
+.md-integration-card{margin:14px 0}
+.md-integration-card .md-card-top>div{min-width:0}
+.md-integration-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin:16px 0}
+.md-integration-field{display:grid;gap:7px;min-width:0;color:#d6d3d1;font-size:13px}
+.md-integration-field input,.md-integration-field select{width:100%;min-width:0;box-sizing:border-box;background:#090b0e;color:#f5f5f4;border:1px solid #3f3f46;border-radius:10px;padding:12px 13px;font:inherit;font-size:14px}
+.md-integration-field input:focus,.md-integration-field select:focus{outline:2px solid #10b981;outline-offset:1px}
+.md-integration-help{grid-column:1/-1;font-size:12px}
+.md-integration-actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:14px}
+.md-integration-actions button{display:inline-flex;align-items:center;justify-content:center;gap:7px}
+.md-integration-toggle{display:flex;align-items:center;gap:9px;margin:14px 0;color:#d6d3d1;font-size:13px}
+.md-integration-toggle input{width:17px;height:17px;accent-color:#059669}
+.md-integration-locked{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;padding:14px;border:1px dashed #52525b;border-radius:12px}
+.md-integration-locked>div{flex:1;min-width:180px}
+.md-integration-locked .md-primary{width:auto;min-width:0}
+.md-success{display:flex;align-items:center;gap:7px;color:#34d399;font-size:13px;margin:12px 0 0}
+.md-error{display:flex;align-items:center;gap:7px}
+.md-spin{animation:md-integration-spin 1s linear infinite}
+@keyframes md-integration-spin{to{transform:rotate(360deg)}}
+.md-light .md-integration-field{color:#404040}
+.md-light .md-integration-field input,.md-light .md-integration-field select{background:#fff;color:#171717;border-color:#d4d4d4}
+.md-light .md-integration-toggle{color:#404040}
+.md-light .md-integration-locked{border-color:#a3a3a3}
+@media(max-width:600px){.md-integration-grid{grid-template-columns:1fr}.md-integration-actions{display:grid;grid-template-columns:1fr}.md-integration-actions button{width:100%}.md-integration-locked{align-items:flex-start}.md-integration-locked .md-primary{width:100%}}
