@@ -190,7 +190,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env, fet
            SET credentials_ciphertext = $3, credentials_nonce = $4, credentials_auth_tag = $5,
                credentials_key_version = $6, updated_at = NOW()
            WHERE merchant_id = $1 AND provider = 'shopify'`,
-          [merchantId, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion],
+          [merchantId, 'shopify', encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion],
         );
       }
       await client.query('COMMIT');
