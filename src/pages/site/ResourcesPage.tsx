@@ -34,15 +34,18 @@ export default function ResourcesPage() {
         <div className="site-wrap">
           <Eyebrow>Guides</Eyebrow>
           <h2 className="site-h2">Learn by doing.</h2>
-          <div className="site-grid-3">
-            {GUIDES.map(item => {
+          <div className="site-ledger">
+            {GUIDES.map((item, index) => {
               const Icon = item.icon
               return (
-                <article key={item.title} className="site-card">
-                  <span className="site-card-icon"><Icon size={20} /></span>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
+                <div key={item.title} className="site-ledger-row">
+                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
+                  <div>
+                    <span className="site-card-icon"><Icon size={20} /></span>
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -56,14 +59,14 @@ export default function ResourcesPage() {
             <Eyebrow>Help Center</Eyebrow>
             <h2 className="site-h2">Stuck? Start here.</h2>
             <p className="site-body">The Help Center answers the most common questions about setup, verification, calls, minutes and the Box. If you need a human, contact us and we will help.</p>
-            <Link to="/contact" className="site-btn site-btn-dark">Contact support <ArrowRight size={16} /></Link>
+            <Link to="/contact" className="site-btn site-btn-primary">Contact support <ArrowRight size={16} /></Link>
           </div>
-          <div>
+          <article className="site-card">
             <span className="site-card-icon"><LifeBuoy size={20} /></span>
-            <h3 className="site-h3">Documentation</h3>
-            <p className="site-body">Developer documentation for store plugins and the KashNode API is in progress. For now, the guides above cover setup and daily use.</p>
+            <h3>Documentation</h3>
+            <p>Developer documentation for store plugins and the KashNode API is in progress. For now, the guides above cover setup and daily use.</p>
             <span className="site-badge planned">In progress</span>
-          </div>
+          </article>
         </div>
       </section>
 

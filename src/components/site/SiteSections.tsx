@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { ArrowRight, Check, ChevronDown } from 'lucide-react'
+import { BoxRender } from './SiteVisuals'
 
 export type FaqItem = { q: string; a: string }
 
@@ -74,21 +75,25 @@ export function OverageNote() {
   return <p className="site-overage">Every plan includes its order and minute bundle. Extra AI minutes are a flat <strong>৳7 per minute</strong> with in-app recharge. The KashNode Box is a one-time hardware purchase — <Link to="/hardware">request availability</Link> for current pricing.</p>
 }
 
-const INTEGRATION_GROUPS = [
-  { label: 'E-commerce', items: ['WooCommerce', 'Shopify', 'Custom stores'] },
-  { label: 'Mobile payments', items: ['bKash', 'Nagad', 'Rocket', 'Upay'] },
-  { label: 'Courier', items: ['Steadfast', 'Pathao'] },
+const INTEGRATION_CHIPS: { name: string; tone: 'purple' | 'pink' | 'teal' }[] = [
+  { name: 'WooCommerce', tone: 'purple' },
+  { name: 'Shopify', tone: 'purple' },
+  { name: 'bKash', tone: 'pink' },
+  { name: 'Nagad', tone: 'pink' },
+  { name: 'Rocket', tone: 'pink' },
+  { name: 'Upay', tone: 'pink' },
+  { name: 'Steadfast', tone: 'teal' },
+  { name: 'Pathao', tone: 'teal' },
 ]
 
+/** Text wordmarks only — no brand logo graphics. */
 export function IntegrationStrip() {
   return (
-    <div className="site-integrations">
-      {INTEGRATION_GROUPS.map(group => (
-        <div key={group.label} className="site-int-group">
-          <span>{group.label}</span>
-          <div>{group.items.map(item => <b key={item}>{item}</b>)}</div>
-        </div>
+    <div className="site-int-chips">
+      {INTEGRATION_CHIPS.map(chip => (
+        <span key={chip.name} className={`site-int-chip ${chip.tone}`}><i aria-hidden="true" />{chip.name}</span>
       ))}
+      <span className="site-int-chip more">+ More</span>
     </div>
   )
 }
@@ -96,14 +101,17 @@ export function IntegrationStrip() {
 export function FinalCta() {
   return (
     <section className="site-final-cta">
-      <div className="site-final-cta-inner">
-        <h2>Ready to automate your store?</h2>
-        <p>Start with the app today, or get the KashNode Box for full automation with your business SIM.</p>
-        <div className="site-dual-cta">
-          <Link to="/login" className="site-btn site-btn-primary site-btn-lg">Create Your Workspace <ArrowRight size={17} /></Link>
-          <Link to="/hardware" className="site-btn site-btn-outline-light site-btn-lg">Explore KashNode Box <ArrowRight size={17} /></Link>
+      <div className="site-final-cta-split">
+        <BoxRender compact />
+        <div className="site-final-cta-copy">
+          <h2>Ready to automate your store?</h2>
+          <p>Start with the Platform today, or get the KashNode Box for full automation with your business SIM.</p>
+          <div className="site-dual-cta">
+            <Link to="/login" className="site-btn site-btn-primary site-btn-lg">Create Your Workspace <ArrowRight size={17} /></Link>
+            <Link to="/hardware" className="site-btn site-btn-outline-light site-btn-lg">Explore KashNode Box <ArrowRight size={17} /></Link>
+          </div>
+          <p className="site-final-cta-note">Quick setup · Secure &amp; reliable · Local &amp; online support</p>
         </div>
-        <p className="site-final-cta-note">Quick setup · Secure &amp; reliable · Local &amp; online support</p>
       </div>
     </section>
   )

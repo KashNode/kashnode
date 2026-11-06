@@ -53,31 +53,34 @@ export default function IntegrationsPage() {
         </div>
       </section>
 
-      {CATEGORIES.map(category => {
-        const Icon = category.icon
-        return (
-          <section key={category.title} className="site-section site-section-light">
-            <div className="site-wrap">
-              <h2 className="site-h2"><span className="site-card-icon"><Icon size={20} /></span> {category.title}</h2>
-              <div className="site-grid-3">
+      <section className="site-section">
+        <div className="site-wrap">
+          {CATEGORIES.map(category => {
+            const Icon = category.icon
+            return (
+              <div key={category.title} className="site-int-dir">
+                <div className="site-int-dir-head">
+                  <span className="site-card-icon"><Icon size={20} /></span>
+                  <h3>{category.title}</h3>
+                </div>
                 {category.items.map(item => (
-                  <article key={item.name} className="site-card">
-                    <span className={`site-badge ${item.status === 'Planned' ? 'planned' : ''}`}>{item.status}</span>
-                    <h3>{item.name}</h3>
+                  <div key={item.name} className="site-int-row">
+                    <strong>{item.name}</strong>
                     <p>{item.desc}</p>
-                  </article>
+                    <span className={`site-badge ${item.status === 'Planned' ? 'planned' : ''}`}>{item.status}</span>
+                  </div>
                 ))}
               </div>
-            </div>
-          </section>
-        )
-      })}
+            )
+          })}
+        </div>
+      </section>
 
       <section className="site-section">
         <div className="site-wrap site-center-block">
           <h2 className="site-h2">Need an integration we don’t list yet?</h2>
           <p className="site-body">Tell us which platform, payment method or courier you use — planned integrations are prioritised by merchant demand.</p>
-          <Link to="/contact" className="site-btn site-btn-dark">Request an integration <ArrowRight size={16} /></Link>
+          <Link to="/contact" className="site-btn site-btn-primary">Request an integration <ArrowRight size={16} /></Link>
         </div>
       </section>
 

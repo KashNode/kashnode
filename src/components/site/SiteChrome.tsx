@@ -13,19 +13,20 @@ const NAV_LINKS = [
   { to: '/about', label: 'Company' },
 ]
 
+/** The site is published in English only. বাংলা is shown as coming soon —
+    disabled and labelled — never as a switch that pretends to translate. */
 function LanguageSelector() {
   const [open, setOpen] = useState(false)
-  const [lang, setLang] = useState<'en' | 'bn'>('en')
   return (
     <div className="site-lang">
-      <button type="button" className="site-lang-btn" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-        <Globe size={15} /> {lang === 'en' ? 'EN' : 'বাংলা'}
+      <button type="button" className="site-lang-btn" aria-expanded={open} aria-label="Language: English (current). Bengali coming soon." onClick={() => setOpen(value => !value)}>
+        <Globe size={15} /> <span className="site-lang-label">EN</span>
       </button>
       {open && (
         <div className="site-lang-menu" role="menu">
-          <button type="button" className={lang === 'en' ? 'active' : ''} onClick={() => { setLang('en'); setOpen(false) }}>English</button>
-          <button type="button" className={lang === 'bn' ? 'active' : ''} onClick={() => { setLang('bn'); setOpen(false) }}>বাংলা</button>
-          {lang === 'bn' && <p className="site-lang-note">Bengali pages are coming soon — this site is in English for now. Kash speaks Bangla on customer calls.</p>}
+          <button type="button" className="active" onClick={() => setOpen(false)}>English <span className="site-lang-current">Current</span></button>
+          <button type="button" disabled aria-disabled="true">বাংলা <span className="site-lang-soon">Coming soon</span></button>
+          <p className="site-lang-note">This site is in English for now. Kash speaks Bangla on customer calls.</p>
         </div>
       )}
     </div>

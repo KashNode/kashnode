@@ -1,8 +1,8 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, Mic, PhoneIncoming, PhoneOutgoing, Voicemail } from 'lucide-react'
+import { ArrowRight, Check, Mic, PhoneIncoming, PhoneOutgoing } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { FinalCta } from '../../components/site/SiteSections'
-import { CallInterface } from '../../components/site/SiteVisuals'
+import { CallHistoryVisual, CallInterface } from '../../components/site/SiteVisuals'
 
 const FLOW = [
   { icon: PhoneIncoming, title: 'Kash calls the customer', text: 'After an order is placed, Kash calls the customer in a natural Bangla voice — no human dialling, no missed calls.' },
@@ -46,12 +46,12 @@ export default function KashAiPage() {
         <div className="site-wrap">
           <Eyebrow>Conversation flow</Eyebrow>
           <h2 className="site-h2">From order to confirmed — automatically.</h2>
-          <div className="site-grid-2">
+          <div className="site-steps">
             {FLOW.map((step, index) => {
               const Icon = step.icon
               return (
-                <article key={step.title} className="site-card">
-                  <span className="site-flow-num">{String(index + 1).padStart(2, '0')}</span>
+                <article key={step.title}>
+                  <span className="site-steps-num">{String(index + 1).padStart(2, '0')}</span>
                   <span className="site-card-icon"><Icon size={20} /></span>
                   <h3>{step.title}</h3>
                   <p>{step.text}</p>
@@ -70,11 +70,7 @@ export default function KashAiPage() {
             <p className="site-body">Calls are not a separate tool. Kash knows the order, the payment status and the courier state — so a confirmation call, a payment follow-up and a delivery update all come from the same place. Failed calls raise an alert in the dashboard, and you can change the voice or the call rules from your merchant settings.</p>
             <p className="site-body">Voice usage is measured in AI minutes. Every package includes a minute bundle, and extra minutes are a flat ৳7 per minute.</p>
           </div>
-          <div className="site-feature-visual">
-            <span className="site-feature-visual-icon"><Voicemail size={40} /></span>
-            <strong>Call history &amp; summaries</strong>
-            <p>Every Kash call is logged — outcome, duration and a short summary — so you always know what was said.</p>
-          </div>
+          <CallHistoryVisual />
         </div>
       </section>
 

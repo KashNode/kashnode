@@ -1,8 +1,16 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Box, Check, PhoneCall, ShieldCheck, Smartphone, Truck, Wallet } from 'lucide-react'
+import { ArrowRight, BarChart3, Box, Check, CreditCard, LayoutDashboard, PhoneCall, ShieldCheck, Truck, Wallet } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { Faq, FinalCta, IntegrationStrip, OverageNote, PricingTiers } from '../../components/site/SiteSections'
 import { BoxRender, CallInterface, DashboardMock, WorkflowSteps } from '../../components/site/SiteVisuals'
+
+const HERO_STRIP = [
+  { icon: ShieldCheck, title: 'Order Verification', text: 'Confirm real customers' },
+  { icon: CreditCard, title: 'Payment Matching', text: 'Auto-match bKash, Nagad, Rocket' },
+  { icon: PhoneCall, title: 'Kash AI Calls', text: 'Talk to customers automatically' },
+  { icon: Truck, title: 'Courier Automation', text: 'Book & track parcels' },
+  { icon: BarChart3, title: 'Higher Efficiency', text: 'Save time, reduce cost' },
+]
 
 const PILLARS = [
   { icon: PhoneCall, title: 'AI Voice Order Verification', text: 'Kash calls your customers in a natural Bangla voice to confirm orders — no human touch, no missed calls, no manual follow-ups.' },
@@ -19,7 +27,7 @@ const OUTCOMES = [
 
 const FAQS = [
   { q: 'How does KashNode verify a COD order?', a: 'When a customer places an order, KashNode sends a verification SMS from your business SIM in the KashNode Box. The customer confirms with the code, proving the order comes from a real person with a real phone number.' },
-  { q: 'Do I need the KashNode Box to start?', a: 'No. You can start with the Kash AI App on an Android phone and explore the platform first. The Box is a dedicated device for merchants who want 24/7 reliability with their business SIM always connected.' },
+  { q: 'Do I need the KashNode Box to start?', a: 'No. You can start with the KashNode Platform — your merchant web dashboard — and explore it first. The Box is a dedicated device for merchants who want 24/7 reliability with their business SIM always connected.' },
   { q: 'Which stores and payments does KashNode work with?', a: 'WooCommerce, Shopify and custom stores, with payment verification for bKash, Nagad, Rocket and Upay, and courier booking with Steadfast and Pathao.' },
   { q: 'How does pricing work?', a: 'You choose a monthly package by orders, and each package includes an AI minute bundle — Free Trial is 10 orders and 10 minutes at ৳0. Extra AI minutes are a flat ৳7 per minute with in-app recharge.' },
   { q: 'Does Kash speak Bangla?', a: 'Yes. Kash talks with customers in Bangla on confirmation calls. The website and dashboard are in English.' },
@@ -33,8 +41,8 @@ export default function HomePage() {
         <div className="site-hero-inner">
           <div className="site-hero-copy">
             <span className="site-pill">All-in-One E-commerce Automation</span>
-            <h1>Run your store operations without the daily <em>manual work.</em></h1>
-            <p className="site-lede">Verify customer orders via AI voice calls, match payment confirmations automatically, and move verified orders straight to fulfilment.</p>
+            <h1>Run your store operations<br /> without the daily <em>manual work.</em></h1>
+            <p className="site-lede">Verify customers, match payment messages, automate routine calls with Kash AI, and move confirmed orders toward fulfilment — all from one connected platform.</p>
             <ul className="site-hero-checks">
               <li><Check size={16} /> Fewer fake orders</li>
               <li><Check size={16} /> Faster confirmation</li>
@@ -42,16 +50,17 @@ export default function HomePage() {
             </ul>
             <div className="site-path-cards">
               <article>
-                <span className="site-path-icon"><Smartphone size={20} /></span>
-                <h2>Start with the KashNode App</h2>
-                <p>Turn any Android phone into your automation gateway instantly.</p>
-                <Link to="/login" className="site-btn site-btn-primary">Create Free Workspace <ArrowRight size={16} /></Link>
+                <span className="site-path-icon"><LayoutDashboard size={20} /></span>
+                <h2>Start with KashNode Platform</h2>
+                <p>Create your business workspace, explore the platform, and begin configuring your store.</p>
+                <Link to="/login" className="site-btn site-btn-primary">Create Your Workspace <ArrowRight size={16} /></Link>
                 <small>Get started in minutes. No hardware needed.</small>
               </article>
               <article className="box">
                 <span className="site-path-icon"><Box size={20} /></span>
                 <h2>Get the KashNode Box</h2>
-                <p>Dedicated plug-and-play business SIM hardware built for 24/7 reliability.</p>
+                <p>Bring your business SIM into the ecosystem and activate device-connected automation.</p>
+                {/* White glass card now: the readable button here is site-btn-dark. site-btn-outline-light would be white-on-white on this card — the earlier contrast fix (readable button) is preserved in intent. */}
                 <Link to="/hardware" className="site-btn site-btn-dark">Explore KashNode Box <ArrowRight size={16} /></Link>
                 <small>Full automation with your business SIM.</small>
               </article>
@@ -65,19 +74,40 @@ export default function HomePage() {
         </div>
       </section>
 
+      <section className="site-hero-strip" aria-label="What KashNode does">
+        <div className="site-wrap site-hero-strip-inner">
+          {HERO_STRIP.map(item => {
+            const Icon = item.icon
+            return (
+              <div key={item.title} className="site-hero-strip-item">
+                <span className="site-hero-strip-icon"><Icon size={20} /></span>
+                <div><strong>{item.title}</strong><span>{item.text}</span></div>
+              </div>
+            )
+          })}
+        </div>
+      </section>
+
       <section className="site-section site-section-light">
-        <div className="site-wrap">
-          <Eyebrow>What KashNode does</Eyebrow>
-          <h2 className="site-h2">Three capabilities, one connected platform.</h2>
-          <div className="site-grid-3">
-            {PILLARS.map(item => {
+        <div className="site-wrap site-split">
+          <div>
+            <Eyebrow>What KashNode does</Eyebrow>
+            <h2 className="site-h2">Three capabilities, one connected platform.</h2>
+            <p className="site-body">Verification, payment matching and courier dispatch are not three tools — they are one flow. An order moves through all three without anyone retyping, rechecking or chasing it by hand.</p>
+            <Link to="/features" className="site-btn site-btn-outline-dark">Explore all features <ArrowRight size={16} /></Link>
+          </div>
+          <div className="site-ledger">
+            {PILLARS.map((item, index) => {
               const Icon = item.icon
               return (
-                <article key={item.title} className="site-card">
-                  <span className="site-card-icon"><Icon size={20} /></span>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
+                <div key={item.title} className="site-ledger-row">
+                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
+                  <div>
+                    <span className="site-card-icon"><Icon size={20} /></span>
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -98,20 +128,31 @@ export default function HomePage() {
             <Eyebrow>Kash AI</Eyebrow>
             <h2 className="site-h2 light">Meet Kash — the voice of your store.</h2>
             <p className="site-body light">Kash is the AI voice assistant inside KashNode. It calls customers, confirms orders, follows up on payments, and handles routine conversations — in natural Bangla, around the clock, without a human on the line.</p>
-            <Link to="/kash-ai" className="site-btn site-btn-outline-light">Meet Kash AI <ArrowRight size={16} /></Link>
+            <ul className="site-check-list light">
+              <li>Order confirmations, in Bangla</li>
+              <li>Payment follow-ups when an order is unpaid</li>
+              <li>Delivery updates, without a phone call from your team</li>
+            </ul>
+            <p><Link to="/kash-ai" className="site-btn site-btn-outline-light">Meet Kash AI <ArrowRight size={16} /></Link></p>
           </div>
           <CallInterface />
         </div>
       </section>
 
-      <section className="site-section site-section-light">
+      <section className="site-section site-box-band">
         <div className="site-wrap site-split">
-          <BoxRender />
+          <div className="site-box-large"><BoxRender /></div>
           <div>
             <Eyebrow>KashNode Box</Eyebrow>
             <h2 className="site-h2">Your business SIM, always on.</h2>
             <p className="site-body">The KashNode Box holds your business SIM and keeps it connected to the platform day and night — continuous power, stable 4G/LTE, and instant SMS and voice routing. No battery to swell, no phone to keep charged.</p>
-            <Link to="/hardware" className="site-btn site-btn-dark">See the Box <ArrowRight size={16} /></Link>
+            <ul className="site-spec-chips">
+              <li>24/7 mains power</li>
+              <li>Industrial 4G/LTE</li>
+              <li>Your business SIM</li>
+              <li>Instant SMS &amp; voice</li>
+            </ul>
+            <p style={{ marginTop: 24 }}><Link to="/hardware" className="site-btn site-btn-outline-light">See the Box <ArrowRight size={16} /></Link></p>
           </div>
         </div>
       </section>
@@ -125,16 +166,21 @@ export default function HomePage() {
       </section>
 
       <section className="site-section site-section-light">
-        <div className="site-wrap">
-          <Eyebrow>The business impact</Eyebrow>
-          <h2 className="site-h2">Turn daily operations into automated growth.</h2>
-          <p className="site-body">Spend less time on manual calls, SMS checks and order follow-ups — and more time growing your business.</p>
-          <div className="site-grid-2">
-            {OUTCOMES.map(item => (
-              <article key={item.title} className="site-card">
-                <h3>{item.title}</h3>
-                <p>{item.text}</p>
-              </article>
+        <div className="site-wrap site-split">
+          <div>
+            <Eyebrow>The business impact</Eyebrow>
+            <h2 className="site-h2">Turn daily operations into automated growth.</h2>
+            <p className="site-body">Spend less time on manual calls, SMS checks and order follow-ups — and more time growing your business.</p>
+          </div>
+          <div className="site-ledger">
+            {OUTCOMES.map((item, index) => (
+              <div key={item.title} className="site-ledger-row">
+                <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.text}</p>
+                </div>
+              </div>
             ))}
           </div>
         </div>
@@ -144,16 +190,16 @@ export default function HomePage() {
         <div className="site-wrap">
           <Eyebrow>Trust &amp; security</Eyebrow>
           <h2 className="site-h2">Built to protect your store and your customers.</h2>
-          <div className="site-grid-3">
-            <article className="site-card"><ShieldCheck size={20} /><h3>Verified customers only</h3><p>Orders are confirmed against a real phone number before dispatch, reducing fake and fraud orders.</p></article>
-            <article className="site-card"><Check size={20} /><h3>Your SIM, your number</h3><p>Verification messages come from your own business SIM, so customers always hear from your store.</p></article>
-            <article className="site-card"><Box size={20} /><h3>Secure by design</h3><p>Sign-in is protected by email and password with OTP verification, and admin actions are role-checked server-side.</p></article>
+          <div className="site-trust-row">
+            <div><span className="site-card-icon"><ShieldCheck size={20} /></span><h3>Verified customers only</h3><p>Orders are confirmed against a real phone number before dispatch, reducing fake and fraud orders.</p></div>
+            <div><span className="site-card-icon"><Check size={20} /></span><h3>Your SIM, your number</h3><p>Verification messages come from your own business SIM, so customers always hear from your store.</p></div>
+            <div><span className="site-card-icon"><Box size={20} /></span><h3>Secure by design</h3><p>Sign-in is protected by email and password with OTP verification, and admin actions are role-checked server-side.</p></div>
           </div>
           <p className="site-note">KashNode is a young product. We publish what the platform actually does today and mark everything else as planned — no inflated claims.</p>
         </div>
       </section>
 
-      <section className="site-section site-section-light">
+      <section className="site-section site-section-tint">
         <div className="site-wrap">
           <Eyebrow>Simple &amp; predictable pricing</Eyebrow>
           <h2 className="site-h2">Packages for every stage of your business.</h2>

@@ -43,15 +43,18 @@ export default function ProductPage() {
             </div>
             <p className="site-body">An order arrives from your store. The platform verifies the customer and the payment, Kash confirms the order by voice, and the courier is booked — all in one connected flow.</p>
           </div>
-          <div className="site-grid-3">
-            {ARCHITECTURE.map(item => {
+          <div className="site-ledger">
+            {ARCHITECTURE.map((item, index) => {
               const Icon = item.icon
               return (
-                <article key={item.title} className="site-card">
-                  <span className="site-card-icon"><Icon size={20} /></span>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
+                <div key={item.title} className="site-ledger-row">
+                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
+                  <div>
+                    <span className="site-card-icon"><Icon size={20} /></span>
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -64,7 +67,7 @@ export default function ProductPage() {
             <Eyebrow>Merchant dashboard</Eyebrow>
             <h2 className="site-h2">See whether the system is actually working.</h2>
             <p className="site-body">Home shows live status for Kash AI, your Box and your store. Orders shows verification results. Calls shows Kash’s conversations. Box shows your SIM. Wallet shows your package, remaining minutes and overage.</p>
-            <Link to="/login" className="site-btn site-btn-dark">Open the dashboard <ArrowRight size={16} /></Link>
+            <Link to="/login" className="site-btn site-btn-primary">Open the dashboard <ArrowRight size={16} /></Link>
           </div>
           <DashboardMock />
         </div>

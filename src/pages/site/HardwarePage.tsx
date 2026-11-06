@@ -48,7 +48,7 @@ export default function HardwarePage() {
               <a href="#setup" className="site-btn site-btn-outline-light site-btn-lg">How setup works</a>
             </div>
           </div>
-          <BoxRender />
+          <div className="site-box-large"><BoxRender /></div>
         </div>
       </section>
 
@@ -74,15 +74,18 @@ export default function HardwarePage() {
         <div className="site-wrap">
           <Eyebrow>Built for 24/7</Eyebrow>
           <h2 className="site-h2">Made to run your store’s communications.</h2>
-          <div className="site-grid-2">
-            {BENEFITS.map(item => {
+          <div className="site-ledger">
+            {BENEFITS.map((item, index) => {
               const Icon = item.icon
               return (
-                <article key={item.title} className="site-card">
-                  <span className="site-card-icon"><Icon size={20} /></span>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
-                </article>
+                <div key={item.title} className="site-ledger-row">
+                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
+                  <div>
+                    <span className="site-card-icon"><Icon size={20} /></span>
+                    <h3>{item.title}</h3>
+                    <p>{item.text}</p>
+                  </div>
+                </div>
               )
             })}
           </div>
@@ -103,7 +106,7 @@ export default function HardwarePage() {
               </li>
             ))}
           </ol>
-          <p className="site-body">The Box works with the KashNode Platform — it is hardware for the software you already use. You can start with the app first and add the Box later; your workspace, orders and settings carry over.</p>
+          <p className="site-body">The Box works with the KashNode Platform — it is hardware for the software you already use. You can start with the Platform first and add the Box later; your workspace, orders and settings carry over.</p>
         </div>
       </section>
 

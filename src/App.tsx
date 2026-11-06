@@ -108,9 +108,11 @@ export default function App() {
     navigate('/dashboard', { replace: true })
   }
 
-  if (checkingSession) {
-    return <div className="app-loading"><span className="spinner" /> Checking your secure workspace…</div>
-  }
+  // Public marketing pages render immediately — they never wait for the
+  // session check. Only the signed-in areas gate on it.
+  const sessionLoading = (
+    <div className="app-loading"><span className="spinner" /> Checking your secure workspace…</div>
+  )
 
   return (
     <Routes>
@@ -139,45 +141,53 @@ export default function App() {
       <Route
         path="/admin"
         element={
-          !user
-            ? <Navigate to="/login" replace />
-            : user.role === 'admin'
-              ? <AdminPanel user={user} onSignOut={handleSignOut} />
-              : <Navigate to={onboardingComplete ? '/dashboard' : '/onboarding'} replace />
+          checkingSession
+            ? sessionLoading
+            : !user
+              ? <Navigate to="/login" replace />
+              : user.role === 'admin'
+                ? <AdminPanel user={user} onSignOut={handleSignOut} />
+                : <Navigate to={onboardingComplete ? '/dashboard' : '/onboarding'} replace />
         }
       />
       <Route
         path="/onboarding"
         element={
-          !user
-            ? <Navigate to="/login" replace />
-            : user.role === 'admin'
-              ? <Navigate to="/admin" replace />
-              : onboardingComplete
-                ? <Navigate to="/dashboard" replace />
-                : <Onboarding onComplete={completeOnboarding} setupLoadError={onboardingStatusError} />
+          checkingSession
+            ? sessionLoading
+            : !user
+              ? <Navigate to="/login" replace />
+              : user.role === 'admin'
+                ? <Navigate to="/admin" replace />
+                : onboardingComplete
+                  ? <Navigate to="/dashboard" replace />
+                  : <Onboarding onComplete={completeOnboarding} setupLoadError={onboardingStatusError} />
         }
       />
       <Route
         path="/dashboard"
         element={
-          !user
-            ? <Navigate to="/login" replace />
-            : user.role === 'admin'
-              ? <Navigate to="/admin" replace />
-              : onboardingComplete
-                ? <AppShell user={user} onSignOut={handleSignOut} />
-                : <Navigate to="/onboarding" replace />
+          checkingSession
+            ? sessionLoading
+            : !user
+              ? <Navigate to="/login" replace />
+              : user.role === 'admin'
+                ? <Navigate to="/admin" replace />
+                : onboardingComplete
+                  ? <AppShell user={user} onSignOut={handleSignOut} />
+                  : <Navigate to="/onboarding" replace />
         }
       />
       <Route
         path="*"
         element={
-          !user
-            ? <Navigate to="/login" replace />
-            : user.role === 'admin'
-              ? <Navigate to="/admin" replace />
-              : <Navigate to={onboardingComplete ? '/dashboard' : '/onboarding'} replace />
+          checkingSession
+            ? sessionLoading
+            : !user
+              ? <Navigate to="/login" replace />
+              : user.role === 'admin'
+                ? <Navigate to="/admin" replace />
+                : <Navigate to={onboardingComplete ? '/dashboard' : '/onboarding'} replace />
         }
       />
     </Routes>

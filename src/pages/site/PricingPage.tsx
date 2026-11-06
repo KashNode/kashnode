@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, Box, Check, Smartphone } from 'lucide-react'
+import { ArrowRight, Box, Check, LayoutDashboard } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { Faq, FinalCta, OverageNote, PricingTiers } from '../../components/site/SiteSections'
 
@@ -17,7 +17,7 @@ const COMPARISON: { feature: string; free: string; basic: string; standard: stri
 
 const FAQS = [
   { q: 'How do the packages work?', a: 'Each monthly package is sized by orders and includes an AI minute bundle — for example, Basic is 300 orders and 300 minutes for ৳2,000 a month. You pay for the package, not per call.' },
-  { q: 'What happens when my minutes run out?', a: 'Extra AI minutes are a flat ৳7 per minute, topped up from inside the app. Your package renews monthly with a fresh order and minute bundle.' },
+  { q: 'What happens when my minutes run out?', a: 'Extra AI minutes are a flat ৳7 per minute, topped up from your merchant dashboard. Your package renews monthly with a fresh order and minute bundle.' },
   { q: 'Is the KashNode Box included in a plan?', a: 'No. Plans cover the platform and AI minutes. The Box is a one-time hardware purchase — request availability on the hardware page for current pricing.' },
   { q: 'Can I start for free?', a: 'Yes. The Free Trial is ৳0 and includes 10 orders and 10 AI minutes, so you can verify real orders with Kash before choosing a plan.' },
 ]
@@ -29,20 +29,20 @@ export default function PricingPage() {
         <div className="site-wrap">
           <Eyebrow>Pricing</Eyebrow>
           <h1>Simple, predictable pricing <em>for every stage.</em></h1>
-          <p className="site-lede">Pick your gateway, then pick your package. Every plan is monthly, sized by orders, with AI minutes included.</p>
+          <p className="site-lede">Pick your starting point, then pick your package. Every plan is monthly, sized by orders, with AI minutes included.</p>
         </div>
       </section>
 
       <section className="site-section">
         <div className="site-wrap">
-          <Eyebrow>Step 1 — Your gateway</Eyebrow>
-          <h2 className="site-h2">Start with the app, or add the Box.</h2>
-          <div className="site-path-cards site-path-cards-wide">
+          <Eyebrow>Step 1 — How you start</Eyebrow>
+          <h2 className="site-h2">Start with the Platform, or add the Box.</h2>
+          <div className="site-path-cards site-path-cards-wide site-path-cards-light">
             <article>
-              <span className="site-path-icon"><Smartphone size={20} /></span>
-              <h3>Kash AI App</h3>
+              <span className="site-path-icon"><LayoutDashboard size={20} /></span>
+              <h3>KashNode Platform</h3>
               <p className="site-plan-price">৳0 <span>to start</span></p>
-              <p>Turn any Android phone into your automation gateway instantly. Explore the platform and verify real orders.</p>
+              <p>Your merchant web dashboard — create a workspace, connect your store, and verify real orders. No hardware needed.</p>
               <ul className="site-check-list">
                 <li>No hardware needed</li>
                 <li>Set up in minutes</li>
