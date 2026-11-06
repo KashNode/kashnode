@@ -75,7 +75,7 @@ export function PricingTiers({ compact = false }: { compact?: boolean }) {
               <label className={gateway === 'box' ? 'selected' : ''}>
                 <input type="radio" name={`gateway-${plan.id}`} value="box" checked={gateway === 'box'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'box' }))} />
                 <Box size={18} />
-                <span><strong>Add KashNode Box</strong><small>Dedicated hardware · one-time fee / pre-order inquiry</small></span>
+                <span><strong>Add KashNode Box</strong><small>Dedicated hardware · ৳8,000 one-time purchase</small></span>
               </label>
             </fieldset>
             <Link to={`/signup?plan=${plan.id}&gateway=${gateway}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : `site-btn-plan-${plan.id}`} site-btn-block`}>
@@ -89,7 +89,7 @@ export function PricingTiers({ compact = false }: { compact?: boolean }) {
 }
 
 export function OverageNote() {
-  return <p className="site-overage">AI voice usage is billed by actual call duration at your selected plan rate. There are no monthly subscriptions or per-order charges. The KashNode Box is a separate hardware purchase — <Link to="/hardware">request availability</Link> for current pricing.</p>
+  return <p className="site-overage">AI voice usage is billed by actual call duration at your selected plan rate. There are no monthly subscriptions or per-order charges. The KashNode Box is a separate one-time hardware purchase at ৳8,000 — <Link to="/hardware">view Box details</Link>.</p>
 }
 
 /** Avoid displaying unverified provider logos or names as live integrations. */
@@ -104,7 +104,7 @@ export function FinalCta() {
         <BoxRender compact />
         <div className="site-final-cta-copy">
           <h2>Ready to automate your store?</h2>
-          <p>Start with the Platform today, or get the KashNode Box for full automation with your business SIM.</p>
+          <p>Start with the Platform today, or get the KashNode Box for ৳8,000 (one-time) and full automation with your business SIM.</p>
           <div className="site-dual-cta">
             <Link to="/login" className="site-btn site-btn-primary site-btn-lg">Create Your Workspace <ArrowRight size={17} /></Link>
             <Link to="/hardware" className="site-btn site-btn-outline-light site-btn-lg">Explore KashNode Box <ArrowRight size={17} /></Link>
