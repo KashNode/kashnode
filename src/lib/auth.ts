@@ -8,6 +8,9 @@ export type MerchantOnboardingProfile = {
   boxSimPhone: string
   selectedPlan: 'basic' | 'standard' | 'premium'
   gatewayPreference: 'app' | 'box'
+  gatewayMode: 'android_app' | 'kashnode_box'
+  billingPhone: string
+  isBillingPhoneVerified: boolean
   boxFulfillmentStatus: string
   boxPreorderRequestedAt: string | null
 }
