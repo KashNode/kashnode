@@ -1,5 +1,5 @@
 import { encryptIntegrationCredentials } from '../services/integrationCrypto.js';
-import { validateIntegrationCredentials, testProviderCredentials } from '../services/integrationProviderService.js';
+import { validateIntegrationCredentials, testProviderCredentials, requestShopifyClientCredentialsToken, normalizeShopifyDomain } from '../services/integrationProviderService.js';
 
 const COURIER_PROVIDERS = new Set(['steadfast', 'pathao']);
 const ALL_PROVIDERS = new Set(['steadfast', 'pathao', 'woocommerce', 'shopify']);
@@ -37,7 +37,7 @@ function publicMessage(error) {
   return 'The integration request could not be completed. Check the credentials and try again.';
 }
 
-export function createMerchantIntegrationHandlers({ pool, env = process.env } = {}) {
+export function createMerchantIntegrationHandlers({ pool, env = process.env, fetchImpl = fetch } = {}) {
   async function list(req, res) {
     const id = identity(req);
     if (!id) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
@@ -64,12 +64,67 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
     });
   }
 
+
+  async function connectShopify(req, res) {
+    const id = identity(req);
+    if (!id) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
+    if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Integrations are unavailable.' });
+    const merchant = await verifyMerchant(pool, id);
+    if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
+
+    try {
+      const shopDomain = normalizeShopifyDomain(req.body?.shopDomain);
+      const clientId = typeof req.body?.clientId === 'string' ? req.body.clientId.trim() : '';
+      const clientSecret = typeof req.body?.clientSecret === 'string' ? req.body.clientSecret.trim() : '';
+      if (!clientId || clientId.length > 255 || !clientSecret || clientSecret.length > 1000) {
+        throw new Error('Enter a valid Shopify Client ID and Client Secret.');
+      }
+
+      const credentials = await requestShopifyClientCredentialsToken(
+        { shopDomain, clientId, clientSecret },
+        { fetchImpl },
+      );
+      if (req.body?.testOnly === true) {
+        return res.status(200).json({ status: 'verified', provider: 'shopify', verified: true, message: 'Shopify credentials verified. Save & Connect to finish.' });
+      }
+
+      const encrypted = encryptIntegrationCredentials(credentials, env);
+      const config = { shopDomain: credentials.shopDomain };
+      await pool.query(
+        `INSERT INTO public.merchant_integrations
+          (merchant_id, provider, credentials_ciphertext, credentials_nonce, credentials_auth_tag,
+           credentials_key_version, config, is_active, last_tested_at, last_test_status, last_test_message, updated_at)
+         VALUES ($1,'shopify',$2,$3,$4,$5,$6::jsonb,TRUE,NOW(),'connected',$7,NOW())
+         ON CONFLICT (merchant_id, provider) DO UPDATE SET
+           credentials_ciphertext = EXCLUDED.credentials_ciphertext,
+           credentials_nonce = EXCLUDED.credentials_nonce,
+           credentials_auth_tag = EXCLUDED.credentials_auth_tag,
+           credentials_key_version = EXCLUDED.credentials_key_version,
+           config = EXCLUDED.config,
+           is_active = TRUE,
+           last_tested_at = NOW(),
+           last_test_status = 'connected',
+           last_test_message = EXCLUDED.last_test_message,
+           updated_at = NOW()`,
+        [id.merchantId, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion,
+          JSON.stringify(config), 'Shopify Client Credentials connection established.'],
+      );
+      return res.status(200).json({ status: 'connected', provider: 'shopify', configured: true, shopDomain: credentials.shopDomain });
+    } catch (error) {
+      const message = /INTEGRATION_ENCRYPTION_KEY/.test(error?.message || '')
+        ? 'Secure integration storage is not configured on the server. Please contact support.'
+        : (error?.message || 'Could not connect Shopify. Please check your details and try again.');
+      return res.status(422).json({ status: 'error', message });
+    }
+  }
+
   async function test(req, res) {
     const id = identity(req);
     if (!id) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
     if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Integrations are unavailable.' });
     const provider = String(req.params.provider || '').toLowerCase();
     if (!ALL_PROVIDERS.has(provider)) return res.status(400).json({ status: 'error', message: 'Unsupported integration provider.' });
+    if (provider === 'shopify') return res.status(400).json({ status: 'error', message: 'Use the Shopify Save & Connect action for merchant-owned app credentials.' });
     const merchant = await verifyMerchant(pool, id);
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
     try {
@@ -163,5 +218,5 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
     return res.json({ status: 'success', provider, configured: false });
   }
 
-  return { list, test, save, remove };
+  return { list, connectShopify, test, save, remove };
 }
