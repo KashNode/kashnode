@@ -160,8 +160,9 @@ function mapPaymentMethod(order) {
 const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
     (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
-     payment_status, delivery_status, payment_method, line_items, financial_status, currency)
-  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10)
+     payment_status, delivery_status, payment_method, line_items, financial_status, currency,
+     shipping_address, shipping_city, shipping_zone, shipping_area, shipping_postcode, alternative_phone)
+  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16)
   RETURNING id, payment_status, delivery_status
 `;
 
@@ -174,6 +175,12 @@ const UPDATE_ORDER_SQL = `
       line_items = $6::jsonb,
       financial_status = $7,
       currency = $8,
+      shipping_address = COALESCE($10, shipping_address),
+      shipping_city = COALESCE($11, shipping_city),
+      shipping_zone = COALESCE($12, shipping_zone),
+      shipping_area = COALESCE($13, shipping_area),
+      shipping_postcode = COALESCE($14, shipping_postcode),
+      alternative_phone = COALESCE($15, alternative_phone),
       payment_status = CASE
         WHEN payment_status = 'paid' AND $9 = 'unpaid' THEN 'paid'
         ELSE $9
@@ -250,6 +257,16 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     const paymentStatus = mapFinancialStatus(financialStatus);
     const paymentMethod = mapPaymentMethod(orderPayload || {});
     const currency = cleanText(orderPayload?.currency, 3)?.toUpperCase() || null;
+    const shipping = orderPayload?.shipping_address || orderPayload?.billing_address || {};
+    const shippingAddress = [shipping.address1, shipping.address2, shipping.city, shipping.province, shipping.zip]
+      .filter(value => typeof value === 'string' && value.trim()).join(', ').slice(0, 1000) || null;
+    const noteAttributes = Array.isArray(orderPayload?.note_attributes) ? orderPayload.note_attributes : [];
+    const noteValue = key => noteAttributes.find(item => String(item?.name || '').toLowerCase() === key)?.value;
+    const shippingCity = cleanText(noteValue('pathao_city_id'), 20);
+    const shippingZone = cleanText(noteValue('pathao_zone_id'), 20);
+    const shippingArea = cleanText(noteValue('pathao_area_id'), 20);
+    const shippingPostcode = cleanText(shipping.zip, 20);
+    const alternativePhone = normalizePhone(shipping.phone);
 
     if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH
       || !customerPhone || totalAmount === null || lineItems === null) {
@@ -332,6 +349,12 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
           JSON.stringify(lineItems),
           financialStatus,
           currency,
+          shippingAddress,
+          shippingCity,
+          shippingZone,
+          shippingArea,
+          shippingPostcode,
+          alternativePhone,
         ]);
         order = inserted.rows[0];
         if (!order) throw new Error('Shopify order insert did not return the created order.');
