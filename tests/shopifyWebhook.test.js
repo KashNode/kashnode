@@ -266,7 +266,7 @@ test('does not downgrade a previously paid order when a retry says pending', asy
 
 test('stores Shopify paid status as paid and does not mark it eligible for MFS matching', async t => {
   const { server, state } = await createTestServer(t)
-  const response = await postWebhook(server, JSON.stringify({ ...sampleOrder, financial_status: 'paid' }))
+  const response = await postWebhook(server, JSON.stringify({ ...sampleOrder, payment_gateway_names: ['Credit Card'], financial_status: 'paid' }))
   assert.equal(response.status, 200)
   assert.equal([...state.orders.values()][0].payment_status, 'paid')
 })
