@@ -89,7 +89,7 @@ export default function MerchantIntegrationsSettings({ onNotify }: {
     setError('');
     try {
       const credentials = { ...forms[provider], storeId: provider === 'pathao' ? Number(forms.pathao.storeId) : undefined };
-      await callApi(`/api/merchant/integrations/${provider}/test`, 'POST', { credentials });
+      await callApi(`/api/merchant/integrations/${provider}/test`, 'POST', { credentials, config: { webhookUrl: provider === 'woocommerce' ? forms.woocommerce.webhookUrl : undefined } });
       setTested(current => [...new Set([...current, provider])]);
       onNotify(`${PROVIDERS.find(item => item.id === provider)?.name} connection verified.`);
     } catch (err) {
