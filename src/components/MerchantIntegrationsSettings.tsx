@@ -23,7 +23,7 @@ const initialForms: Record<Provider, Record<string, string>> = {
   steadfast: { apiKey: '', secretKey: '' },
   pathao: { environment: 'production', clientId: '', clientSecret: '', username: '', password: '', storeId: '' },
   woocommerce: { storeUrl: '', consumerKey: '', consumerSecret: '' },
-  shopify: { shopDomain: '', accessToken: '' },
+  shopify: { shopDomain: '', accessToken: '', webhookSecret: '' },
 };
 
 async function callApi(path: string, method = 'GET', body?: unknown) {
@@ -188,6 +188,7 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
             {provider.id === 'shopify' && <div className="md-integration-grid">
               {input('shopify', 'shopDomain', 'Shop Domain', 'text', 'your-store.myshopify.com')}
               {input('shopify', 'accessToken', 'Admin API Access Token', 'password')}
+              {input('shopify', 'webhookSecret', 'Webhook Signing Secret', 'password')}
             </div>}
             {(provider.group === 'Courier') && (
               <label className="md-integration-toggle">
