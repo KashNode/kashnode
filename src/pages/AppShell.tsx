@@ -5,6 +5,7 @@ import { getCallHistory, getCourierOrders, getMerchantPackage, getSimStatus, typ
 import KashNodeLogo from '../components/KashNodeLogo'
 import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
 import MerchantTopupForm from '../components/MerchantTopupForm'
+import BillingPhoneSettings from '../components/BillingPhoneSettings'
 
 type Props = { user: AuthUser; onSignOut: () => void }
 type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts' | 'settings'
@@ -368,6 +369,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                   </>
                 )}
               </div>
+              <BillingPhoneSettings phone={gatewayProfile?.billingPhone || ''} verified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
               <MerchantIntegrationsSettings activePackage={activePackage} onNotify={notify} />
             </section>
           )}
