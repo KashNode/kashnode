@@ -220,7 +220,7 @@ test('does not downgrade a previously paid order when a retry says pending', asy
 test('stores Shopify paid status as paid and does not mark it eligible for MFS matching', async t => {
   const { server, state } = await createTestServer(t)
   const response = await postWebhook(server, JSON.stringify({ ...sampleOrder, financial_status: 'paid' }))
-  assert.equal(response.status, 202)
+  assert.equal(response.status, 200)
   assert.equal([...state.orders.values()][0].payment_status, 'paid')
 })
 
@@ -236,7 +236,7 @@ test('rejects malformed or incomplete order payloads without changing wallet cre
 test('accepts a new Shopify order with prepaid voice minutes and a zero wallet balance', async t => {
   const { server, state } = await createTestServer(t, { walletBalance: 0, voiceMinutes: 8 })
   const response = await postWebhook(server, JSON.stringify(sampleOrder))
-  assert.equal(response.status, 202)
+  assert.equal(response.status, 200)
   assert.equal(state.walletBalance, 0)
   assert.equal(state.voiceMinutes, 8)
   assert.equal(state.orders.size, 1)
@@ -281,14 +281,14 @@ test('preserves Shopify 64-bit order IDs exactly for idempotency', async t => {
   const raw = JSON.stringify({ ...sampleOrder, id: '987654321987654321' })
     .replace('"id":"987654321987654321"', '"id":987654321987654321')
   const response = await postWebhook(server, raw)
-  assert.equal(response.status, 202)
+  assert.equal(response.status, 200)
   assert.equal([...state.orders.values()][0].platform_order_id, '987654321987654321')
 })
 
 test('maps partially paid Shopify orders to manual review, not MFS-unpaid', async t => {
   const { server, state } = await createTestServer(t)
   const response = await postWebhook(server, JSON.stringify({ ...sampleOrder, financial_status: 'partially_paid' }))
-  assert.equal(response.status, 202)
+  assert.equal(response.status, 200)
   assert.equal([...state.orders.values()][0].payment_status, 'manual_review')
 })
 
