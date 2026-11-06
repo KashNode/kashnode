@@ -94,7 +94,7 @@ export default function App() {
     try {
       const profile = await getMerchantOnboarding()
       setOnboardingComplete(profile.isOnboardingComplete)
-      navigate(profile.isOnboardingComplete ? '/dashboard' : '/onboarding', { replace: true })
+      navigate(profile.isOnboardingComplete ? ((location.state as { from?: { pathname?: string } } | null)?.from?.pathname?.startsWith('/dashboard') ? (location.state as { from: { pathname: string } }).from.pathname : '/dashboard') : '/onboarding', { replace: true })
     } catch (error) {
       setOnboardingComplete(false)
       setOnboardingStatusError(error instanceof Error ? error.message : 'Could not verify onboarding status.')
@@ -155,7 +155,7 @@ export default function App() {
         path="/login"
         element={
           user
-            ? <Navigate to={user.role === 'admin' ? '/admin' : onboardingComplete ? '/dashboard' : '/onboarding'} replace />
+            ? <Navigate to={user.role === 'admin' ? '/admin' : onboardingComplete ? ((location.state as { from?: { pathname?: string } } | null)?.from?.pathname?.startsWith('/dashboard') ? (location.state as { from: { pathname: string } }).from.pathname : '/dashboard') : '/onboarding'} replace />
             : <LoginPage onLogin={handleLogin} sessionError={sessionError} />
         }
       />
