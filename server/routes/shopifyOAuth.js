@@ -14,7 +14,7 @@ function normalizeShopDomain(value) {
     try { parsed = new URL(raw); } catch { throw new Error('Enter a valid Shopify shop domain.'); }
     if (parsed.protocol !== 'https:' || parsed.username || parsed.password || (parsed.port && parsed.port !== '443')
       || (parsed.pathname !== '/' && parsed.pathname !== '') || parsed.search || parsed.hash) {
-      throw new Error('Use only your Shopify HTTPS shop domain.');
+      throw new Error('Use an HTTPS URL for a valid .myshopify.com shop domain only.');
     }
     hostname = parsed.hostname;
   } else if (raw.includes('/') || raw.includes('?') || raw.includes('#') || raw.includes('@') || raw.includes(':')) {
