@@ -94,5 +94,7 @@ ALTER TABLE public.courier_orders
 
 CREATE INDEX IF NOT EXISTS courier_orders_merchant_created_idx
   ON public.courier_orders (merchant_id, created_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS courier_orders_order_uidx
+  ON public.courier_orders (order_id) WHERE order_id IS NOT NULL;
 
 COMMIT;
