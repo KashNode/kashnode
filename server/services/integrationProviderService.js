@@ -51,6 +51,7 @@ async function requestJson(url, options = {}) {
   try {
     const response = await fetch(url, {
       ...options,
+      redirect: 'error',
       signal: controller.signal,
       headers: { Accept: 'application/json', ...(options.headers || {}) },
     });
@@ -105,7 +106,7 @@ export function validateIntegrationCredentials(provider, input) {
   }
   const shopDomain = clean(value.shopDomain, 255).toLowerCase();
   const accessToken = clean(value.accessToken, 1000);
-  const apiVersion = '2025-10';
+  const apiVersion = '2026-10';
   if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain) || !accessToken) {
     throw new Error('Enter a valid Shopify myshopify.com domain and Admin API access token.');
   }
@@ -155,10 +156,13 @@ async function testWooCommerce(credentials) {
 }
 
 async function testShopify(credentials) {
-  await requestJson(`https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/shop.json`, {
-    headers: { 'X-Shopify-Access-Token': credentials.accessToken },
+  const payload = await requestJson(`https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`, {
+    method: 'POST',
+    headers: { 'X-Shopify-Access-Token': credentials.accessToken, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query: 'query { shop { id name } }' }),
   });
-  return 'Shopify Admin API credentials verified.';
+  if (payload.errors?.length || !payload.data?.shop?.id) throw new Error('Shopify Admin API rejected the requested shop access.');
+  return 'Shopify Admin GraphQL API credentials verified.';
 }
 
 export async function testProviderCredentials(provider, credentials) {
@@ -240,16 +244,16 @@ export async function syncTrackingToStore(provider, credentials, order, tracking
     return;
   }
   if (provider === 'shopify') {
-    const mutation = 'mutation orderUpdate($input: OrderInput!) { orderUpdate(input: $input) { order { id } userErrors { field message } } }';
+    const mutation = 'mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) { metafieldsSet(metafields: $metafields) { metafields { id } userErrors { field message } } }';
     const payload = await requestJson(`https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`, {
       method: 'POST',
       headers: { 'X-Shopify-Access-Token': credentials.accessToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: mutation,
-        variables: { input: { id: `gid://shopify/Order/${order.platform_order_id}`, customAttributes: [
-          { key: 'KashNode Courier', value: tracking.provider },
-          { key: 'KashNode Tracking ID', value: tracking.trackingCode },
-        ] } },
+        variables: { metafields: [
+          { ownerId: `gid://shopify/Order/${order.platform_order_id}`, namespace: 'kashnode', key: 'courier', type: 'single_line_text_field', value: tracking.provider },
+          { ownerId: `gid://shopify/Order/${order.platform_order_id}`, namespace: 'kashnode', key: 'tracking_id', type: 'single_line_text_field', value: tracking.trackingCode },
+        ] },
       }),
     });
     const errors = payload.data?.orderUpdate?.userErrors || [];
