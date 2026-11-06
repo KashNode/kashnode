@@ -2588,3 +2588,24 @@ body { min-height: 100dvh; overflow-x: hidden; }
 .md-light .md-integration-toggle{color:#404040}
 .md-light .md-integration-locked{border-color:#a3a3a3}
 @media(max-width:600px){.md-integration-grid{grid-template-columns:1fr}.md-integration-actions{display:grid;grid-template-columns:1fr}.md-integration-actions button{width:100%}.md-integration-locked{align-items:flex-start}.md-integration-locked .md-primary{width:100%}}
+
+
+/* Pricing gateway selector — card-native controls, responsive across breakpoints. */
+.site-gateway-picker{border:0;border-top:1px solid rgba(148,163,184,.2);padding:14px 0 0;margin:18px 0 16px;min-width:0}
+.site-gateway-picker legend{font-size:12px;font-weight:750;letter-spacing:.08em;text-transform:uppercase;color:var(--site-muted,#a1a1aa);padding:0 0 9px}
+.site-gateway-picker label{display:flex;align-items:flex-start;gap:10px;padding:11px;border:1px solid rgba(148,163,184,.25);border-radius:12px;margin:8px 0;cursor:pointer;transition:border-color .18s,background .18s}
+.site-gateway-picker label.selected{border-color:#0d9870;background:rgba(16,185,129,.08)}
+.site-gateway-picker input{accent-color:#0d9870;margin:3px 0 0;flex:0 0 auto}
+.site-gateway-picker label>svg{flex:0 0 auto;color:#34d399;margin-top:1px}
+.site-gateway-picker label span{display:grid;gap:3px;min-width:0}
+.site-gateway-picker label strong{font-size:13px;color:inherit}
+.site-gateway-picker label small{font-size:11px;line-height:1.45;color:var(--site-muted,#a1a1aa)}
+.auth-selection-card{border:1px solid rgba(148,163,184,.25);border-radius:14px;padding:14px;margin:16px 0;background:rgba(148,163,184,.05)}
+.auth-selection-card>div:first-child{display:flex;justify-content:space-between;gap:12px;margin-bottom:12px}
+.auth-gateway-options{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.auth-gateway-options label{display:flex;align-items:flex-start;gap:8px;padding:10px;border:1px solid rgba(148,163,184,.25);border-radius:10px;cursor:pointer}
+.auth-gateway-options input{accent-color:#10b981;margin-top:3px}
+.auth-gateway-options label span{display:grid;gap:3px}
+.auth-gateway-options strong{font-size:12px}
+.auth-gateway-options small{font-size:11px;color:#a1a1aa}
+@media(max-width:540px){.auth-gateway-options{grid-template-columns:1fr}}
