@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, ShoppingBag, Wallet } from 'lucide-react'
 import { getMerchantCredentials, type AuthUser } from '../lib/auth'
-import { getCallHistory, getSimStatus, type CallHistoryEntry, type SimStatus } from '../lib/kashApi'
+import { getCallHistory, getMerchantPackage, getSimStatus, type CallHistoryEntry, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
 
 type Props = { user: AuthUser; onSignOut: () => void }
@@ -40,6 +40,9 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [callLogs, setCallLogs] = useState<CallHistoryEntry[]>([])
   const [callSource, setCallSource] = useState<'billing_ledger' | null>(null)
   const [callsError, setCallsError] = useState('')
+  const [activePackage, setActivePackage] = useState<'basic' | 'standard' | 'premium'>('basic')
+  const [packageRate, setPackageRate] = useState(7)
+  const [packageLoading, setPackageLoading] = useState(true)
   const [merchantSecretKey, setMerchantSecretKey] = useState('')
   const [secretLoading, setSecretLoading] = useState(true)
   const [secretVisible, setSecretVisible] = useState(false)
@@ -80,15 +83,28 @@ export default function AppShell({ user, onSignOut }: Props) {
       .catch((error) => {
         if (alive) setCallsError(error instanceof Error ? error.message : 'Could not load call history.')
       })
-    getMerchantCredentials()
-      .then((payload) => {
-        if (alive) setMerchantSecretKey(payload.merchantSecretKey)
+    getMerchantPackage()
+      .then(async (payload) => {
+        if (!alive) return
+        setActivePackage(payload.package)
+        setPackageRate(payload.ratePerMinute)
+        if (payload.package === 'premium') {
+          try {
+            const credentials = await getMerchantCredentials()
+            if (alive) setMerchantSecretKey(credentials.merchantSecretKey)
+          } catch (error) {
+            if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load merchant API secret.')
+          }
+        }
       })
       .catch((error) => {
-        if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load merchant API secret.')
+        if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load package access.')
       })
       .finally(() => {
-        if (alive) setSecretLoading(false)
+        if (alive) {
+          setPackageLoading(false)
+          setSecretLoading(false)
+        }
       })
     return () => {
       alive = false
@@ -154,6 +170,7 @@ export default function AppShell({ user, onSignOut }: Props) {
             <section>
               <p className="md-eyebrow">GOOD MORNING, {firstName.toUpperCase()}</p>
               <h1 className="md-title">Is everything working?</h1>
+              <p className="md-muted">{packageLoading ? 'Loading package…' : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${packageRate.toFixed(2)}/minute`}</p>
               <p className="md-sub">Live status for Kash AI, your KashNode Box and your store, in one place.</p>
               <div className="md-status-list">
                 <div className="md-status-row"><span><i className="md-dot ok" /> Kash AI</span><strong>Live</strong></div>
@@ -166,27 +183,35 @@ export default function AppShell({ user, onSignOut }: Props) {
               </div>
               <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'No merchant device has reported yet'}</p>
               <button className="md-primary" onClick={() => setView('orders')}>Check today’s orders</button>
-              <div className="md-card md-merchant-secret-card">
-                <div className="md-card-top"><strong><KeyRound size={17} /> Merchant API secret</strong><span className="md-badge">Private</span></div>
-                <p className="md-muted">Use this key in your store integration as the x-merchant-secret credential. Keep it private.</p>
-                {secretError ? <p className="md-error" role="alert">{secretError}</p> : null}
-                <code className="md-secret-value">{secretLoading ? 'Loading secure key…' : secretVisible ? merchantSecretKey : merchantSecretKey ? '••••••••••••' + merchantSecretKey.slice(-4) : 'Not available'}</code>
-                <div className="md-secret-actions">
-                  <button className="md-secondary" onClick={() => setSecretVisible((value) => !value)} disabled={secretLoading || !merchantSecretKey}>
-                    {secretVisible ? <EyeOff size={15} /> : <Eye size={15} />}{secretVisible ? ' Hide key' : ' Reveal key'}
-                  </button>
-                  <button className="md-secondary" onClick={() => void copyMerchantSecret()} disabled={secretLoading || !merchantSecretKey}>
-                    <Copy size={15} /> Copy key
-                  </button>
+              {activePackage === 'premium' ? (
+                <div className="md-card md-merchant-secret-card">
+                  <div className="md-card-top"><strong><KeyRound size={17} /> Merchant API secret</strong><span className="md-badge">Private</span></div>
+                  <p className="md-muted">Use this key in your store integration as the x-merchant-secret credential. Keep it private.</p>
+                  {secretError ? <p className="md-error" role="alert">{secretError}</p> : null}
+                  <code className="md-secret-value">{secretLoading ? 'Loading secure key…' : secretVisible ? merchantSecretKey : merchantSecretKey ? '••••••••••••' + merchantSecretKey.slice(-4) : 'Not available'}</code>
+                  <div className="md-secret-actions">
+                    <button className="md-secondary" onClick={() => setSecretVisible((value) => !value)} disabled={secretLoading || !merchantSecretKey}>
+                      {secretVisible ? <EyeOff size={15} /> : <Eye size={15} />}{secretVisible ? ' Hide key' : ' Reveal key'}
+                    </button>
+                    <button className="md-secondary" onClick={() => void copyMerchantSecret()} disabled={secretLoading || !merchantSecretKey}>
+                      <Copy size={15} /> Copy key
+                    </button>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="md-card md-merchant-secret-card">
+                  <strong>Full API &amp; Webhook access · Premium</strong>
+                  <p className="md-muted">API credential generation is locked on your current package.</p>
+                  <button className="md-primary" onClick={() => notify('Upgrade to Premium to unlock full API and Webhook access.')}>Upgrade to Premium</button>
+                </div>
+              )}
             </section>
           )}
 
           {view === 'orders' && (
             <section>
               <h1 className="md-title">Orders &amp; verification</h1>
-              <p className="md-sub">COD SMS, fake-order blocking and MFS TrxID matching for your store.</p>
+              <p className="md-sub">COD SMS and order verification for your store.</p>
               <div className="md-filters">
                 <button className={orderFilter === 'all' ? 'active' : ''} onClick={() => setOrderFilter('all')}>All orders</button>
                 <button className={orderFilter === 'review' ? 'active' : ''} onClick={() => setOrderFilter('review')}>Needs review</button>
@@ -196,16 +221,24 @@ export default function AppShell({ user, onSignOut }: Props) {
                   <article className="md-card" key={order.id}>
                     <div className="md-card-top"><strong>{order.id}</strong><span className={`md-badge ${order.tone}`}>{order.status}</span></div>
                     <p>{order.channel} · {order.amount}</p>
-                    <p className="md-muted">TrxID {order.trx} · {order.note}</p>
+                    {activePackage === 'basic' ? <p className="md-muted">Payment SMS matching is locked on Basic.</p> : <p className="md-muted">TrxID {order.trx} · {order.note}</p>}
                   </article>
                 ))}
               </div>
-              <div className="md-card">
-                <strong>Courier</strong>
-                <p>Steadfast: 12 booked · 8 delivered</p>
-                <p>Pathao: 5 booked · 3 delivered</p>
-                <p className="md-warn">PIN mismatch on 1 parcel — check the courier order before delivery.</p>
-              </div>
+              {activePackage === 'basic' ? (
+                <div className="md-card">
+                  <strong>Courier Auto-Booking · Standard</strong>
+                  <p className="md-muted">Automatic courier booking is locked on Basic.</p>
+                  <button className="md-primary" onClick={() => notify('Upgrade to Standard to unlock Courier Auto-Booking.')}>Upgrade to Standard</button>
+                </div>
+              ) : (
+                <div className="md-card">
+                  <strong>Courier</strong>
+                  <p>Steadfast: 12 booked · 8 delivered</p>
+                  <p>Pathao: 5 booked · 3 delivered</p>
+                  <p className="md-warn">PIN mismatch on 1 parcel — check the courier order before delivery.</p>
+                </div>
+              )}
             </section>
           )}
 
