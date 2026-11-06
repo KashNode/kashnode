@@ -62,7 +62,7 @@ export function PricingTiers({ compact = false }: { compact?: boolean }) {
               <li key={feature}><Check size={15} /> {feature}</li>
             ))}
           </ul>
-          <Link to={`/login?plan=${plan.id}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : 'site-btn-outline-dark'} site-btn-block`}>
+          <Link to={`/login?plan=${plan.id}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : `site-btn-plan-${plan.id}`} site-btn-block`}>
             {plan.cta} <ArrowRight size={16} />
           </Link>
         </article>
