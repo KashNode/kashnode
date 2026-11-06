@@ -9,6 +9,26 @@ export class SmsMatchingPaymentProcessor {
     this.receiverNumbers = receiverNumbers;
   }
 
+  async lockTransfer(client, gateway, trxId) {
+    // Serialize both arrival orders on the same gateway/TrxID. Without this,
+    // concurrent SMS and top-up transactions can each miss the other's
+    // uncommitted row and leave a permanently unmatched pair.
+    await client.query(
+      "SELECT pg_advisory_xact_lock(hashtextextended($1, 0))",
+      [`${gateway}:${trxId}`],
+    );
+  }
+
+  async creditWallet(client, merchantId, amount) {
+    const credited = await client.query(
+      'UPDATE public.merchants SET wallet_balance=COALESCE(wallet_balance,0)+$2::numeric WHERE id=$1',
+      [merchantId, amount],
+    );
+    if (credited.rowCount !== 1) {
+      throw new Error('Wallet credit failed: merchant row was not updated.');
+    }
+  }
+
   async ingest(event) {
     const expectedReceiver = this.receiverNumbers[event.gateway];
     if (!expectedReceiver || expectedReceiver !== event.receiverPhone) {
@@ -18,6 +38,7 @@ export class SmsMatchingPaymentProcessor {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      await this.lockTransfer(client, event.gateway, event.trxId);
       const inserted = await client.query(
         `INSERT INTO public.payment_sms_events
           (gateway, trx_id, amount, sender_phone, receiver_phone, received_at, device_id, raw_message)
@@ -56,11 +77,7 @@ export class SmsMatchingPaymentProcessor {
         return { outcome: 'already_processed' };
       }
 
-      // Wallet credit and matched status commit atomically; retries cannot credit twice.
-      await client.query(
-        'UPDATE public.merchants SET wallet_balance=COALESCE(wallet_balance,0)+$2::numeric WHERE id=$1',
-        [topup.merchant_id, locked.rows[0].amount],
-      );
+      await this.creditWallet(client, topup.merchant_id, locked.rows[0].amount);
       await client.query('COMMIT');
       return { outcome: 'matched_and_credited', topupId: topup.id };
     } catch (error) {
@@ -73,11 +90,12 @@ export class SmsMatchingPaymentProcessor {
   }
 
   // Also reconcile the opposite arrival order: payment notification first,
-  // merchant enters TrxID later. This closes the SMS/top-up race.
+  // merchant enters TrxID later. Shares the same advisory lock as ingest().
   async matchExistingTopup({ merchantId, gateway, trxId }) {
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
+      await this.lockTransfer(client, gateway, trxId);
       const eventResult = await client.query(
         `SELECT id, amount, sender_phone FROM public.payment_sms_events
           WHERE gateway=$1 AND trx_id=$2 LIMIT 1 FOR UPDATE`,
@@ -109,10 +127,7 @@ export class SmsMatchingPaymentProcessor {
         await client.query('COMMIT');
         return { outcome: 'already_processed' };
       }
-      await client.query(
-        'UPDATE public.merchants SET wallet_balance=COALESCE(wallet_balance,0)+$2::numeric WHERE id=$1',
-        [merchantId, updated.rows[0].amount],
-      );
+      await this.creditWallet(client, merchantId, updated.rows[0].amount);
       await client.query('COMMIT');
       return { outcome: 'matched_and_credited', topupId: topup.id };
     } catch (error) {
