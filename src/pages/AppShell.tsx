@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, Settings, ShoppingBag, Wallet } from 'lucide-react'
 import { getMerchantCredentials, type AuthUser } from '../lib/auth'
-import { getCallHistory, getMerchantPackage, getSimStatus, type CallHistoryEntry, type SimStatus } from '../lib/kashApi'
+import { getCallHistory, getCourierOrders, getMerchantPackage, getSimStatus, type CallHistoryEntry, type MerchantCourierOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
 import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
 
@@ -40,7 +40,7 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [simRefreshing, setSimRefreshing] = useState(false)
   const [callLogs, setCallLogs] = useState<CallHistoryEntry[]>([])
   const [callSource, setCallSource] = useState<'billing_ledger' | null>(null)
-  const [callsError, setCallsError] = useState('')
+  const [callsError, setCallsError] = useState('')\n  const [courierOrders, setCourierOrders] = useState<MerchantCourierOrder[]>([])\n  const [courierOrdersError, setCourierOrdersError] = useState('')
   const [activePackage, setActivePackage] = useState<'basic' | 'standard' | 'premium'>('basic')
   const [packageRate, setPackageRate] = useState(7)
   const [packageLoading, setPackageLoading] = useState(true)
@@ -235,10 +235,20 @@ export default function AppShell({ user, onSignOut }: Props) {
                 </div>
               ) : (
                 <div className="md-card">
-                  <strong>Courier</strong>
-                  <p>Steadfast: 12 booked · 8 delivered</p>
-                  <p>Pathao: 5 booked · 3 delivered</p>
-                  <p className="md-warn">PIN mismatch on 1 parcel — check the courier order before delivery.</p>
+                  <div className="md-card-top"><strong>Courier bookings</strong><span className="md-badge">{courierOrders.length} records</span></div>
+                  {courierOrdersError && <p className="md-error" role="alert">{courierOrdersError}</p>}
+                  {courierOrders.length === 0 ? <p className="md-muted">No courier bookings yet. A verified or paid order will appear here after automatic booking.</p> : (
+                    <div className="md-list">
+                      {courierOrders.map(item => (
+                        <article className="md-card" key={item.orderId + item.trackingCode}>
+                          <div className="md-card-top"><strong>Order #{item.orderId}</strong><span className="md-badge ok">{item.status}</span></div>
+                          <p>{item.courier}</p>
+                          <p className="md-muted">Tracking / Consignment ID: <code>{item.trackingCode || 'Pending'}</code></p>
+                          <p className="md-muted">{new Date(item.createdAt).toLocaleString()}</p>
+                        </article>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </section>
