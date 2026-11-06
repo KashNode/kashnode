@@ -22,7 +22,7 @@ export default function Sidebar({ variant }: Props) {
         <div className={`md-route-group ${integrationsOpen ? 'expanded' : ''}`}>
           <NavLink to="/dashboard/integrations" className={() => integrationsOpen ? 'active' : ''}><Link2 size={18} /><span>Integrations</span></NavLink>
           {integrationsOpen && <div className="md-route-subnav">
-            <NavLink to="/dashboard/integrations" end className={({ isActive }) => isActive ? 'active' : ''}>Couriers</NavLink>
+            <NavLink to="/dashboard/integrations/couriers" className={({ isActive }) => isActive || pathname === '/dashboard/integrations' ? 'active' : ''}>Couriers</NavLink>
             <NavLink to="/dashboard/integrations/stores" className={({ isActive }) => isActive ? 'active' : ''}>E-Commerce Stores</NavLink>
             <NavLink to="/dashboard/integrations/webhooks" className={({ isActive }) => isActive ? 'active' : ''}>Webhooks &amp; API</NavLink>
           </div>}
@@ -41,7 +41,7 @@ export default function Sidebar({ variant }: Props) {
         <div className={`md-route-group ${settingsOpen ? 'expanded' : ''}`}>
           <NavLink to="/dashboard/settings" className={() => settingsOpen ? 'active' : ''}><Settings size={18} /><span>Settings</span></NavLink>
           {settingsOpen && <div className="md-route-subnav">
-            <NavLink to="/dashboard/settings" end className={({ isActive }) => isActive ? 'active' : ''}>Workspace Profile</NavLink>
+            <NavLink to="/dashboard/settings/profile" className={({ isActive }) => isActive || pathname === '/dashboard/settings' ? 'active' : ''}>Workspace Profile</NavLink>
             <NavLink to="/dashboard/settings/billing" className={({ isActive }) => isActive ? 'active' : ''}>Billing &amp; MFS</NavLink>
             <NavLink to="/dashboard/settings/api" className={({ isActive }) => isActive ? 'active' : ''}><ShieldCheck size={14} /> Security &amp; API Keys</NavLink>
           </div>}
@@ -51,12 +51,12 @@ export default function Sidebar({ variant }: Props) {
         <Bell size={mobile ? 20 : 18} /><span>Alerts</span>{mobile && <i className="md-nav-dot" />}
       </NavLink>
       {mobile && integrationsOpen && <div className="md-route-mobile-subnav">
-        <NavLink to="/dashboard/integrations">Couriers</NavLink>
+        <NavLink to="/dashboard/integrations/couriers">Couriers</NavLink>
         <NavLink to="/dashboard/integrations/stores">Stores</NavLink>
         <NavLink to="/dashboard/integrations/webhooks">Webhooks</NavLink>
       </div>}
       {mobile && settingsOpen && <div className="md-route-mobile-subnav">
-        <NavLink to="/dashboard/settings">Profile</NavLink>
+        <NavLink to="/dashboard/settings/profile">Profile</NavLink>
         <NavLink to="/dashboard/settings/billing">Billing</NavLink>
         <NavLink to="/dashboard/settings/api">API Keys</NavLink>
       </div>}
