@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Bell, Box, Home, LogOut, PhoneCall, Settings, ShoppingBag, Wallet, Smartphone } from 'lucide-react'
+import { Outlet, useLocation, useNavigate } from 'react-router-dom'
+import { Bell, LogOut, Smartphone } from 'lucide-react'
 import { getMerchantCredentials, getMerchantOnboarding, type AuthUser, type MerchantOnboardingProfile } from '../lib/auth'
 import { getCallHistory, getCourierOrders, getMerchantPackage, getSimStatus, type CallHistoryEntry, type MerchantCourierOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
@@ -7,9 +8,9 @@ import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSett
 import MerchantTopupForm from '../components/MerchantTopupForm'
 import BillingPhoneSettings from '../components/BillingPhoneSettings'
 import MerchantDeviceCredentialsCard from '../components/MerchantDeviceCredentialsCard'
+import Sidebar from '../components/Sidebar'
 
 type Props = { user: AuthUser; onSignOut: () => void }
-type View = 'home' | 'orders' | 'calls' | 'box' | 'wallet' | 'alerts' | 'settings'
 type Theme = 'dark' | 'system'
 
 type SampleOrder = { id: string; channel: string; amount: string; status: string; tone: string; trx: string; note: string }
@@ -28,7 +29,23 @@ function maskDeviceId(deviceId: string) {
 }
 
 export default function AppShell({ user, onSignOut }: Props) {
-  const [view, setView] = useState<View>('home')
+  const location = useLocation()
+  const navigate = useNavigate()
+  const pathname = location.pathname
+  const view = pathname === '/dashboard' ? 'home'
+    : pathname === '/dashboard/orders' ? 'orders'
+      : pathname === '/dashboard/calls' ? 'calls'
+        : pathname === '/dashboard/box' ? 'box'
+          : pathname === '/dashboard/wallet' ? 'wallet'
+            : pathname.startsWith('/dashboard/integrations') ? 'integrations'
+              : pathname.startsWith('/dashboard/settings') ? 'settings'
+                : pathname === '/dashboard/alerts' ? 'alerts' : 'home'
+  const settingsSection = pathname === '/dashboard/settings/billing' ? 'billing' : pathname === '/dashboard/settings/api' ? 'api' : 'profile'
+  const integrationSection = pathname === '/dashboard/integrations/stores' ? 'stores' : pathname === '/dashboard/integrations/webhooks' ? 'webhooks' : 'couriers'
+  const validDashboardPaths = ['/dashboard', '/dashboard/orders', '/dashboard/calls', '/dashboard/box', '/dashboard/wallet', '/dashboard/alerts', '/dashboard/integrations', '/dashboard/integrations/couriers', '/dashboard/integrations/stores', '/dashboard/integrations/webhooks', '/dashboard/settings', '/dashboard/settings/profile', '/dashboard/settings/billing', '/dashboard/settings/api']
+  useEffect(() => {
+    if (!validDashboardPaths.includes(pathname)) navigate('/dashboard', { replace: true })
+  }, [pathname, navigate])
   const [theme, setTheme] = useState<Theme>('dark')
   const [voice, setVoice] = useState<'Female' | 'Male'>('Female')
   const [orderFilter, setOrderFilter] = useState<'all' | 'review'>('all')
@@ -123,14 +140,7 @@ export default function AppShell({ user, onSignOut }: Props) {
 
   const visibleOrders = orderFilter === 'review' ? sampleOrders.filter((order) => order.tone === 'warn') : sampleOrders
   const signal = simStatus ? Math.max(0, Math.min(5, Math.round(simStatus.signalStrength))) : 0
-  const nav: { key: View; label: string; icon: typeof Home }[] = [
-    { key: 'home', label: 'Home', icon: Home },
-    { key: 'orders', label: 'Orders', icon: ShoppingBag },
-    { key: 'calls', label: 'Calls', icon: PhoneCall },
-    { key: 'box', label: 'Box', icon: Box },
-    { key: 'wallet', label: 'Wallet', icon: Wallet },
-    { key: 'settings', label: 'Settings', icon: Settings },
-  ]
+
 
   return (
     <div className={`md-app md-${resolvedTheme}`}>
@@ -142,24 +152,12 @@ export default function AppShell({ user, onSignOut }: Props) {
               <button className={theme === 'dark' ? 'active' : ''} onClick={() => setTheme('dark')}>Dark</button>
               <button className={theme === 'system' ? 'active' : ''} onClick={() => setTheme('system')}>System</button>
             </div>
-            <button className="md-bell" aria-label="Alerts and settings" onClick={() => setView('alerts')}><Bell size={18} /><i /></button>
+            <button className="md-bell" aria-label="Alerts and settings" onClick={() => navigate('/dashboard/alerts')}><Bell size={18} /><i /></button>
             <button className="md-signout" onClick={onSignOut} aria-label="Sign out"><LogOut size={16} /> Sign out</button>
           </div>
         </header>
 
-        <nav className="md-desktop-nav" aria-label="Merchant navigation for desktop">
-          {nav.map((item) => {
-            const Icon = item.icon
-            return (
-              <button key={item.key} className={view === item.key ? 'active' : ''} onClick={() => setView(item.key)}>
-                <Icon size={18} /><span>{item.label}</span>
-              </button>
-            )
-          })}
-          <button className={view === 'alerts' ? 'active' : ''} onClick={() => setView('alerts')}>
-            <Bell size={18} /><span>Alerts</span>
-          </button>
-        </nav>
+        <Sidebar variant="desktop" />
 
         <div className="md-banner" role="note">
           Live SIM telemetry, wallet balance, included voice minutes and completed AI voice sessions are loaded from your merchant account. Order previews are sample data.
@@ -183,7 +181,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <div><strong>{availableVoiceMinutes == null ? '—' : `${availableVoiceMinutes} min`}</strong><span>{activePackage === 'free' ? 'Free Minutes Remaining' : 'Voice Minutes Available'}</span></div>
               </div>
               <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'No merchant device has reported yet'}</p>
-              <button className="md-primary" onClick={() => setView('orders')}>Check today’s orders</button>
+              <button className="md-primary" onClick={() => navigate('/dashboard/orders')}>Check today’s orders</button>
               <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
               <article className="md-card md-app-download-card">
                 <div className="md-card-top"><strong><Smartphone size={18}/> Download Kash AI App</strong><span className="md-badge">Android</span></div>
@@ -271,6 +269,12 @@ export default function AppShell({ user, onSignOut }: Props) {
             </section>
           )}
 
+          {view === 'integrations' && (
+            <section>
+              <MerchantIntegrationsSettings section={integrationSection} onNotify={notify} />
+            </section>
+          )}
+
           {view === 'box' && (
             <section>
               <h1 className="md-title">KashNode Box</h1>
@@ -317,32 +321,47 @@ export default function AppShell({ user, onSignOut }: Props) {
 
           {view === 'settings' && (
             <section>
-              <div className="md-card md-gateway-profile">
-                <div className="md-card-top">
-                  <div><strong>Gateway &amp; downloads</strong><p className="md-muted">Your selected connection method for KashNode.</p></div>
-                  <span className="md-badge ok">{gatewayProfile?.gatewayPreference === 'box' ? 'KashNode Box' : 'Kash AI App'}</span>
-                </div>
-                <p>Package: {(gatewayProfile?.selectedPlan || activePackage).toString().toUpperCase()}</p>
-                {gatewayProfile?.gatewayPreference === 'box' ? (
-                  <>
-                    <p>Hardware price: <strong>৳8,000 one-time</strong></p>
-                    <p>Hardware fulfillment: <strong>{(gatewayProfile.boxFulfillmentStatus || 'not_requested').replaceAll('_', ' ')}</strong></p>
-                    <p className="md-muted">Your Box pre-order status will appear here. SIM details can be added during setup or when the device is ready.</p>
-                    <a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a>
-                  </>
-                ) : (
-                  <>
-                    <p className="md-muted">You are using the free Android gateway. No dedicated hardware or Box SIM is required to get started.</p>
-                    <a className="md-primary md-gateway-link" href="/downloads/kash-ai-android.apk" download>
-                      <Smartphone size={17} /> Download Kash AI Android App
-                    </a>
-                    <small className="md-muted">The download endpoint is ready; the production APK will be published here when the signed release is available.</small>
-                  </>
-                )}
-              </div>
-              <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
-              <BillingPhoneSettings phone={gatewayProfile?.billingPhone || ''} verified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
-              <MerchantIntegrationsSettings onNotify={notify} />
+              {settingsSection === 'profile' && (
+                <>
+                  <div className="md-card md-gateway-profile">
+                    <div className="md-card-top">
+                      <div><strong>Workspace profile</strong><p className="md-muted">Your selected connection method and workspace package.</p></div>
+                      <span className="md-badge ok">{gatewayProfile?.gatewayPreference === 'box' ? 'KashNode Box' : 'Kash AI App'}</span>
+                    </div>
+                    <p>Package: {(gatewayProfile?.selectedPlan || activePackage).toString().toUpperCase()}</p>
+                    {gatewayProfile?.gatewayPreference === 'box' ? (
+                      <>
+                        <p>Hardware price: <strong>৳8,000 one-time</strong></p>
+                        <p>Hardware fulfillment: <strong>{(gatewayProfile.boxFulfillmentStatus || 'not_requested').replaceAll('_', ' ')}</strong></p>
+                        <p className="md-muted">Your Box pre-order status will appear here. SIM details can be added during setup or when the device is ready.</p>
+                        <a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a>
+                      </>
+                    ) : (
+                      <>
+                        <p className="md-muted">You are using the free Android gateway. No dedicated hardware or Box SIM is required to get started.</p>
+                        <a className="md-primary md-gateway-link" href="/downloads/kash-ai-android.apk" download><Smartphone size={17} /> Download Kash AI Android App</a>
+                        <small className="md-muted">The production APK will be published here when the signed release is available.</small>
+                      </>
+                    )}
+                  </div>
+                  <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
+                </>
+              )}
+              {settingsSection === 'billing' && (
+                <>
+                  <h1 className="md-title">Billing &amp; MFS verification</h1>
+                  <p className="md-sub">Verify the phone number used to identify your incoming wallet top-ups.</p>
+                  <BillingPhoneSettings phone={gatewayProfile?.billingPhone || ''} verified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
+                </>
+              )}
+              {settingsSection === 'api' && (
+                <>
+                  <h1 className="md-title">Security &amp; API keys</h1>
+                  <p className="md-sub">Manage your merchant device credentials and connected webhook/API integrations.</p>
+                  <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
+                  <MerchantIntegrationsSettings section="webhooks" onNotify={notify} />
+                </>
+              )}
             </section>
           )}
 
@@ -361,21 +380,13 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <p className="md-warn">1 courier parcel has a PIN mismatch.</p>
                 <p className="md-muted">Signed in as {user.email}</p>
               </div>
-              <button className="md-secondary" onClick={() => setView('home')}>Back to Home</button>
+              <button className="md-secondary" onClick={() => navigate('/dashboard')}>Back to Home</button>
             </section>
           )}
         </main>
 
-        <nav className="md-nav" aria-label="Merchant navigation">
-          {nav.map((item) => {
-            const Icon = item.icon
-            return (
-              <button key={item.key} className={view === item.key ? 'active' : ''} onClick={() => setView(item.key)}>
-                <Icon size={20} /><span>{item.label}</span><i className="md-nav-dot" />
-              </button>
-            )
-          })}
-        </nav>
+        <Outlet />
+        <Sidebar variant="mobile" />
 
         {notice && <div className="md-toast" role="status">{notice}<button onClick={() => setNotice('')} aria-label="Dismiss">×</button></div>}
       </div>
