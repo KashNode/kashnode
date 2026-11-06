@@ -15,7 +15,6 @@ import { existsSync } from 'node:fs'
 import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
-import { createShopifyOAuthHandlers } from './server/routes/shopifyOAuth.js'
 import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
 import { createAdminSettingsHandlers } from './server/routes/adminSettings.js'
 import { createMerchantDashboardHandlers } from './server/routes/merchantDashboard.js'
@@ -178,7 +177,6 @@ const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
 const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaultDataQuotaMb: DATA_QUOTA_MB })
 const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
 const merchantIntegrationHandlers = createMerchantIntegrationHandlers({ pool })
-const shopifyOAuthHandlers = createShopifyOAuthHandlers({ pool })
 const paymentProcessor = pool ? createPaymentProcessor({ pool }) : null
 const merchantPaymentHandlers = createMerchantPaymentHandlers({
   pool,
@@ -224,8 +222,7 @@ app.get('/api/merchant/credentials', requireMerchantSession, asyncRoute(merchant
 app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCalls))
 app.get('/api/merchant/courier-orders', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCourierOrders))
 app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))
-app.get('/api/merchant/integrations/shopify/auth', requireMerchantSession, integrationLimiter, asyncRoute(shopifyOAuthHandlers.auth))
-app.get('/api/merchant/integrations/shopify/callback', requireMerchantSession, integrationLimiter, asyncRoute(shopifyOAuthHandlers.callback))
+app.post('/api/merchant/integrations/shopify/connect', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.connectShopify))
 app.get('/api/merchant/integrations', requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.list))
 app.post('/api/merchant/integrations/:provider/test', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.test))
 app.put('/api/merchant/integrations/:provider', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.save))
