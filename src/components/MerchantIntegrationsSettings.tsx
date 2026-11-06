@@ -42,8 +42,7 @@ async function callApi(path: string, method = 'GET', body?: unknown) {
   return payload;
 }
 
-export default function MerchantIntegrationsSettings({ activePackage, onNotify }: {
-  activePackage: 'free' | 'basic' | 'standard' | 'premium';
+export default function MerchantIntegrationsSettings({ onNotify }: {
   onNotify: (message: string) => void;
 }) {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
