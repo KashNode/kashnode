@@ -1,89 +1,94 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, CreditCard, ShoppingBag, Truck, Wrench } from 'lucide-react'
+import { ArrowRight, Cpu, MessageCircle, Network, ShoppingBag, Smartphone, Wallet } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { FinalCta } from '../../components/site/SiteSections'
 
-type Status = 'Available' | 'Planned'
-type Integration = { name: string; desc: string; status: Status }
-
-const CATEGORIES: { icon: typeof ShoppingBag; title: string; items: Integration[] }[] = [
+const GROUPS = [
   {
-    icon: ShoppingBag, title: 'E-commerce platforms',
+    icon: ShoppingBag, title: 'Store platforms',
     items: [
-      { name: 'WooCommerce', desc: 'Orders sync into KashNode for verification, payment matching and courier booking.', status: 'Available' },
-      { name: 'Shopify', desc: 'Connect your Shopify store and automate confirmation for every order.', status: 'Available' },
-      { name: 'Custom stores', desc: 'A plugin and API for stores built on a custom stack.', status: 'Available' },
+      ['WooCommerce', 'Order and payment-status synchronisation through store hooks.'],
+      ['Shopify', 'Order and payment-status synchronisation through store hooks.'],
+      ['Laravel / custom commerce', 'Custom website connection through the platform webhook/API layer.'],
     ],
   },
   {
-    icon: CreditCard, title: 'Mobile financial services',
+    icon: Wallet, title: 'Mobile financial services',
     items: [
-      { name: 'bKash', desc: 'Payments verified by code and TrxID against the order.', status: 'Available' },
-      { name: 'Nagad', desc: 'Payments verified by code and TrxID against the order.', status: 'Available' },
-      { name: 'Rocket', desc: 'Payments verified by code and TrxID against the order.', status: 'Available' },
-      { name: 'Upay', desc: 'Payments verified by code and TrxID against the order.', status: 'Available' },
+      ['bKash', 'Incoming transaction SMS and TrxID matching.'],
+      ['Nagad', 'Incoming transaction SMS and TrxID matching.'],
+      ['Rocket', 'Incoming transaction SMS and TrxID matching.'],
+      ['Upay', 'Incoming transaction SMS and TrxID matching.'],
     ],
   },
   {
-    icon: Truck, title: 'Courier services',
+    icon: Network, title: 'ISP infrastructure',
     items: [
-      { name: 'Steadfast', desc: 'Automatic parcel booking for verified orders, with tracking in the dashboard.', status: 'Available' },
-      { name: 'Pathao', desc: 'Automatic parcel booking for verified orders, with tracking in the dashboard.', status: 'Available' },
-      { name: 'More couriers', desc: 'Additional courier partners are planned. Tell us which one you use.', status: 'Planned' },
+      ['MikroTik RouterOS v7', 'Router API connection for subscriber status and automatic line restoration after verified payment.'],
     ],
   },
   {
-    icon: Wrench, title: 'Business tools',
+    icon: MessageCircle, title: 'Messaging & notifications',
     items: [
-      { name: 'KashNode Box', desc: 'Your business SIM, connected to the platform around the clock.', status: 'Available' },
-      { name: 'More payment methods', desc: 'Additional payment options are planned as merchant demand grows.', status: 'Planned' },
-      { name: 'More store platforms', desc: 'Additional e-commerce platforms are planned. Tell us which one you use.', status: 'Planned' },
+      ['WhatsApp (Baileys)', 'QR-linked merchant WhatsApp session for invoice and OTP delivery.'],
+      ['SMS', 'Transaction alerts, customer confirmation and OTP delivery through a connected SIM.'],
+      ['Email', 'Premium-tier notification and invoice delivery.'],
+      ['Telegram', 'Merchant bot notifications in the e-commerce Standard and Premium tiers.'],
+    ],
+  },
+  {
+    icon: Smartphone, title: 'Transaction ingestion devices',
+    items: [
+      ['Android Dual-SIM Agent', 'Maps payment services to SIM slots, captures incoming SMS and buffers events locally while offline.'],
+      ['ESP32 LilyGO / TTGO T-Call', 'Standalone cellular node with its own SIM data connection, SMS capture and remote firmware-update capability.'],
+    ],
+  },
+  {
+    icon: Cpu, title: 'Platform interfaces',
+    items: [
+      ['Hosted checkout', 'Customer payment page with live browser updates over WebSocket / server-sent events.'],
+      ['Merchant dashboard', 'Configuration for payment methods, devices, licences, transactions and integrations.'],
+      ['Webhook layer', 'Server-side event processing for connected commerce platforms.'],
     ],
   },
 ]
 
 export default function IntegrationsPage() {
   return (
-    <SiteLayout title="Integrations">
+    <SiteLayout title="Integrations & Connectivity">
       <section className="site-page-hero">
         <div className="site-wrap">
-          <Eyebrow>Integrations</Eyebrow>
-          <h1>KashNode works with <em>the tools you already use.</em></h1>
-          <p className="site-lede">Connect your store, your payments and your couriers — and keep everything in one workflow. Only integrations that are actually built are listed as available; everything else is clearly marked as planned.</p>
+          <Eyebrow>Integrations & connectivity</Eyebrow>
+          <h1>Connect payments, <em>networks and stores.</em></h1>
+          <p className="site-lede">The platform blueprint covers two business tracks—ISP billing and e-commerce payments—using connected transaction-ingestion devices, messaging channels and server-side integrations.</p>
         </div>
       </section>
-
       <section className="site-section">
         <div className="site-wrap">
-          {CATEGORIES.map(category => {
-            const Icon = category.icon
+          {GROUPS.map(group => {
+            const Icon = group.icon
             return (
-              <div key={category.title} className="site-int-dir">
-                <div className="site-int-dir-head">
-                  <span className="site-card-icon"><Icon size={20} /></span>
-                  <h3>{category.title}</h3>
-                </div>
-                {category.items.map(item => (
-                  <div key={item.name} className="site-int-row">
-                    <strong>{item.name}</strong>
-                    <p>{item.desc}</p>
-                    <span className={`site-badge ${item.status === 'Planned' ? 'planned' : ''}`}>{item.status}</span>
-                  </div>
+              <section className="site-int-dir" key={group.title}>
+                <div className="site-int-dir-head"><span className="site-card-icon"><Icon size={20} /></span><h2>{group.title}</h2></div>
+                {group.items.map(([name, desc]) => (
+                  <article className="site-int-row" key={name}>
+                    <strong>{name}</strong><p>{desc}</p>
+                    <span className="site-badge planned">Architecture scope</span>
+                  </article>
                 ))}
-              </div>
+              </section>
             )
           })}
+          <p className="site-note">“Architecture scope” describes components named in the technical blueprint; it is not a claim that every connector is already deployed or generally available.</p>
         </div>
       </section>
-
       <section className="site-section">
         <div className="site-wrap site-center-block">
-          <h2 className="site-h2">Need an integration we don’t list yet?</h2>
-          <p className="site-body">Tell us which platform, payment method or courier you use — planned integrations are prioritised by merchant demand.</p>
-          <Link to="/contact" className="site-btn site-btn-primary">Request an integration <ArrowRight size={16} /></Link>
+          <h2 className="site-h2">Need help planning your connection?</h2>
+          <p className="site-body">Tell us whether you operate an ISP, an online store or both. We can help map the required devices and integrations.</p>
+          <Link to="/contact" className="site-btn site-btn-primary">Talk to the team <ArrowRight size={16} /></Link>
         </div>
       </section>
-
       <FinalCta />
     </SiteLayout>
   )
