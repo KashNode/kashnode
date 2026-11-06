@@ -49,9 +49,7 @@ DECLARE
   v_ledger public.call_billing_ledger%ROWTYPE;
   v_rate_per_minute NUMERIC(10,2);
   v_billed_amount NUMERIC(12,2);
-  v_required_voice_minutes INTEGER;
   v_billing_source TEXT;
-  v_voice_minutes_debited INTEGER := 0;
 BEGIN
   IF p_merchant_id IS NULL OR p_order_id IS NULL OR p_session_id IS NULL THEN
     RAISE EXCEPTION 'INVALID_BILLING_ARGUMENTS';
@@ -93,22 +91,14 @@ BEGIN
     ELSE 7.00
   END;
   v_billed_amount := ROUND((p_call_duration_seconds * v_rate_per_minute) / 60.0, 2);
-  v_required_voice_minutes := CEIL(p_call_duration_seconds / 60.0)::INTEGER;
-
-  IF COALESCE(v_merchant.wallet_balance, 0) >= v_billed_amount THEN
-    UPDATE public.merchants
-       SET wallet_balance = COALESCE(wallet_balance, 0) - v_billed_amount
-     WHERE id = p_merchant_id;
-    v_billing_source := 'wallet';
-  ELSIF COALESCE(v_merchant.available_voice_minutes, 0) >= v_required_voice_minutes THEN
-    UPDATE public.merchants
-       SET available_voice_minutes = available_voice_minutes - v_required_voice_minutes
-     WHERE id = p_merchant_id;
-    v_billing_source := 'voice_minutes';
-    v_voice_minutes_debited := v_required_voice_minutes;
-  ELSE
+  IF COALESCE(v_merchant.wallet_balance, 0) < v_billed_amount THEN
     RAISE EXCEPTION 'INSUFFICIENT_VOICE_CREDIT';
   END IF;
+
+  UPDATE public.merchants
+     SET wallet_balance = COALESCE(wallet_balance, 0) - v_billed_amount
+   WHERE id = p_merchant_id;
+  v_billing_source := 'wallet';
 
   INSERT INTO public.call_billing_ledger (
     merchant_id, order_id, session_id, call_duration_seconds, billed_amount,
@@ -116,7 +106,7 @@ BEGIN
   )
   VALUES (
     p_merchant_id, p_order_id, p_session_id, ROUND(p_call_duration_seconds, 3),
-    v_billed_amount, 'BDT', v_billing_source, v_voice_minutes_debited, v_rate_per_minute
+    v_billed_amount, 'BDT', v_billing_source, 0, v_rate_per_minute
   )
   RETURNING * INTO v_ledger;
 
