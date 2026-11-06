@@ -2382,7 +2382,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 .site-lang-menu button{display:flex;align-items:center;gap:8px}
 
 /* Responsive */
-@media (max-width: 1020px){
+@media (max-width: 1180px){
   .site-hero-inner{grid-template-columns:1fr;gap:40px;padding:56px 24px 72px}
   .site-hero-box{position:static;width:220px;margin:-8px auto 0}
   .site-hero-strip-inner{grid-template-columns:repeat(3,1fr)}
@@ -2398,7 +2398,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 }
 /* Tablet and below: collapse the desktop nav into the hamburger menu so the
    header never overflows and every action stays reachable. */
-@media (max-width: 1024px){
+@media (max-width: 1180px){
   .site-nav-links{display:none}
   .site-nav-actions .site-btn-ghost{display:none}
   .site-nav-actions .site-btn-primary{padding:9px 14px;font-size:.85rem}
@@ -2419,6 +2419,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .site-hero-strip-inner{grid-template-columns:repeat(2,1fr)}
   .site-dash{grid-template-columns:1fr}
   .site-dash-side{flex-direction:row;flex-wrap:wrap;padding:10px}
+  .site-preview-tag{position:static;justify-self:end;margin:10px 10px 0}
   .site-footer-inner{grid-template-columns:1fr}
   .site-hero-checks{gap:12px}
   .site-final-cta-inner .site-dual-cta .site-btn,.site-dual-cta .site-btn{width:100%}
@@ -2432,10 +2433,15 @@ body { min-height: 100dvh; overflow-x: hidden; }
   .site-lang-label{display:none}
   .site-lang-btn{padding:8px}
   .site-hero-strip-inner{grid-template-columns:1fr}
-  .site-dash-stats span{font-size:.58rem;white-space:normal}
+  .site-dash-stats{grid-template-columns:1fr;gap:8px}
+  .site-dash-stats>div{padding:10px 12px}
+  .site-dash-stats small{display:inline;font-size:.72rem}
+  .site-dash-stats strong{display:inline;font-size:1.05rem;margin-left:6px}
+  .site-dash-stats span{display:block;font-size:.68rem;white-space:nowrap;margin-top:2px}
   .site-hero h1{font-size:2.35rem}
   .site-dash-main{padding:14px}
 }
+@media (max-width: 380px){ .site-nav-inner{gap:8px;padding:0 12px} .site-nav-actions .site-lang{display:none} }
 
 
 /* Landing page layout polish — balanced desktop hero and deliberate mobile flow. */
