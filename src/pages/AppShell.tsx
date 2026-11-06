@@ -82,6 +82,10 @@ export default function AppShell({ user, onSignOut }: Props) {
     let alive = true
     void refreshSim(true)
     getMerchantOnboarding().then(profile => { if (alive) setGatewayProfile(profile) }).catch(() => {})
+    getMerchantCredentials()
+      .then(credentials => { if (alive) { setMerchantId(credentials.merchantId); setMerchantSecretKey(credentials.merchantSecretKey) } })
+      .catch(error => { if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load merchant pairing credentials.') })
+      .finally(() => { if (alive) setSecretLoading(false) })
     getCourierOrders()
       .then(payload => { if (alive) setCourierOrders(payload.courierOrders || []) })
       .catch(error => { if (alive) setCourierOrdersError(error instanceof Error ? error.message : 'Could not load courier bookings.') })
@@ -101,12 +105,6 @@ export default function AppShell({ user, onSignOut }: Props) {
         setPackageRate(Number.isFinite(Number(payload.ratePerMinute)) ? Number(payload.ratePerMinute) : 7)
         setWalletBalance(Number(payload.walletBalance || 0))
         setAvailableVoiceMinutes(Number(payload.availableVoiceMinutes || 0))
-        try {
-          const credentials = await getMerchantCredentials()
-          if (alive) { setMerchantId(credentials.merchantId); setMerchantSecretKey(credentials.merchantSecretKey) }
-        } catch (error) {
-          if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load merchant pairing credentials.')
-        }
       })
       .catch((error) => {
         if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load package access.')
@@ -114,7 +112,6 @@ export default function AppShell({ user, onSignOut }: Props) {
       .finally(() => {
         if (alive) {
           setPackageLoading(false)
-          setSecretLoading(false)
         }
       })
     return () => {
