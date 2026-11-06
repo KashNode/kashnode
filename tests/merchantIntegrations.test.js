@@ -58,7 +58,7 @@ test('provider credential validation normalizes safe provider settings', () => {
     },
   );
   assert.equal(
-    validateIntegrationCredentials('shopify', { shopDomain: 'shop.myshopify.com', accessToken: 'token' }).apiVersion,
-    '2025-10',
+    validateIntegrationCredentials('shopify', { shopDomain: 'shop.myshopify.com', accessToken: 'token', webhookSecret: 'webhook-secret' }).apiVersion,
+    '2026-10',
   );
 });
