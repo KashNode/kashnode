@@ -160,9 +160,9 @@ function mapPaymentMethod(order) {
 const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
     (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
-     payment_status, delivery_status, payment_method, line_items, financial_status, currency,
+     payment_status, delivery_status, payment_method, line_items, financial_status, currency, store_provider,
      shipping_address, shipping_city, shipping_zone, shipping_area, shipping_postcode, alternative_phone)
-  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10, $11, $12, $13, $14, $15, $16)
+  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10, 'shopify', $11, $12, $13, $14, $15, $16)
   RETURNING id, payment_status, delivery_status
 `;
 
@@ -175,6 +175,7 @@ const UPDATE_ORDER_SQL = `
       line_items = $6::jsonb,
       financial_status = $7,
       currency = $8,
+      store_provider = 'shopify',
       shipping_address = COALESCE($10, shipping_address),
       shipping_city = COALESCE($11, shipping_city),
       shipping_zone = COALESCE($12, shipping_zone),
