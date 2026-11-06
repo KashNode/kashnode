@@ -90,7 +90,7 @@ async function processJob(pool, job) {
     await completeJob(pool, job.id, 'failed', 'Order is missing a delivery address or customer phone.', false, job.attempts);
     return;
   }
-  if (courierRow.provider === 'pathao' && (!/^\\d+$/.test(String(order.shipping_city || '')) || !/^\\d+$/.test(String(order.shipping_zone || '')))) {
+  if (courierRow.provider === 'pathao' && (!/^\d+$/.test(String(order.shipping_city || '')) || !/^\d+$/.test(String(order.shipping_zone || '')))) {
     await completeJob(pool, job.id, 'failed', 'Pathao orders require city and zone IDs from the merchant dashboard.', false, job.attempts);
     return;
   }
