@@ -137,16 +137,16 @@ export async function saveMerchantOnboarding(input: MerchantOnboardingInput): Pr
   return payload.onboarding as MerchantOnboardingProfile
 }
 
-export async function getMerchantCredentials(): Promise<{ merchantSecretKey: string }> {
+export async function getMerchantCredentials(): Promise<{ merchantId: string; merchantSecretKey: string }> {
   const response = await fetch('/api/merchant/credentials', {
     credentials: 'include',
     headers: { Accept: 'application/json' },
   })
   const payload = await readApiPayload(response, 'Could not load your merchant API secret.')
-  if (typeof payload.merchantSecretKey !== 'string' || !payload.merchantSecretKey) {
+  if (typeof payload.merchantId !== 'string' || !payload.merchantId || typeof payload.merchantSecretKey !== 'string' || !payload.merchantSecretKey) {
     throw new Error('The server did not return a merchant API secret.')
   }
-  return { merchantSecretKey: payload.merchantSecretKey }
+  return { merchantId: payload.merchantId, merchantSecretKey: payload.merchantSecretKey }
 }
 
 export async function requestBillingPhoneOtp(phone: string): Promise<void> {

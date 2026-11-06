@@ -123,22 +123,16 @@ test('POST onboarding rejects invalid phone numbers without touching the databas
   assert.equal(calls, 0);
 });
 
-test('merchant credentials stay unavailable until onboarding is complete', async () => {
+test('newly registered authenticated merchant can retrieve pairing credentials before onboarding completes', async () => {
   const handlers = createMerchantOnboardingHandlers({
-    pool: {
-      async query() {
-        return { rows: [{ webhook_secret: 'secret-value', is_onboarding_complete: false }] };
-      },
-    },
+    pool: { async query() { return { rows: [{ id: 'merchant-uuid', webhook_secret: 'secret-value', is_onboarding_complete: false }] }; } },
   });
   const res = makeResponse();
-
   await handlers.getCredentials({ ...identity }, res);
-
-  assert.equal(res.statusCode, 403);
-  assert.equal(res.body.merchantSecretKey, undefined);
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.merchantId, 'merchant-uuid');
+  assert.equal(res.body.merchantSecretKey, 'secret-value');
 });
-
 
 test('completed merchant owner can retrieve the integration secret', async () => {
   let queryArgs;
@@ -146,7 +140,7 @@ test('completed merchant owner can retrieve the integration secret', async () =>
     pool: {
       async query(_sql, args) {
         queryArgs = args;
-        return { rows: [{ webhook_secret: 'private-merchant-secret', is_onboarding_complete: true }] };
+        return { rows: [{ id: 'merchant-uuid', webhook_secret: 'private-merchant-secret', is_onboarding_complete: true }] };
       },
     },
   });
@@ -156,6 +150,7 @@ test('completed merchant owner can retrieve the integration secret', async () =>
 
   assert.deepEqual(queryArgs, ['merchant-uuid', 'user-uuid']);
   assert.equal(res.statusCode, 200);
+  assert.equal(res.body.merchantId, 'merchant-uuid');
   assert.equal(res.body.merchantSecretKey, 'private-merchant-secret');
 });
 

@@ -141,17 +141,14 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
 
     const result = await pool.query(
-      'SELECT webhook_secret, is_onboarding_complete FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+      'SELECT id, webhook_secret, is_onboarding_complete FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
       [identity.merchantId, identity.userId],
     );
     const merchant = result.rows[0];
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
-    if (!merchant.is_onboarding_complete) {
-      return res.status(403).json({ status: 'error', message: 'Complete merchant onboarding before viewing API credentials.' });
-    }
-
     return res.json({
       status: 'success',
+      merchantId: merchant.id,
       merchantSecretKey: merchant.webhook_secret,
     });
   }

@@ -15,14 +15,14 @@ type Integration = {
 const PROVIDERS: { id: Provider; name: string; group: 'Courier' | 'Store'; description: string }[] = [
   { id: 'steadfast', name: 'Steadfast', group: 'Courier', description: 'Automated parcel booking and tracking.' },
   { id: 'pathao', name: 'Pathao Courier', group: 'Courier', description: 'Book parcels using your Pathao merchant store.' },
-  { id: 'woocommerce', name: 'WooCommerce', group: 'Store', description: 'Connect your store REST API to sync tracking details.' },
+  { id: 'woocommerce', name: 'WooCommerce', group: 'Store', description: 'Connect your WooCommerce REST API and webhook endpoint.' },
   { id: 'shopify', name: 'Shopify', group: 'Store', description: 'Connect your Shopify Admin API to sync tracking details.' },
 ];
 
 const initialForms: Record<Provider, Record<string, string>> = {
   steadfast: { apiKey: '', secretKey: '' },
   pathao: { environment: 'production', clientId: '', clientSecret: '', username: '', password: '', storeId: '' },
-  woocommerce: { storeUrl: '', consumerKey: '', consumerSecret: '' },
+  woocommerce: { storeUrl: '', consumerKey: '', consumerSecret: '', webhookUrl: '' },
   shopify: { shopDomain: '', accessToken: '', webhookSecret: '' },
 };
 
@@ -42,8 +42,7 @@ async function callApi(path: string, method = 'GET', body?: unknown) {
   return payload;
 }
 
-export default function MerchantIntegrationsSettings({ activePackage, onNotify }: {
-  activePackage: 'free' | 'basic' | 'standard' | 'premium';
+export default function MerchantIntegrationsSettings({ onNotify }: {
   onNotify: (message: string) => void;
 }) {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
@@ -63,6 +62,8 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
       const payload = await callApi('/api/merchant/integrations');
       const saved = payload.integrations || [];
       setIntegrations(saved);
+      const wooSaved = saved.find((item: Integration) => item.provider === 'woocommerce');
+      if (wooSaved?.config?.webhookUrl) setForms(current => ({ ...current, woocommerce: { ...current.woocommerce, webhookUrl: String(wooSaved.config.webhookUrl) } }));
       const steadfastSaved = saved.find((item: Integration) => item.provider === 'steadfast');
       const pathaoSaved = saved.find((item: Integration) => item.provider === 'pathao');
       setAutoBook({
@@ -88,7 +89,7 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
     setError('');
     try {
       const credentials = { ...forms[provider], storeId: provider === 'pathao' ? Number(forms.pathao.storeId) : undefined };
-      await callApi(`/api/merchant/integrations/${provider}/test`, 'POST', { credentials });
+      await callApi(`/api/merchant/integrations/${provider}/test`, 'POST', { credentials, config: { webhookUrl: provider === 'woocommerce' ? forms.woocommerce.webhookUrl : undefined } });
       setTested(current => [...new Set([...current, provider])]);
       onNotify(`${PROVIDERS.find(item => item.id === provider)?.name} connection verified.`);
     } catch (err) {
@@ -109,7 +110,7 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
       const credentials = { ...forms[provider], storeId: provider === 'pathao' ? Number(forms.pathao.storeId) : undefined };
       await callApi(`/api/merchant/integrations/${provider}`, 'PUT', {
         credentials,
-        config: { autoBook: provider === 'steadfast' || provider === 'pathao' ? autoBook[provider] : undefined },
+        config: { autoBook: provider === 'steadfast' || provider === 'pathao' ? autoBook[provider] : undefined, webhookUrl: provider === 'woocommerce' ? forms.woocommerce.webhookUrl : undefined },
       });
       setForms(current => ({ ...current, [provider]: initialForms[provider] }));
       setTested(current => current.filter(item => item !== provider));
@@ -153,7 +154,7 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
 
   function providerCard(provider: typeof PROVIDERS[number]) {
     const saved = integrations.find(item => item.provider === provider.id);
-    const locked = provider.group === 'Courier' && activePackage === 'basic';
+    const locked = false;
     const busy = testing === provider.id || saving === provider.id || removing === provider.id;
     return (
       <article className="md-card md-integration-card" key={provider.id}>
@@ -186,6 +187,7 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
               {input('woocommerce', 'storeUrl', 'Store URL', 'url', 'https://yourstore.com')}
               {input('woocommerce', 'consumerKey', 'Consumer Key', 'password')}
               {input('woocommerce', 'consumerSecret', 'Consumer Secret', 'password')}
+              {input('woocommerce', 'webhookUrl', 'Store Webhook URL', 'url', 'https://yourstore.com/wp-json/kashnode/v1/webhook')}
             </div>}
             {provider.id === 'shopify' && <div className="md-integration-grid">
               {input('shopify', 'shopDomain', 'Shop Domain', 'text', 'your-store.myshopify.com')}
@@ -219,10 +221,10 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
     <section className="md-integrations-settings">
       <p className="md-eyebrow">WORKSPACE SETTINGS</p>
       <h1 className="md-title">Integrations</h1>
-      <p className="md-sub">Connect your store and courier accounts. Credentials are encrypted before they are stored and are never sent back to this screen.</p>
+      <p className="md-sub">Connect your store and courier accounts on any plan. Credentials are encrypted before they are stored and are never sent back to this screen.</p>
       {error && <p className="md-error" role="alert"><XCircle size={16} /> {error}</p>}
       {loading ? <p className="md-muted">Loading saved connections…</p> : null}
-      <div className="md-integration-section"><h2><PlugZap size={18} /> Courier connections</h2><p className="md-muted">Test your API keys before enabling automatic parcel booking.</p>{PROVIDERS.filter(item => item.group === 'Courier').map(providerCard)}</div>
+      <div className="md-integration-section"><h2><PlugZap size={18} /> Courier connections</h2><p className="md-muted">Available for all merchant plans. Test your API keys before enabling automatic parcel booking.</p>{PROVIDERS.filter(item => item.group === 'Courier').map(providerCard)}</div>
       <div className="md-integration-section"><h2><Link2 size={18} /> Store connections</h2><p className="md-muted">Connect your store so tracking details can be synced back after courier booking.</p>{PROVIDERS.filter(item => item.group === 'Store').map(providerCard)}</div>
     </section>
   );

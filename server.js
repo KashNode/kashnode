@@ -217,8 +217,8 @@ app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, 
     currency: 'BDT',
   })
 }))
-// Full API credential access is reserved for Premium; the route rechecks the live tier.
-app.get('/api/merchant/credentials', requireMerchantSession, requirePremiumPackage, asyncRoute(merchantOnboardingHandlers.getCredentials))
+// Device pairing credentials are available to every authenticated merchant owner.
+app.get('/api/merchant/credentials', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getCredentials))
 app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCalls))
 app.get('/api/merchant/courier-orders', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCourierOrders))
 app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))

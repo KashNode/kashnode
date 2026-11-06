@@ -18,8 +18,16 @@ async function verifyMerchant(pool, id) {
   return result.rows[0] || null;
 }
 
-function allowedByTier(provider, plan) {
-  return !COURIER_PROVIDERS.has(provider) || ['standard', 'premium'].includes(String(plan || '').toLowerCase());
+function validateStoreWebhookUrl(value) {
+  if (value == null || value === '') return null;
+  if (typeof value !== 'string' || value.length > 2048) throw new Error('Enter a valid HTTPS webhook URL.');
+  let url;
+  try { url = new URL(value.trim()); } catch { throw new Error('Enter a valid HTTPS webhook URL.'); }
+  if (url.protocol !== 'https:' || !url.hostname || url.username || url.password || url.port && url.port !== '443'
+    || url.hostname === 'localhost' || url.hostname.endsWith('.local') || url.hostname.endsWith('.localhost')) {
+    throw new Error('Webhook URL must use a public HTTPS address without embedded credentials.');
+  }
+  return url.toString();
 }
 
 function publicMessage(error) {
@@ -64,12 +72,9 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
     if (!ALL_PROVIDERS.has(provider)) return res.status(400).json({ status: 'error', message: 'Unsupported integration provider.' });
     const merchant = await verifyMerchant(pool, id);
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
-    if (!allowedByTier(provider, merchant.subscription_plan)) {
-      return res.status(403).json({ status: 'error', code: 'PACKAGE_UPGRADE_REQUIRED', requiredPlan: 'standard', message: 'Courier integrations require Standard or Premium.' });
-    }
-
     try {
       const credentials = validateIntegrationCredentials(provider, req.body?.credentials);
+      if (provider === 'woocommerce') validateStoreWebhookUrl(req.body?.config?.webhookUrl);
       const message = await testProviderCredentials(provider, credentials);
       return res.json({ status: 'success', provider, message, verified: true });
     } catch (error) {
@@ -85,18 +90,16 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
     if (!ALL_PROVIDERS.has(provider)) return res.status(400).json({ status: 'error', message: 'Unsupported integration provider.' });
     const merchant = await verifyMerchant(pool, id);
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
-    if (!allowedByTier(provider, merchant.subscription_plan)) {
-      return res.status(403).json({ status: 'error', code: 'PACKAGE_UPGRADE_REQUIRED', requiredPlan: 'standard', message: 'Courier integrations require Standard or Premium.' });
-    }
-
     try {
       const credentials = validateIntegrationCredentials(provider, req.body?.credentials);
       // Re-test on the server at save time; the browser's earlier test result is not trusted.
       const testMessage = await testProviderCredentials(provider, credentials);
       const encrypted = encryptIntegrationCredentials(credentials, env);
+      const webhookUrl = provider === 'woocommerce' ? validateStoreWebhookUrl(req.body?.config?.webhookUrl) : null;
       const allowedConfig = {
         autoBook: COURIER_PROVIDERS.has(provider) ? req.body?.config?.autoBook !== false : false,
         ...(provider === 'shopify' ? { shopDomain: credentials.shopDomain } : {}),
+        ...(webhookUrl ? { webhookUrl } : {}),
       };
       const client = await pool.connect();
       try {

@@ -112,6 +112,9 @@ export function createMerchantPaymentHandlers({ pool, sendSms, otpSecret, proces
     if (!merchant.rows[0]?.is_billing_phone_verified || !merchant.rows[0]?.billing_phone) {
       return res.status(403).json({ message: 'Verify your billing phone before submitting a top-up.' });
     }
+    if (req.body?.sender_phone && normalizePhone(req.body.sender_phone) !== merchant.rows[0].billing_phone) {
+      return res.status(400).json({ message: 'Sender phone must match your verified billing number.' });
+    }
     try {
       const inserted = await pool.query(
         `INSERT INTO public.merchant_topups (merchant_id,gateway,trx_id,amount,sender_phone)
