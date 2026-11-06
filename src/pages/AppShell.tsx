@@ -77,6 +77,9 @@ export default function AppShell({ user, onSignOut }: Props) {
   useEffect(() => {
     let alive = true
     void refreshSim(true)
+    getCourierOrders()
+      .then(payload => { if (alive) setCourierOrders(payload.courierOrders || []) })
+      .catch(error => { if (alive) setCourierOrdersError(error instanceof Error ? error.message : 'Could not load courier bookings.') })
     getCallHistory()
       .then((payload) => {
         if (!alive) return
