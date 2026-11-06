@@ -31,9 +31,10 @@ export default function AppShell({ user, onSignOut }: Props) {
               : pathname.startsWith('/dashboard/settings') ? 'settings'
                 : pathname === '/dashboard/alerts' ? 'alerts' : 'home'
   const settingsSection = pathname === '/dashboard/settings/billing' ? 'billing' : pathname === '/dashboard/settings/api' ? 'api' : 'profile'
-  const integrationSection = pathname === '/dashboard/integrations/stores' ? 'stores' : pathname === '/dashboard/integrations/webhooks' ? 'webhooks' : 'couriers'
-  const validDashboardPaths = ['/dashboard', '/dashboard/orders', '/dashboard/calls', '/dashboard/box', '/dashboard/wallet', '/dashboard/alerts', '/dashboard/integrations', '/dashboard/integrations/couriers', '/dashboard/integrations/stores', '/dashboard/integrations/webhooks', '/dashboard/settings', '/dashboard/settings/profile', '/dashboard/settings/billing', '/dashboard/settings/api']
+  const integrationSection = pathname === '/dashboard/integrations/stores' ? 'stores' : 'couriers'
+  const validDashboardPaths = ['/dashboard', '/dashboard/orders', '/dashboard/calls', '/dashboard/box', '/dashboard/wallet', '/dashboard/alerts', '/dashboard/integrations', '/dashboard/integrations/couriers', '/dashboard/integrations/stores', '/dashboard/settings', '/dashboard/settings/profile', '/dashboard/settings/billing', '/dashboard/settings/api']
   useEffect(() => {
+    if (pathname === '/dashboard/integrations/webhooks') { navigate('/dashboard/integrations/stores', { replace: true }); return }
     if (!validDashboardPaths.includes(pathname)) navigate('/dashboard', { replace: true })
   }, [pathname, navigate])
   const [theme, setTheme] = useState<Theme>('dark')
@@ -355,7 +356,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                         <p>Hardware price: <strong>৳8,000 one-time</strong></p>
                         <p>Hardware fulfillment: <strong>{(gatewayProfile.boxFulfillmentStatus || 'not_requested').replaceAll('_', ' ')}</strong></p>
                         <p className="md-muted">Your Box pre-order status will appear here. SIM details can be added during setup or when the device is ready.</p>
-                        <a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a>
+                        <div className="md-profile-action"><a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a></div>
                       </>
                     ) : (
                       <>
