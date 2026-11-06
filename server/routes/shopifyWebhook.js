@@ -180,12 +180,12 @@ const UPDATE_ORDER_SQL = `
       fulfillment_status = $9,
       currency = $10,
       store_provider = 'shopify',
-      shipping_address = COALESCE($10, shipping_address),
-      shipping_city = COALESCE($11, shipping_city),
-      shipping_zone = COALESCE($12, shipping_zone),
-      shipping_area = COALESCE($13, shipping_area),
-      shipping_postcode = COALESCE($14, shipping_postcode),
-      alternative_phone = COALESCE($15, alternative_phone),
+      shipping_address = COALESCE($12, shipping_address),
+      shipping_city = COALESCE($13, shipping_city),
+      shipping_zone = COALESCE($14, shipping_zone),
+      shipping_area = COALESCE($15, shipping_area),
+      shipping_postcode = COALESCE($16, shipping_postcode),
+      alternative_phone = COALESCE($17, alternative_phone),
       payment_status = CASE
         WHEN payment_status = 'paid' AND $11 = 'unpaid' THEN 'paid'
         ELSE $11
