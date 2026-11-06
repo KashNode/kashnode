@@ -6,6 +6,18 @@ import LandingPage from './pages/LandingPage'
 import AdminPanel from './pages/AdminPanel'
 import AppShell from './pages/AppShell'
 import Onboarding from './pages/Onboarding'
+import ProductPage from './pages/site/ProductPage'
+import FeaturesPage from './pages/site/FeaturesPage'
+import KashAiPage from './pages/site/KashAiPage'
+import HardwarePage from './pages/site/HardwarePage'
+import IntegrationsPage from './pages/site/IntegrationsPage'
+import PricingPage from './pages/site/PricingPage'
+import ResourcesPage from './pages/site/ResourcesPage'
+import AboutPage from './pages/site/AboutPage'
+import ContactPage from './pages/site/ContactPage'
+import SecurityPage from './pages/site/SecurityPage'
+import PrivacyPage from './pages/site/PrivacyPage'
+import TermsPage from './pages/site/TermsPage'
 
 export default function App() {
   const [user, setUser] = useState<AuthUser | null>(null)
@@ -103,6 +115,19 @@ export default function App() {
   return (
     <Routes>
       <Route path="/" element={<LandingPage />} />
+      {/* Public marketing pages — declared before the catch-all so they are never swallowed by the signed-in redirect. */}
+      <Route path="/product" element={<ProductPage />} />
+      <Route path="/features" element={<FeaturesPage />} />
+      <Route path="/kash-ai" element={<KashAiPage />} />
+      <Route path="/hardware" element={<HardwarePage />} />
+      <Route path="/integrations" element={<IntegrationsPage />} />
+      <Route path="/pricing" element={<PricingPage />} />
+      <Route path="/resources" element={<ResourcesPage />} />
+      <Route path="/about" element={<AboutPage />} />
+      <Route path="/contact" element={<ContactPage />} />
+      <Route path="/security" element={<SecurityPage />} />
+      <Route path="/privacy" element={<PrivacyPage />} />
+      <Route path="/terms" element={<TermsPage />} />
       <Route
         path="/login"
         element={
