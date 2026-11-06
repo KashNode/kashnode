@@ -29,6 +29,15 @@ function publicUser(row, merchantId) {
   }
 }
 
+function normalizeSignupSelection(body) {
+  const plan = typeof body?.plan === 'string' ? body.plan.trim().toLowerCase() : 'basic';
+  const gateway = typeof body?.gateway === 'string' ? body.gateway.trim().toLowerCase() : 'app';
+  return {
+    selectedPlan: ['basic', 'standard', 'premium'].includes(plan) ? plan : 'basic',
+    gatewayPreference: ['app', 'box'].includes(gateway) ? gateway : 'app',
+  };
+}
+
 function validateSignupBody(body) {
   const name = typeof body?.name === 'string' ? body.name.trim().replace(/\s+/g, ' ') : ''
   const email = normalizeEmail(body?.email)
@@ -60,6 +69,7 @@ export function createAuthController({
     const input = validateSignupBody(req.body)
     if (input.error) return res.status(400).json({ status: 'error', message: input.error })
 
+    const selection = normalizeSignupSelection(req.body)
     let disposable
     try {
       disposable = await checkDisposableEmail(input.email)
@@ -84,16 +94,18 @@ export function createAuthController({
     const otpHash = hashOtp(input.email, otp, otpSecret).toString('hex')
 
     await pool.query(
-      `INSERT INTO public.merchant_signup_otps (email, name, password_hash, otp_hash, attempts, expires_at)
-       VALUES ($1, $2, $3, $4, 0, NOW() + INTERVAL '${OTP_TTL_MINUTES} minutes')
+      `INSERT INTO public.merchant_signup_otps (email, name, password_hash, otp_hash, attempts, expires_at, selected_plan, gateway_preference)
+       VALUES ($1, $2, $3, $4, 0, NOW() + INTERVAL '${OTP_TTL_MINUTES} minutes', $5, $6)
        ON CONFLICT (email) DO UPDATE
        SET name = EXCLUDED.name,
            password_hash = EXCLUDED.password_hash,
            otp_hash = EXCLUDED.otp_hash,
            attempts = 0,
+           selected_plan = EXCLUDED.selected_plan,
+           gateway_preference = EXCLUDED.gateway_preference,
            created_at = NOW(),
            expires_at = EXCLUDED.expires_at`,
-      [input.email, input.name, passwordHash, otpHash],
+      [input.email, input.name, passwordHash, otpHash, selection.selectedPlan, selection.gatewayPreference],
     )
 
     try {
@@ -127,7 +139,7 @@ export function createAuthController({
     try {
       await client.query('BEGIN')
       const pending = await client.query(
-        `SELECT email, name, password_hash, otp_hash, attempts, expires_at
+        `SELECT email, name, password_hash, otp_hash, attempts, expires_at, selected_plan, gateway_preference
          FROM public.merchant_signup_otps
          WHERE email = $1
          FOR UPDATE`,
@@ -164,10 +176,12 @@ export function createAuthController({
           )
           const row = createdUser.rows[0]
           const merchant = await client.query(
-            `INSERT INTO public.merchants (name, email, owner_user_id)
-             VALUES ($1, $2, $3)
+            `INSERT INTO public.merchants (name, email, owner_user_id, subscription_plan, gateway_preference, box_fulfillment_status, box_preorder_requested_at)
+             VALUES ($1, $2, $3, $4, $5, $6, $7)
              RETURNING id`,
-            [challenge.name, email, row.id],
+            [challenge.name, email, row.id, challenge.selected_plan || 'basic', challenge.gateway_preference || 'app',
+              challenge.gateway_preference === 'box' ? 'preorder_requested' : 'not_requested',
+              challenge.gateway_preference === 'box' ? new Date() : null],
           )
           await client.query('DELETE FROM public.merchant_signup_otps WHERE email = $1', [email])
           user = publicUser(row, merchant.rows[0]?.id)
