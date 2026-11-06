@@ -21,7 +21,7 @@ import { createMerchantDashboardHandlers } from './server/routes/merchantDashboa
 import { createDeviceStatusHandler } from './server/routes/deviceStatus.js'
 import { createMerchantIntegrationHandlers } from './server/routes/merchantIntegrations.js'
 import { startCourierFulfillmentWorker } from './server/services/courierFulfillmentService.js'
-import { createRequirePackage, packageRateFor, normalizeMerchantPackage } from './server/middleware/packageAccess.js'
+import { createRequirePackage, normalizeMerchantPackage } from './server/middleware/packageAccess.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 import { createAuthController } from './server/controllers/authController.js'
