@@ -73,7 +73,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
     const merchant = await verifyMerchant(pool, id);
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
     try {
-      const credentials = validateIntegrationCredentials(provider, req.body?.credentials);
+      const credentials = validateIntegrationCredentials(provider, req.body?.credentials, { requireWebhookSecret: provider !== 'shopify' });
       if (provider === 'woocommerce') validateStoreWebhookUrl(req.body?.config?.webhookUrl);
       const message = await testProviderCredentials(provider, credentials);
       return res.json({ status: 'success', provider, message, verified: true });
