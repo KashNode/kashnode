@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS public.courier_fulfillment_outbox (
   merchant_id UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
   order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
   event_type TEXT NOT NULL DEFAULT 'order_verified' CHECK (event_type = 'order_verified'),
-  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed')),
+  status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'processing', 'completed', 'failed', 'blocked')),
   attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
   next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   last_error TEXT,
@@ -73,7 +73,9 @@ BEGIN
      AND NEW.courier_booked_at IS NULL THEN
     INSERT INTO public.courier_fulfillment_outbox (merchant_id, order_id)
     VALUES (NEW.merchant_id, NEW.id)
-    ON CONFLICT (order_id, event_type) DO NOTHING;
+    ON CONFLICT (order_id, event_type) DO UPDATE
+      SET status = 'pending', next_attempt_at = NOW(), last_error = NULL, updated_at = NOW()
+      WHERE public.courier_fulfillment_outbox.status IN ('blocked', 'failed');
   END IF;
   RETURN NEW;
 END;
@@ -81,7 +83,8 @@ $function$;
 
 DROP TRIGGER IF EXISTS orders_enqueue_verified_courier ON public.orders;
 CREATE TRIGGER orders_enqueue_verified_courier
-AFTER INSERT OR UPDATE OF is_phone_verified, payment_status, delivery_status
+AFTER INSERT OR UPDATE OF is_phone_verified, payment_status, delivery_status,
+  shipping_address, shipping_city, shipping_zone, shipping_area
 ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.enqueue_verified_order_for_courier();
