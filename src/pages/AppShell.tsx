@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { Bell, LogOut, Smartphone } from 'lucide-react'
+import { Bell, Loader2, LogOut, Smartphone } from 'lucide-react'
 import { getMerchantCredentials, getMerchantOnboarding, type AuthUser, type MerchantOnboardingProfile } from '../lib/auth'
-import { getCallHistory, getCourierOrders, getMerchantPackage, getSimStatus, type CallHistoryEntry, type MerchantCourierOrder, type SimStatus } from '../lib/kashApi'
+import { getCallHistory, getCourierOrders, getMerchantOrders, getMerchantPackage, getSimStatus, syncShopifyOrders, type CallHistoryEntry, type MerchantCourierOrder, type MerchantOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
 import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
 import MerchantTopupForm from '../components/MerchantTopupForm'
@@ -12,16 +12,6 @@ import Sidebar from '../components/Sidebar'
 
 type Props = { user: AuthUser; onSignOut: () => void }
 type Theme = 'dark' | 'system'
-
-type SampleOrder = { id: string; channel: string; amount: string; status: string; tone: string; trx: string; note: string }
-
-const sampleOrders: SampleOrder[] = [
-  { id: '#KN-48219', channel: 'bKash', amount: '৳ 1,250', status: 'COD SMS verified', tone: 'ok', trx: 'B8K2••••', note: 'Order confirmed' },
-  { id: '#KN-48218', channel: 'Nagad', amount: '৳ 890', status: 'Needs review', tone: 'warn', trx: '9FK2••••', note: 'TrxID unmatched' },
-  { id: '#KN-48217', channel: 'Rocket', amount: '৳ 2,450', status: 'TrxID matched', tone: 'ok', trx: 'A4P7••••', note: 'Payment verified' },
-  { id: '#KN-48216', channel: 'Upay', amount: '৳ 3,600', status: 'Fake blocked', tone: 'bad', trx: 'C6L1••••', note: 'COD verification failed' },
-]
-
 
 function maskDeviceId(deviceId: string) {
   if (!deviceId) return '—'
@@ -50,6 +40,10 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [theme, setTheme] = useState<Theme>('dark')
   const [voice, setVoice] = useState<'Female' | 'Male'>('Female')
   const [orderFilter, setOrderFilter] = useState<'all' | 'review'>('all')
+  const [orders, setOrders] = useState<MerchantOrder[]>([])
+  const [ordersLoading, setOrdersLoading] = useState(true)
+  const [ordersError, setOrdersError] = useState('')
+  const [ordersSyncing, setOrdersSyncing] = useState(false)
   const [notice, setNotice] = useState('')
   const [alertBox, setAlertBox] = useState(true)
   const [alertWallet, setAlertWallet] = useState(true)
@@ -99,6 +93,7 @@ export default function AppShell({ user, onSignOut }: Props) {
   useEffect(() => {
     let alive = true
     void refreshSim(true)
+    getMerchantOrders().then(payload => { if (alive) setOrders(payload.orders || []) }).catch(error => { if (alive) setOrdersError(error instanceof Error ? error.message : 'Could not load orders.') }).finally(() => { if (alive) setOrdersLoading(false) })
     getMerchantOnboarding().then(profile => { if (alive) setGatewayProfile(profile) }).catch(() => {})
     getMerchantCredentials()
       .then(credentials => { if (alive) { setMerchantId(credentials.merchantId); setMerchantSecretKey(credentials.merchantSecretKey) } })
@@ -139,7 +134,21 @@ export default function AppShell({ user, onSignOut }: Props) {
   }, [])
 
 
-  const visibleOrders = orderFilter === 'review' ? sampleOrders.filter((order) => order.tone === 'warn') : sampleOrders
+  const visibleOrders = orderFilter === 'review' ? orders.filter(order => ['unpaid', 'manual_review', 'pending'].includes(String(order.payment_status).toLowerCase())) : orders
+
+  async function handleShopifySync() {
+    setOrdersSyncing(true)
+    setOrdersError('')
+    try {
+      const result = await syncShopifyOrders()
+      setOrders(result.orders || [])
+      notify(`Shopify sync complete: ${result.synced} new, ${result.updated} updated orders.`)
+    } catch (error) {
+      setOrdersError(error instanceof Error ? error.message : 'Could not sync Shopify orders.')
+    } finally {
+      setOrdersSyncing(false)
+    }
+  }
   const signal = simStatus ? Math.max(0, Math.min(5, Math.round(simStatus.signalStrength))) : 0
 
 
@@ -161,7 +170,7 @@ export default function AppShell({ user, onSignOut }: Props) {
         <Sidebar variant="desktop" />
 
         <div className="md-banner" role="note">
-          Live SIM telemetry, wallet balance, included voice minutes and completed AI voice sessions are loaded from your merchant account. Order previews are sample data.
+          Live SIM telemetry, wallet balance, voice sessions and orders are loaded from your merchant account.
         </div>
 
         <main className="md-main">
@@ -195,20 +204,33 @@ export default function AppShell({ user, onSignOut }: Props) {
 
           {view === 'orders' && (
             <section>
-              <h1 className="md-title">Orders &amp; verification</h1>
-              <p className="md-sub">COD SMS and order verification for your store.</p>
+              <div className="md-card-top">
+                <div><h1 className="md-title">Orders &amp; verification</h1><p className="md-sub">Live orders synced from your connected Shopify store.</p></div>
+                <button className="md-primary" onClick={() => void handleShopifySync()} disabled={ordersSyncing}>
+                  {ordersSyncing ? <Loader2 className="md-spin" size={16} /> : null} {ordersSyncing ? 'Syncing…' : 'Sync Orders'}
+                </button>
+              </div>
+              {ordersError && <p className="md-error" role="alert">{ordersError}</p>}
               <div className="md-filters">
                 <button className={orderFilter === 'all' ? 'active' : ''} onClick={() => setOrderFilter('all')}>All orders</button>
                 <button className={orderFilter === 'review' ? 'active' : ''} onClick={() => setOrderFilter('review')}>Needs review</button>
               </div>
               <div className="md-list">
-                {visibleOrders.map((order) => (
-                  <article className="md-card" key={order.id}>
-                    <div className="md-card-top"><strong>{order.id}</strong><span className={`md-badge ${order.tone}`}>{order.status}</span></div>
-                    <p>{order.channel} · {order.amount}</p>
-                    {activePackage === 'basic' ? <p className="md-muted">Payment SMS matching is locked on Basic.</p> : <p className="md-muted">TrxID {order.trx} · {order.note}</p>}
-                  </article>
-                ))}
+                {ordersLoading ? <article className="md-card"><p className="md-muted">Loading your orders…</p></article>
+                  : visibleOrders.length === 0 ? <article className="md-card"><p className="md-muted">{orderFilter === 'review' ? 'No orders need review.' : 'No orders found yet. Connect Shopify and select Sync Orders to import recent orders.'}</p></article>
+                  : visibleOrders.map(order => {
+                    const status = String(order.payment_status || 'unpaid')
+                    const tone = status === 'paid' ? 'ok' : status === 'manual_review' ? 'warn' : ''
+                    const lineSummary = (order.line_items || []).slice(0, 3).map(item => `${item.title || 'Item'} × ${item.quantity || 1}`).join(', ')
+                    return <article className="md-card" key={order.id}>
+                      <div className="md-card-top"><strong>{order.order_number || `#${order.platform_order_id}`}</strong><span className={`md-badge ${tone}`}>{status.replace('_', ' ')}</span></div>
+                      <p>{order.customer_name || 'Shopify customer'} · {order.customer_phone || 'No phone provided'}</p>
+                      <p>{order.payment_method || 'Payment method unavailable'} · {order.currency || 'BDT'} {Number(order.total_amount || 0).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                      {lineSummary && <p className="md-muted">{lineSummary}</p>}
+                      {order.shipping_address && <p className="md-muted">{order.shipping_address}</p>}
+                      <p className="md-muted">Fulfillment: {order.fulfillment_status || order.delivery_status || 'unfulfilled'} · {new Date(order.created_at).toLocaleString()}</p>
+                    </article>
+                  })}
               </div>
               {activePackage === 'basic' ? (
                 <div className="md-card">
