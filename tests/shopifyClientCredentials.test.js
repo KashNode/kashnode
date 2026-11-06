@@ -95,6 +95,7 @@ test('merchant Shopify connect encrypts credentials, token, scope and expiry bef
       throw new Error('Unexpected SQL: ' + sql);
     },
   };
+  const savedAt = Date.now();
   const handlers = createMerchantIntegrationHandlers({
     pool,
     env: ENV,
@@ -124,7 +125,8 @@ test('merchant Shopify connect encrypts credentials, token, scope and expiry bef
   assert.equal(decrypted.clientSecret, 'client-secret');
   assert.equal(decrypted.accessToken, 'encrypted-token');
   assert.equal(decrypted.scope, 'read_orders,write_orders');
-  assert.equal(decrypted.accessTokenExpiresAt, new Date(Date.now() + 86399 * 1000).toISOString());
+  const expiry = Date.parse(decrypted.accessTokenExpiresAt);
+  assert.ok(expiry >= savedAt + 86398 * 1000 && expiry <= Date.now() + 86400 * 1000);
 });
 
 test('test-only Shopify connection verifies without persisting credentials', async () => {
