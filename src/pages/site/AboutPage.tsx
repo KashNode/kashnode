@@ -20,7 +20,7 @@ export default function AboutPage() {
           <Eyebrow>What we believe</Eyebrow>
           <h2 className="site-h2">Small teams should run big operations.</h2>
           <p className="site-body">Most online stores in Bangladesh are run by one person or a small team. They take orders on Facebook and their website, call every customer to confirm, check every payment by hand, and book every parcel themselves. That work does not scale — and it is exactly the work software should do.</p>
-          <p className="site-body">KashNode automates the routine parts — verification, payment matching, confirmation calls, courier booking — so sellers can spend their time on products, customers and growth.</p>
+          <p className="site-body">KashNode automates the routine parts — verification, payment matching, confirmation calls, fulfilment handoff — so sellers can spend their time on products, customers and growth.</p>
           <div className="site-trust-row">
             <div><span className="site-card-icon"><ShieldCheck size={20} /></span><h3>Trust first</h3><p>Every order is verified against a real customer before it ships.</p></div>
             <div><span className="site-card-icon"><PhoneCall size={20} /></span><h3>Human where it matters</h3><p>AI handles routine calls; people step in where judgement is needed.</p></div>
