@@ -44,7 +44,7 @@ async function callApi(path: string, method = 'GET', body?: unknown) {
 
 export default function MerchantIntegrationsSettings({ onNotify, section = 'all' }: {
   onNotify: (message: string) => void;
-  section?: 'all' | 'couriers' | 'stores' | 'webhooks';
+  section?: 'all' | 'couriers' | 'stores';
 }) {
   const [integrations, setIntegrations] = useState<Integration[]>([]);
   const [forms, setForms] = useState(initialForms);
@@ -291,12 +291,12 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
   return (
     <section className="md-integrations-settings">
       <p className="md-eyebrow">WORKSPACE SETTINGS</p>
-      <h1 className="md-title">{section === 'couriers' ? 'Courier integrations' : section === 'stores' ? 'E-Commerce stores' : section === 'webhooks' ? 'Webhooks & API' : 'Integrations'}</h1>
-      <p className="md-sub">Connect your store and courier accounts on any plan. {section === 'webhooks' ? 'Configure store webhook endpoints and API credentials. Secrets are encrypted and never sent back to this screen.' : 'Credentials are encrypted before they are stored and are never sent back to this screen.'}</p>
+      <h1 className="md-title">{section === 'couriers' ? 'Couriers' : section === 'stores' ? 'E-Commerce Stores' : 'Integrations'}</h1>
+      <p className="md-sub">Connect your store and courier accounts on any plan. Credentials are encrypted before they are stored and are never sent back to this screen.</p>
       {error && <p className="md-error" role="alert"><XCircle size={16} /> {error}</p>}
       {loading ? <p className="md-muted">Loading saved connections…</p> : null}
       {(section === 'all' || section === 'couriers') && <div className="md-integration-section"><h2><PlugZap size={18} /> Courier connections</h2><p className="md-muted">Available for all merchant plans. Test your API keys before enabling automatic parcel booking.</p>{PROVIDERS.filter(item => item.group === 'Courier').map(providerCard)}</div>}
-      {(section === 'all' || section === 'stores' || section === 'webhooks') && <div className="md-integration-section"><h2><Link2 size={18} /> Store connections &amp; webhooks</h2><p className="md-muted">Connect your store so tracking details can be synced back after courier booking.</p>{PROVIDERS.filter(item => item.group === 'Store').map(providerCard)}</div>}
+      {(section === 'all' || section === 'stores') && <div className="md-integration-section"><h2><Link2 size={18} /> E-Commerce stores</h2><p className="md-muted">Connect your store so tracking details can be synced back after courier booking.</p>{PROVIDERS.filter(item => item.group === 'Store').map(providerCard)}</div>}
     </section>
   );
 }
