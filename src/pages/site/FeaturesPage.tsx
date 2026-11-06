@@ -11,7 +11,7 @@ const FEATURES: { icon: typeof ShieldCheck; title: string; text: string; points:
   },
   {
     icon: Wallet, title: 'Payment Verification', visual: 'payment', text: 'Mobile payments are matched automatically. KashNode checks the verification code and TrxID against the order, so you can tell at a glance which orders are paid, which are unmatched, and which need a human check.',
-    points: ['bKash, Nagad, Rocket and Upay', 'TrxID matched / unmatched states', 'Review queue for anything unclear'],
+    points: ['Configured payment-message formats', 'TrxID matched / unmatched states', 'Review queue for anything unclear'],
   },
   {
     icon: PhoneCall, title: 'Kash AI Customer Calls', visual: 'call', text: 'Kash calls your customers in a natural Bangla voice to confirm orders, follow up on payments, and handle routine conversations — without a human on the line. You can switch the voice between male and female.',
