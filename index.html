@@ -2,7 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=1280" />
+    <script>
+      // Phones load the desktop layout on public marketing pages (1280px
+      // layout viewport, scaled to fit — like a browser's "Desktop site"
+      // mode). The signed-in app (login, dashboard, admin, onboarding)
+      // keeps the phone-sized viewport. This runs before first paint; the
+      // viewport effect in src/App.tsx keeps it correct on client-side
+      // navigation.
+      (function () {
+        var p = location.pathname;
+        var app = p === '/login' || p === '/signup' || p === '/admin' || p === '/onboarding' || p === '/dashboard' ||
+          p.indexOf('/login/') === 0 || p.indexOf('/signup/') === 0 || p.indexOf('/admin/') === 0 || p.indexOf('/onboarding/') === 0 || p.indexOf('/dashboard/') === 0;
+        if (app) {
+          var m = document.querySelector('meta[name="viewport"]');
+          if (m) m.setAttribute('content', 'width=device-width, initial-scale=1.0');
+        }
+      })();
+    </script>
     <meta name="color-scheme" content="light dark" />
     <meta name="description" content="KashNode helps e-commerce teams streamline order verification, payment review, customer communication and fulfilment workflows from one connected operations platform. Explore automation for online stores." />
     <title>KashNode — E-commerce Operations Automation</title>
