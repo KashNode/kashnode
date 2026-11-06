@@ -76,7 +76,7 @@ function assertProvider(provider) {
   if (!PROVIDERS.has(provider)) throw new Error('Unsupported integration provider.');
 }
 
-export function validateIntegrationCredentials(provider, input) {
+export function validateIntegrationCredentials(provider, input, { requireWebhookSecret = true } = {}) {
   assertProvider(provider);
   const value = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
   if (provider === 'steadfast') {
@@ -104,12 +104,29 @@ export function validateIntegrationCredentials(provider, input) {
     if (!storeUrl || !consumerKey || !consumerSecret) throw new Error('WooCommerce store URL, Consumer Key and Consumer Secret are required.');
     return { storeUrl, consumerKey, consumerSecret };
   }
-  const shopDomain = clean(value.shopDomain, 255).toLowerCase();
+  // Accept the canonical shop domain or a pasted HTTPS shop URL.
+  // Normalize to a hostname before constructing the fixed Shopify API URL.
+  const rawShopDomain = clean(value.shopDomain, 2048).toLowerCase();
+  let shopDomain = rawShopDomain;
+  if (rawShopDomain) {
+    try {
+      const parsed = new URL(rawShopDomain.includes('://') ? rawShopDomain : `https://${rawShopDomain}`);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password || (parsed.port && parsed.port !== '443')
+        || (parsed.pathname !== '/' && parsed.pathname !== '') || parsed.search || parsed.hash) {
+        throw new Error('invalid shop URL');
+      }
+      shopDomain = parsed.hostname.replace(/\.$/, '');
+    } catch {
+      throw new Error('Enter a Shopify shop domain such as your-store.myshopify.com.');
+    }
+  }
   const accessToken = clean(value.accessToken, 1000);
   const apiVersion = '2026-10';
   const webhookSecret = clean(value.webhookSecret, 1000);
-  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain) || !accessToken || !webhookSecret) {
-    throw new Error('Enter a valid Shopify myshopify.com domain and Admin API access token.');
+  if (!/^[a-z0-9][a-z0-9-]*\.myshopify\.com$/.test(shopDomain) || !accessToken || (requireWebhookSecret && !webhookSecret)) {
+    throw new Error(requireWebhookSecret
+      ? 'Enter a valid Shopify myshopify.com domain, Admin API access token and webhook signing secret.'
+      : 'Enter a valid Shopify myshopify.com domain and Admin API access token.');
   }
   return { shopDomain, accessToken, webhookSecret, apiVersion };
 }
