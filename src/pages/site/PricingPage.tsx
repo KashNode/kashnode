@@ -3,7 +3,7 @@ import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { Faq, FinalCta, OverageNote, PricingTiers } from '../../components/site/SiteSections'
 
 const FAQS = [
-  { q: 'What is included in each plan?', a: 'Paid packages are billed by actual AI voice-call duration: Basic ৳6.50/minute, Standard ৳6.00/minute, and Premium ৳5.50/minute. There are no monthly fees or per-order charges. Free Trial includes 10 complimentary AI minutes.' },
+  { q: 'What is included in each plan?', a: 'Paid packages are billed by actual AI voice-call duration: Basic ৳5.50/minute, Standard ৳6.50/minute, and Premium ৳7.00/minute. There are no monthly fees or per-order charges. Free Trial includes 10 complimentary AI minutes.' },
   { q: 'Do I need the KashNode Box?', a: 'Start with the free Kash AI Android gateway and add a KashNode Box later. The Box is dedicated hardware with a one-time fee and pre-order inquiry.' },
   { q: 'Is live courier booking available?', a: 'Not generally yet. Courier booking and tracking require provider credentials and a production API adapter. Until that work is complete, tracking responses are marked as demo.' },
   { q: 'How is AI voice usage charged?', a: 'Each call is billed according to its actual duration and your package rate: Basic ৳6.50/minute, Standard ৳6.00/minute, or Premium ৳5.50/minute. Add funds to your wallet to cover usage.' },
