@@ -43,13 +43,13 @@ type PackageId = 'free' | 'basic' | 'standard' | 'premium'
 type MerchantStatus = 'active' | 'trial' | 'suspended'
 type Voice = 'male' | 'female'
 
-type PackageInfo = { id: PackageId; name: string; note: string; features: string[] }
+type PackageInfo = { id: PackageId; name: string; note: string; rate: string; features: string[] }
 
 const PACKAGES: PackageInfo[] = [
-  { id: 'free', name: 'Free Trial', note: 'Core voice automation', features: ['WooCommerce order sync', 'Basic AI order confirmation', 'Wallet usage visibility'] },
-  { id: 'basic', name: 'Basic', note: 'Essential merchant workflows', features: ['COD confirmation workflows', 'Bangla AI voice', 'MFS payment verification'] },
-  { id: 'standard', name: 'Standard', note: 'Advanced voice operations', features: ['All Basic features', 'Merchant voice rules', 'Conversation history and summaries'] },
-  { id: 'premium', name: 'Premium', note: 'Advanced business operations', features: ['All Standard features', 'Priority support workflow', 'Multi-box operations', 'Advanced reporting'] },
+  { id: 'free', name: 'Free Trial', note: '10 complimentary AI minutes', rate: '৳0 trial', features: ['WooCommerce order sync', 'Basic AI order confirmation', 'Wallet usage visibility'] },
+  { id: 'basic', name: 'Basic', note: 'Essential merchant workflows', rate: '৳7.00 / minute', features: ['COD confirmation workflows', 'Bangla AI voice', 'MFS payment verification'] },
+  { id: 'standard', name: 'Standard', note: 'Advanced voice operations', rate: '৳6.50 / minute', features: ['All Basic features', 'Merchant voice rules', 'Conversation history and summaries'] },
+  { id: 'premium', name: 'Premium', note: 'Advanced business operations', rate: '৳6.00 / minute', features: ['All Standard features', 'Priority support workflow', 'Multi-box operations', 'Advanced reporting'] },
 ]
 const packageById = (id: PackageId) => PACKAGES.find((item) => item.id === id) ?? PACKAGES[0]
 const formatBdt = (value: number) => `৳${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -531,7 +531,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                     <ul className="cd-list">
                       {WALLET_ROWS.map((row) => (<li key={`${row.date}-${row.merchant}`}><span><strong>{row.merchant}</strong><small>{row.detail}</small></span><span>{row.date}</span><strong>{row.amount}</strong></li>))}
                     </ul>
-                    <p className="cd-panel-note">AI voice usage is billed by call duration against the merchant wallet. Sample voice rate: ৳7 per minute.</p>
+                    <p className="cd-panel-note">AI voice usage is billed by actual call duration at the merchant’s package rate.</p>
                   </div>
                 </section>
               )}
@@ -638,6 +638,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                       <motion.article key={item.id} className="cd-package-card" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.3, delay: index * 0.06 }} whileHover={{ y: -6, scale: 1.01 }}>
                         <span className="cd-package-note">{item.note}</span>
                         <h2>{item.name}</h2>
+                        <p className="cd-package-rate">{item.rate}</p>
                         <ul>
                           {item.features.map((feature) => <li key={feature}>{feature}</li>)}
                         </ul>
@@ -645,7 +646,7 @@ export default function AdminPanel({ user, onSignOut }: Props) {
                       </motion.article>
                     ))}
                   </div>
-                  <p className="cd-panel-note">Packages define feature access only. AI voice usage is billed per minute against the merchant wallet.</p>
+                  <p className="cd-panel-note">Packages define feature access and the per-minute AI voice rate. No monthly subscription or per-order charge applies.</p>
                 </section>
               )}
 
