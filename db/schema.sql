@@ -565,3 +565,23 @@ BEGIN
   RETURN NEW;
 END;
 $function$;
+
+-- Hybrid app / Box gateway preference and updated tier rates.
+ALTER TABLE public.merchant_signup_otps
+  ADD COLUMN IF NOT EXISTS selected_plan VARCHAR(32) NOT NULL DEFAULT 'basic',
+  ADD COLUMN IF NOT EXISTS gateway_preference VARCHAR(16) NOT NULL DEFAULT 'app';
+ALTER TABLE public.merchants
+  ADD COLUMN IF NOT EXISTS gateway_preference VARCHAR(16) NOT NULL DEFAULT 'box',
+  ADD COLUMN IF NOT EXISTS box_fulfillment_status VARCHAR(32) NOT NULL DEFAULT 'not_requested',
+  ADD COLUMN IF NOT EXISTS box_preorder_requested_at TIMESTAMPTZ;
+CREATE OR REPLACE FUNCTION public.set_merchant_package_voice_rate()
+RETURNS TRIGGER LANGUAGE plpgsql SET search_path = public, pg_temp
+AS $function$
+BEGIN
+  NEW.overage_rate_per_min := CASE lower(COALESCE(NEW.subscription_plan, 'free'))
+    WHEN 'basic' THEN 6.50 WHEN 'standard' THEN 6.00 WHEN 'premium' THEN 5.50 ELSE 6.50 END;
+  RETURN NEW;
+END;
+$function$;
+UPDATE public.merchants SET overage_rate_per_min = CASE lower(COALESCE(subscription_plan, 'free'))
+  WHEN 'basic' THEN 6.50 WHEN 'standard' THEN 6.00 WHEN 'premium' THEN 5.50 ELSE 6.50 END;
