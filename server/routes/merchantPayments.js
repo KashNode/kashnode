@@ -118,7 +118,8 @@ export function createMerchantPaymentHandlers({ pool, sendSms, otpSecret, proces
          VALUES ($1,$2,$3,$4::numeric,$5) RETURNING id,gateway,trx_id,amount,status,created_at`,
         [who.merchantId, gateway, trxId, amount.toFixed(2), merchant.rows[0].billing_phone],
       );
-      return res.status(201).json({ status: 'pending', topup: inserted.rows[0] });
+      const match = await processor.matchExistingTopup({ merchantId: who.merchantId, gateway, trxId });
+      return res.status(201).json({ status: match.outcome === 'matched_and_credited' ? 'matched' : 'pending', topup: inserted.rows[0], verification: match.outcome });
     } catch (error) {
       if (error.code === '23505') return res.status(409).json({ message: 'This TrxID has already been submitted.' });
       throw error;
