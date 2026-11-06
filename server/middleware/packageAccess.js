@@ -19,12 +19,13 @@ function upgradeRequired(res, activePlan, requiredPlan) {
 /** Resolve tier from the database on every request; never trust session/body tier values. */
 export function createRequirePackage({ pool, minimumPackage, credentialHeader = null } = {}) {
   const requiredPlan = normalizePackage(minimumPackage);
-  if (!pool?.query) throw new TypeError('Package gating requires a PostgreSQL pool.');
+  if (pool && typeof pool.query !== 'function') throw new TypeError('Package gating requires a PostgreSQL pool.');
   if (credentialHeader && credentialHeader !== 'x-merchant-secret') {
     throw new TypeError('Unsupported package credential header.');
   }
 
   return async function requirePackage(req, res, next) {
+    if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Package access service is unavailable.' });
     try {
       let result;
       if (credentialHeader === 'x-merchant-secret') {
