@@ -293,7 +293,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       });
     }
 
-    const merchantId = String(merchantId);
+    const resolvedMerchantId = String(merchantId);
     const client = await pool.connect();
     let transactionOpen = false;
     let order;
@@ -307,7 +307,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
          FROM public.merchants
          WHERE id = $1
          FOR UPDATE`,
-        [merchantId],
+        [resolvedMerchantId],
       );
       if (!merchantLock.rows[0]) {
         await client.query('ROLLBACK');
@@ -321,7 +321,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
          WHERE merchant_id = $1 AND platform_order_id = $2
          LIMIT 1
          FOR UPDATE`,
-        [merchantId, platformOrderId],
+        [resolvedMerchantId, platformOrderId],
       );
 
       if (existingOrder.rows[0]) {
@@ -362,7 +362,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
         }
 
         const inserted = await client.query(INSERT_ORDER_SQL, [
-          merchantId,
+          resolvedMerchantId,
           platformOrderId,
           customerPhone,
           customerName,
@@ -396,7 +396,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     }
 
     try {
-      await onOrderPersist(merchantId);
+      await onOrderPersist(resolvedMerchantId);
     } catch (error) {
       console.error('[KashNode] Pending SMS reconciliation deferred after Shopify order:', error);
     }
