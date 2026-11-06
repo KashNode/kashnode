@@ -539,3 +539,8 @@ AFTER INSERT OR UPDATE OF is_phone_verified, payment_status, delivery_status,
 ON public.orders
 FOR EACH ROW
 EXECUTE FUNCTION public.enqueue_verified_order_for_courier();
+
+-- Persist courier booking and store tracking sync as separate pipeline steps.
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS store_tracking_synced BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS store_sync_error TEXT;
