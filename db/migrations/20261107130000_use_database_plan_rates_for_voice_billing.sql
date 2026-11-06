@@ -21,6 +21,9 @@ BEGIN
 END;
 $function$;
 
+UPDATE public.merchants m SET overage_rate_per_min=p.price_per_minute
+  FROM public.subscription_plans p WHERE lower(p.slug)=lower(m.subscription_plan);
+
 CREATE OR REPLACE FUNCTION public.finalize_voice_call_billing(
   p_merchant_id UUID,
   p_order_id UUID,
