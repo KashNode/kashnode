@@ -33,6 +33,8 @@ export type OrderTrackingResult = {
   checkedAt: string
 }
 
+export type MerchantPackage = { package: 'basic' | 'standard' | 'premium'; ratePerMinute: number; currency: 'BDT' }
+
 export type SimUssdSettings = {
   autoBalance: boolean
   frequency: 'Every 6 hours' | 'Daily' | 'Manual'
@@ -61,6 +63,10 @@ async function apiWrite<T>(path: string, method: 'PUT' | 'POST', body: unknown):
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload.message || `Request failed (${response.status}).`)
   return payload as T
+}
+
+export function getMerchantPackage() {
+  return apiRequest<MerchantPackage>('/api/merchant/package')
 }
 
 export function getSimStatus() {
