@@ -81,8 +81,9 @@ const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
     (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
      payment_status, delivery_status, payment_method, customer_trx_id, line_items,
-     is_phone_verified, ai_call_status, currency)
-  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8, $9::jsonb, FALSE, 'pending', $10)
+     is_phone_verified, ai_call_status, currency, shipping_address, shipping_city, shipping_zone,
+     shipping_area, shipping_postcode, alternative_phone)
+  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8, $9::jsonb, FALSE, 'pending', $10, $11, $12, $13, $14, $15, $16)
   RETURNING id, payment_status, delivery_status
 `;
 
