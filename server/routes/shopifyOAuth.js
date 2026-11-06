@@ -36,7 +36,7 @@ function validShopifyHmac(query, secret) {
   const supplied = query.hmac;
   if (typeof supplied !== 'string' || !/^[a-f0-9]{64}$/i.test(supplied)) return false;
   const message = Object.keys(query)
-    .filter(key => key !== 'hmac')
+    .filter(key => key !== 'hmac' && key !== 'signature')
     .sort()
     .map(key => `${key}=${Array.isArray(query[key]) ? query[key].join(',') : query[key]}`)
     .join('&');
