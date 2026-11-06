@@ -113,7 +113,7 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
     if (!testOnly) setSaving('shopify');
     setError('');
     try {
-      const payload = await callApi('/api/merchant/integrations/shopify/connect', 'POST', {
+      await callApi('/api/merchant/integrations/shopify/connect', 'POST', {
         shopDomain: credentials.shopDomain,
         clientId: credentials.clientId,
         clientSecret: credentials.clientSecret,
