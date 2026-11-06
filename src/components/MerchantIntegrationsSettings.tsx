@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, Link2, Loader2, PlugZap, ShieldCheck, Trash2, XCircle } from 'lucide-react';
+import { CheckCircle2, Copy, Link2, Loader2, PlugZap, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 
 type Provider = 'steadfast' | 'pathao' | 'woocommerce' | 'shopify';
 type Integration = {
@@ -23,7 +23,7 @@ const initialForms: Record<Provider, Record<string, string>> = {
   steadfast: { apiKey: '', secretKey: '' },
   pathao: { environment: 'production', clientId: '', clientSecret: '', username: '', password: '', storeId: '' },
   woocommerce: { storeUrl: '', consumerKey: '', consumerSecret: '', webhookUrl: '' },
-  shopify: { shopDomain: '', clientId: '', clientSecret: '' },
+  shopify: { shopDomain: '', clientId: '', clientSecret: '', admin_webhook_secret: '' },
 };
 
 async function callApi(path: string, method = 'GET', body?: unknown) {
@@ -118,12 +118,13 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
         shopDomain: credentials.shopDomain,
         clientId: credentials.clientId,
         clientSecret: credentials.clientSecret,
+        ...(credentials.admin_webhook_secret.trim() ? { admin_webhook_secret: credentials.admin_webhook_secret.trim() } : {}),
         ...(testOnly ? { testOnly: true } : {}),
       });
       if (testOnly) {
         onNotify('Shopify credentials verified. Select Save & Connect to finish.');
       } else {
-        setForms(current => ({ ...current, shopify: { ...current.shopify, clientId: '', clientSecret: '' } }));
+        setForms(current => ({ ...current, shopify: { ...current.shopify, clientId: '', clientSecret: '', webhookSecret: '' } }));
         await refresh();
         onNotify('Shopify connected successfully.');
       }
@@ -242,8 +243,16 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
             {provider.id === 'shopify' && <div className="md-integration-grid">
               {input('shopify', 'shopDomain', 'Shop Domain', 'text', 'store.myshopify.com')}
               {input('shopify', 'clientId', 'Client ID', 'text', 'Shopify app Client ID')}
-              {input('shopify', 'clientSecret', 'Client Secret', 'password', 'Shopify app Client Secret')}
-              <p className="md-muted md-integration-help">Use credentials from an app created in this store’s Shopify organization. Client credentials and access tokens are encrypted before storage.</p>
+              {input('shopify', 'clientSecret', 'App Client Secret', 'password', 'Shopify app Client Secret')}
+              {input('shopify', 'admin_webhook_secret', 'Shopify Admin Webhook Secret', 'password', 'shpss_… signing secret (optional)')}
+              <div className="md-integration-help">
+                <p className="md-muted">Webhook URL (use for both Order creation and Order update; select JSON):</p>
+                <div className="md-integration-actions">
+                  <input aria-label="Shopify webhook URL" readOnly value="https://kashnode.com/api/webhooks/shopify" />
+                  <button type="button" className="md-secondary" onClick={() => void navigator.clipboard.writeText('https://kashnode.com/api/webhooks/shopify')}><Copy size={15} /> Copy URL</button>
+                </div>
+                <p className="md-muted">Topics: <code>orders/create</code> and <code>orders/updated</code>. For manually created webhooks in Settings → Notifications → Webhooks, enter the <strong>Shopify Admin Webhook Secret</strong> beginning with <code>shpss_</code>. App-created webhooks use the App Client Secret. Secrets are encrypted before storage.</p>
+              </div>
             </div>}
             {(provider.group === 'Courier') && (
               <label className="md-integration-toggle">

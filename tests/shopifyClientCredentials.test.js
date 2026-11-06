@@ -88,6 +88,7 @@ test('merchant Shopify connect encrypts credentials, token, scope and expiry bef
       if (sql.includes('SELECT id, subscription_plan FROM public.merchants')) {
         return { rows: [{ id: 'merchant-1', subscription_plan: 'standard' }] };
       }
+      if (sql.includes('SELECT credentials_ciphertext, credentials_nonce')) return { rows: [] };
       if (sql.includes('INSERT INTO public.merchant_integrations')) {
         savedValues = values;
         return { rows: [] };
