@@ -1,5 +1,5 @@
-import { decryptIntegrationCredentials } from './integrationCrypto.js';
-import { createCourierOrder, syncTrackingToStore } from './integrationProviderService.js';
+import { decryptIntegrationCredentials, encryptIntegrationCredentials } from './integrationCrypto.js';
+import { createCourierOrder, refreshShopifyAccessToken, syncTrackingToStore } from './integrationProviderService.js';
 
 const COURIERS = new Set(['steadfast', 'pathao']);
 
@@ -54,6 +54,44 @@ async function completeJob(pool, jobId, status, error = null, retry = false, att
   );
 }
 
+async function getStoreCredentials(pool, merchantId, storeRow) {
+  if (storeRow.provider !== 'shopify') return decryptIntegrationCredentials(storeRow);
+
+  // Serialize refresh-token rotation per shop: Shopify replaces the refresh
+  // token on every successful refresh, so concurrent workers must not race.
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query(
+      `SELECT credentials_ciphertext, credentials_nonce, credentials_auth_tag, credentials_key_version
+       FROM public.merchant_integrations
+       WHERE merchant_id = $1 AND provider = 'shopify' AND is_active = TRUE
+       LIMIT 1 FOR UPDATE`,
+      [merchantId],
+    );
+    if (!result.rows[0]) throw new Error('Shopify integration is no longer connected.');
+    const credentials = decryptIntegrationCredentials(result.rows[0]);
+    const refreshed = await refreshShopifyAccessToken(credentials);
+    if (refreshed !== credentials) {
+      const encrypted = encryptIntegrationCredentials(refreshed);
+      await client.query(
+        `UPDATE public.merchant_integrations
+         SET credentials_ciphertext = $3, credentials_nonce = $4, credentials_auth_tag = $5,
+             credentials_key_version = $6, updated_at = NOW()
+         WHERE merchant_id = $1 AND provider = $2`,
+        [merchantId, 'shopify', encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion],
+      );
+    }
+    await client.query('COMMIT');
+    return refreshed;
+  } catch (error) {
+    await client.query('ROLLBACK').catch(() => {});
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 async function processStoreTrackingSync(pool, job, order, storeRow) {
   if (!order.store_provider) {
     await pool.query('UPDATE public.orders SET store_tracking_synced = TRUE, store_sync_error = NULL WHERE id = $1', [order.id]);
@@ -64,8 +102,8 @@ async function processStoreTrackingSync(pool, job, order, storeRow) {
     await completeJob(pool, job.id, 'blocked', 'The originating store integration is not connected yet.', false, job.attempts);
     return;
   }
-  const storeCredentials = decryptIntegrationCredentials(storeRow);
   try {
+    const storeCredentials = await getStoreCredentials(pool, job.merchant_id, storeRow);
     await syncTrackingToStore(storeRow.provider, storeCredentials, order, {
       provider: order.courier_provider,
       trackingCode: order.courier_tracking_code || order.courier_consignment_id,

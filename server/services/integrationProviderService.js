@@ -156,6 +156,63 @@ async function testWooCommerce(credentials) {
   return 'WooCommerce REST API credentials verified.';
 }
 
+export async function refreshShopifyAccessToken(credentials, { env = process.env, fetchImpl = fetch, now = Date.now() } = {}) {
+  const expiresAt = Date.parse(credentials.accessTokenExpiresAt || '');
+  if (!credentials.refreshToken || !Number.isFinite(expiresAt) || expiresAt > now + 5 * 60 * 1000) return credentials;
+
+  const refreshExpiresAt = Date.parse(credentials.refreshTokenExpiresAt || '');
+  if (Number.isFinite(refreshExpiresAt) && refreshExpiresAt <= now) {
+    throw new Error('Shopify authorization expired. Reconnect this store to continue syncing.');
+  }
+  if (!env.SHOPIFY_CLIENT_ID || !env.SHOPIFY_CLIENT_SECRET) {
+    throw new Error('Shopify token refresh is not configured.');
+  }
+
+  const body = new URLSearchParams({
+    client_id: env.SHOPIFY_CLIENT_ID,
+    client_secret: env.SHOPIFY_CLIENT_SECRET,
+    grant_type: 'refresh_token',
+    refresh_token: credentials.refreshToken,
+  });
+  let response;
+  try {
+    response = await fetchImpl(`https://${credentials.shopDomain}/admin/oauth/access_token`, {
+      method: 'POST',
+      redirect: 'error',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body.toString(),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') throw new Error('Shopify token refresh timed out.');
+    throw new Error('Shopify token refresh could not reach the store.');
+  }
+
+  if (!response.ok) {
+    if (response.status === 401 || response.status === 400) {
+      throw new Error('Shopify authorization expired. Reconnect this store to continue syncing.');
+    }
+    throw new Error('Shopify token refresh failed. The sync will retry automatically.');
+  }
+  const payload = await response.json().catch(() => ({}));
+  const accessLifetime = Number(payload.expires_in);
+  const refreshLifetime = Number(payload.refresh_token_expires_in);
+  if (typeof payload.access_token !== 'string' || !payload.access_token
+    || typeof payload.refresh_token !== 'string' || !payload.refresh_token
+    || !Number.isFinite(accessLifetime) || accessLifetime <= 0
+    || !Number.isFinite(refreshLifetime) || refreshLifetime <= 0) {
+    throw new Error('Shopify returned an invalid token refresh response.');
+  }
+  const refreshedAt = now;
+  return {
+    ...credentials,
+    accessToken: payload.access_token,
+    refreshToken: payload.refresh_token,
+    accessTokenExpiresAt: new Date(refreshedAt + accessLifetime * 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(refreshedAt + refreshLifetime * 1000).toISOString(),
+  };
+}
+
 async function testShopify(credentials) {
   const payload = await requestJson(`https://${credentials.shopDomain}/admin/api/${credentials.apiVersion}/graphql.json`, {
     method: 'POST',

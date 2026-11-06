@@ -32,7 +32,7 @@ function response() {
 test('Shopify auth validates shop and redirects with scoped CSRF state', () => {
   const handlers = createShopifyOAuthHandlers({ pool: { query: async () => ({ rows: [] }) }, env: ENV });
   const res = response();
-  handlers.auth({ query: { shop: 'https://sample-store.myshopify.com/' } }, res);
+  handlers.auth({ query: { shop: 'https://sample-store.myshopify.com/' }, session: { user: { id: 'user-1', merchantId: 'merchant-1' } } }, res);
   assert.equal(res.statusCode, 302);
   const url = new URL(res.redirectUrl);
   assert.equal(url.hostname, 'sample-store.myshopify.com');
@@ -82,7 +82,10 @@ test('Shopify callback verifies state and HMAC, exchanges code, and encrypts sav
   await handlers.callback({
     query,
     cookies: { kashnode_shopify_oauth_state: state },
-    session: { user: { id: 'user-1', merchantId: 'merchant-1', role: 'merchant' } },
+    session: {
+      user: { id: 'user-1', merchantId: 'merchant-1', role: 'merchant' },
+      shopifyOAuthState: { state, userId: 'user-1', merchantId: 'merchant-1', expiresAt: Date.now() + 60000 },
+    },
   }, res);
 
   assert.equal(exchangeUrl, 'https://sample-store.myshopify.com/admin/oauth/access_token');
@@ -107,6 +110,41 @@ test('Shopify callback verifies state and HMAC, exchanges code, and encrypts sav
   assert.equal(credentials.apiVersion, '2026-10');
 });
 
+test('Shopify expiring offline credentials rotate before expiry', async () => {
+  const now = 1_800_000_000_000;
+  let requestBody;
+  const credentials = {
+    shopDomain: 'sample-store.myshopify.com',
+    accessToken: 'old-access-token',
+    refreshToken: 'old-refresh-token',
+    accessTokenExpiresAt: new Date(now - 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(now + 60 * 24 * 60 * 60 * 1000).toISOString(),
+    webhookSecret: SECRET,
+    apiVersion: '2026-10',
+  };
+  const refreshed = await refreshShopifyAccessToken(credentials, {
+    env: ENV,
+    now,
+    fetchImpl: async (url, options) => {
+      assert.equal(url, 'https://sample-store.myshopify.com/admin/oauth/access_token');
+      requestBody = new URLSearchParams(options.body);
+      return { ok: true, json: async () => ({
+        access_token: 'new-access-token',
+        refresh_token: 'new-refresh-token',
+        expires_in: 3600,
+        refresh_token_expires_in: 7776000,
+      }) };
+    },
+  });
+  assert.equal(requestBody.get('grant_type'), 'refresh_token');
+  assert.equal(requestBody.get('refresh_token'), 'old-refresh-token');
+  assert.equal(refreshed.accessToken, 'new-access-token');
+  assert.equal(refreshed.refreshToken, 'new-refresh-token');
+  assert.ok(Date.parse(refreshed.accessTokenExpiresAt) > now);
+  assert.ok(Date.parse(refreshed.refreshTokenExpiresAt) > now);
+  assert.equal(refreshed.webhookSecret, SECRET);
+});
+
 test('Shopify callback rejects an invalid CSRF state without exchanging a token', async () => {
   let exchanged = false;
   const handlers = createShopifyOAuthHandlers({
@@ -118,7 +156,10 @@ test('Shopify callback rejects an invalid CSRF state without exchanging a token'
   await handlers.callback({
     query: { shop: 'sample-store.myshopify.com', state: 'wrong', code: 'oauth-code', hmac: '0'.repeat(64) },
     cookies: { kashnode_shopify_oauth_state: 'expected' },
-    session: { user: { id: 'user-1', merchantId: 'merchant-1', role: 'merchant' } },
+    session: {
+      user: { id: 'user-1', merchantId: 'merchant-1', role: 'merchant' },
+      shopifyOAuthState: { state: 'expected', userId: 'user-1', merchantId: 'merchant-1', expiresAt: Date.now() + 60000 },
+    },
   }, res);
   assert.equal(exchanged, false);
   assert.equal(res.redirectUrl, 'https://app.example.com/dashboard/integrations?status=error');
