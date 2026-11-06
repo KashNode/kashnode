@@ -37,6 +37,32 @@ export type MerchantPackage = { package: 'free' | 'basic' | 'standard' | 'premiu
 
 export type MerchantCourierOrder = { orderId: string; courier: string; trackingCode: string; status: string; deliveryCharge: number | null; createdAt: string }
 
+export type MerchantOrder = {
+  id: string
+  platform_order_id: string
+  order_number: string | null
+  customer_name: string | null
+  customer_phone: string | null
+  total_amount: string | number
+  payment_status: string
+  delivery_status: string
+  payment_method: string | null
+  financial_status: string | null
+  fulfillment_status: string | null
+  currency: string | null
+  shipping_address: string | null
+  line_items: Array<{ id?: string | null; title?: string | null; sku?: string | null; quantity?: number; price?: string | number }>
+  created_at: string
+}
+
+export type ShopifySyncResult = {
+  status: 'success'
+  synced: number
+  updated: number
+  fetched: number
+  orders: MerchantOrder[]
+}
+
 export type SimUssdSettings = {
   autoBalance: boolean
   frequency: 'Every 6 hours' | 'Daily' | 'Manual'
@@ -73,6 +99,15 @@ export function getMerchantPackage() {
 
 export function getSimStatus() {
   return apiRequest<{ source: 'database'; sim: SimStatus | null }>('/api/merchant/sim')
+}
+
+
+export function getMerchantOrders() {
+  return apiRequest<{ source: 'database'; orders: MerchantOrder[] }>('/api/merchant/orders')
+}
+
+export function syncShopifyOrders() {
+  return apiWrite<ShopifySyncResult>('/api/merchant/integrations/shopify/sync', 'POST', {})
 }
 
 export function getCourierOrders() {

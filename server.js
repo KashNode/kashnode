@@ -223,6 +223,8 @@ app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashbo
 app.get('/api/merchant/courier-orders', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCourierOrders))
 app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))
 app.post('/api/merchant/integrations/shopify/connect', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.connectShopify))
+app.get('/api/merchant/orders', requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.getOrders))
+app.post('/api/merchant/integrations/shopify/sync', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.syncShopifyOrders))
 app.get('/api/merchant/integrations', requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.list))
 app.post('/api/merchant/integrations/:provider/test', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.test))
 app.put('/api/merchant/integrations/:provider', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.save))

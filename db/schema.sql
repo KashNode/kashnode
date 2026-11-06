@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   merchant_id UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
   platform_order_id VARCHAR(100) NOT NULL,
-  customer_phone VARCHAR(20) NOT NULL,
+  order_number VARCHAR(100),
+  customer_phone VARCHAR(20),
   customer_name VARCHAR(255),
   total_amount NUMERIC(10,2) NOT NULL,
   payment_status VARCHAR(50) DEFAULT 'unpaid',
@@ -43,6 +44,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   is_phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
   ai_call_status VARCHAR(32) NOT NULL DEFAULT 'pending',
   financial_status VARCHAR(50),
+  fulfillment_status VARCHAR(50),
   currency VARCHAR(3),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -54,6 +56,8 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS is_phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
   ADD COLUMN IF NOT EXISTS ai_call_status VARCHAR(32) NOT NULL DEFAULT 'pending',
   ADD COLUMN IF NOT EXISTS financial_status VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS fulfillment_status VARCHAR(50),
+  ADD COLUMN IF NOT EXISTS order_number VARCHAR(100),
   ADD COLUMN IF NOT EXISTS currency VARCHAR(3);
 
 CREATE UNIQUE INDEX IF NOT EXISTS orders_merchant_platform_order_uidx
