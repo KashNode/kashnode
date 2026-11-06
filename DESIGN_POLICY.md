@@ -1,6 +1,6 @@
 # KashNode Product & Marketing Design Policy
 
-**Status:** Proposed source of truth  
+**Status:** Proposed source of truth; implementation alignment required  
 **Scope:** Public marketing website, product positioning, landing pages, product visuals, and responsive presentation  
 **Audience:** Product, design, frontend, content, and engineering contributors
 
@@ -105,15 +105,15 @@ Use the existing KashNode palette as the baseline:
 
 | Token | Value | Use |
 |---|---|---|
-| Page background | `#F8FAFC` | Main page canvas |
+| Page background | `#F5F7F4` | Existing root canvas token |
 | Surface | `#FFFFFF` | Cards, navigation, product panels |
 | Primary | `#267B66` | Main CTA, active states, restrained emphasis |
 | Primary hover | `#206D5A` | Hover/pressed state |
-| Heading | `#0F172A` | Headlines and section titles |
-| Body | `#334155` | Paragraphs and descriptions |
-| Muted | `#64748B` | Captions, metadata, helper text |
-| Border | `#E2E8F0` | Dividers, card outlines |
-| Soft surface | `#F1F5F9` | Secondary section backgrounds |
+| Heading | `#1E2C29` | Existing root ink token; use for headlines and section titles |
+| Body | `#42534C` | Body copy; align with the existing neutral green-gray text family |
+| Muted | `#788781` | Existing root muted token |
+| Border | `#E8EDE9` | Existing root line token |
+| Soft surface | `#E8F3EF` | Existing green-soft token; use sparingly for secondary surfaces |
 
 Rules:
 
@@ -127,7 +127,7 @@ Rules:
 
 ## 4. Typography system
 
-Use one consistent UI sans-serif family throughout the marketing site. Prefer the project's loaded font when it is available; otherwise use a consistent modern sans-serif fallback. Do not mix unrelated font families between sections.
+Use **DM Sans** as the single marketing UI font family because it is already loaded and declared on the application root. Use the existing KashNode wordmark asset for the logo rather than introducing a separate text font. Do not use Inter, Outfit, Playfair Display, Merriweather, or other loaded families as ad hoc section fonts. A future font change must update the design tokens and all marketing surfaces together.
 
 ### Type scale
 
@@ -474,7 +474,38 @@ A PR that only looks correct at one desktop width is not complete.
 
 ---
 
-## 13. Governance and relationship to existing design files
+## 13. Current implementation audit and remediation gates
+
+A policy document does not make the live website compliant by itself. The following mismatches were observed in the current `main` branch during the policy review and must be treated as open remediation work:
+
+### Confirmed visual-system gaps
+
+- The root stylesheet currently defines the existing KashNode palette as `#f5f7f4` canvas, `#1e2c29` ink, `#788781` muted, `#e8ede9` line, `#ffffff` surface, `#267b66` green, `#206d5a` green-strong, `#e8f3ef` green-soft, and `#223c38` navy. The policy token table must use these actual values unless a deliberate, reviewed rebrand is approved.
+- The current marketing CSS contains extensive purple, pink, cyan, lavender and gradient treatments. Those treatments do not yet comply with the restrained single-accent marketing direction in this policy.
+- The HTML currently loads several font families, while the root stylesheet uses DM Sans and component rules also use Manrope. Marketing typography must be consolidated to DM Sans; retain the supplied logo asset for wordmark styling.
+- Existing landing-page CSS has appended responsive overrides. Before the next visual redesign, consolidate duplicate selectors and breakpoints into the relevant component sections rather than stacking more late-file overrides.
+
+### Confirmed product-claim risk
+
+- The current homepage describes courier booking/tracking with providers such as Steadfast and Pathao as an active capability.
+- The current README explicitly says courier tracking returns a demo response until provider credentials and provider API adapters are configured.
+- Therefore, do not market courier booking or live tracking as generally available until engineering verifies a working production integration. Until then, label it as “In development” or “Requires provider integration”, or remove the live-availability claim.
+- Store platform names, payment provider names, SMS verification claims, and AI call capabilities must each be checked against the production code path and an end-to-end test before being labelled “Available”. Presence in a component, mockup, FAQ, or configuration option is not proof of a production integration.
+- The page metadata, homepage, feature pages, integrations directory, pricing page, and FAQ must use the same verified capability status. Marketing copy must not make a stronger claim than the least capable live path.
+
+### Required remediation order
+
+1. Create a verified capability matrix: capability, supported store/provider, required credentials/device, production status, evidence/test, and approved public wording.
+2. Correct any public claim that is not supported by production evidence.
+3. Consolidate the marketing font and color tokens.
+4. Remove or replace off-palette decorative treatments and align components to the approved system.
+5. Refactor duplicate responsive overrides and validate the full viewport matrix in Section 12.
+6. Capture before/after screenshots and record build/test results in the implementation PR.
+
+These are known gaps, not completed work. A documentation-only PR must never be described as having fixed the live website.
+
+---
+## 14. Governance and relationship to existing design files
 
 This document is the **product positioning and marketing design policy** for KashNode.
 
