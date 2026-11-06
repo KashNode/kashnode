@@ -90,10 +90,6 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
     if (!ALL_PROVIDERS.has(provider)) return res.status(400).json({ status: 'error', message: 'Unsupported integration provider.' });
     const merchant = await verifyMerchant(pool, id);
     if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
-    if (!allowedByTier(provider, merchant.subscription_plan)) {
-      return res.status(403).json({ status: 'error', code: 'PACKAGE_UPGRADE_REQUIRED', requiredPlan: 'standard', message: 'Courier integrations require Standard or Premium.' });
-    }
-
     try {
       const credentials = validateIntegrationCredentials(provider, req.body?.credentials);
       // Re-test on the server at save time; the browser's earlier test result is not trusted.
