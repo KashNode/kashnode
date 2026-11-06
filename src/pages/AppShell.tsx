@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Bell, Box, Copy, Eye, EyeOff, Home, KeyRound, LogOut, PhoneCall, Settings, ShoppingBag, Wallet, Smartphone } from 'lucide-react'
+import { Bell, Box, Home, LogOut, PhoneCall, Settings, ShoppingBag, Wallet, Smartphone } from 'lucide-react'
 import { getMerchantCredentials, getMerchantOnboarding, type AuthUser, type MerchantOnboardingProfile } from '../lib/auth'
 import { getCallHistory, getCourierOrders, getMerchantPackage, getSimStatus, type CallHistoryEntry, type MerchantCourierOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
