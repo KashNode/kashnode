@@ -256,7 +256,9 @@ export async function syncTrackingToStore(provider, credentials, order, tracking
         ] },
       }),
     });
-    const errors = payload.data?.orderUpdate?.userErrors || [];
-    if (errors.length) throw new Error('Shopify rejected the tracking update.');
+    const errors = payload.data?.metafieldsSet?.userErrors || [];
+    if (payload.errors?.length || !payload.data?.metafieldsSet || errors.length) {
+      throw new Error('Shopify rejected the tracking update.');
+    }
   }
 }
