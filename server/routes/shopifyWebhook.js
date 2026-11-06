@@ -198,13 +198,20 @@ const UPDATE_ORDER_SQL = `
  */
 export function createShopifyWebhookHandler({ pool, onOrderPersist = async () => {} }) {
   return async function ingestShopifyOrder(req, res) {
-    if (!pool) return res.status(503).json({ status: 'error', message: 'Database unavailable.' });
+    if (!pool) {
+      console.error('[Shopify Webhook] Database unavailable.');
+      return res.status(503).json({ status: 'error', message: 'Database unavailable.' });
+    }
 
     const rawBody = req.body;
     const signature = req.get('x-shopify-hmac-sha256');
     const shopDomain = normalizeShopDomain(req.get('x-shopify-shop-domain'));
+    const topic = cleanText(req.get('x-shopify-topic'), 100)?.toLowerCase();
+    console.info(`[Shopify Webhook] Received event: ${topic || 'unknown'} for store: ${shopDomain || 'unknown'}`);
 
     if (!Buffer.isBuffer(rawBody) || rawBody.length === 0 || !signature || !shopDomain) {
+      console.error('[Shopify Webhook] Validation failed: missing raw body, HMAC header, or valid shop domain.');
+      console.error(new Error('Invalid Shopify webhook request').stack);
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
@@ -221,6 +228,8 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     let webhookSecret = null;
     if (integrationResult.rows[0]) {
       const credentials = decryptIntegrationCredentials(integrationResult.rows[0]);
+      // Admin-created webhooks may use a separately supplied store webhook secret.
+      // App-registered webhooks use the Shopify app Client Secret.
       webhookSecret = credentials.webhookSecret || credentials.clientSecret;
     } else {
       const legacy = await pool.query(
@@ -232,6 +241,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       webhookSecret = legacy.rows[0]?.shopify_webhook_secret;
     }
     if (!merchantId || !webhookSecret) {
+      console.error(`[Shopify Webhook] Validation failed: no active integration/secret found for ${shopDomain}.`);
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
@@ -239,21 +249,25 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       .update(rawBody)
       .digest('base64');
     if (!safeEqualBase64(signature, expected)) {
+      console.error(`[Shopify Webhook] HMAC verification: FAILED for ${shopDomain} (${topic || 'unknown'})`);
       return res.status(401).json({ status: 'error', message: 'Invalid webhook signature.' });
     }
+    console.info(`[Shopify Webhook] HMAC verification: PASSED for ${shopDomain}`);
 
-    const topic = cleanText(req.get('x-shopify-topic'), 100)?.toLowerCase();
+
     if (!topic) {
       return res.status(400).json({ status: 'error', message: 'Shopify webhook topic header is required.' });
     }
-    if (topic !== 'orders/create') {
+    if (!['orders/create', 'orders/updated'].includes(topic)) {
+      console.info(`[Shopify Webhook] Ignored unsupported event: ${topic} for store: ${shopDomain}`);
       return res.status(200).json({ status: 'ignored', reason: 'unsupported_topic' });
     }
 
     let orderPayload;
     try {
       orderPayload = JSON.parse(rawBody.toString('utf8'));
-    } catch {
+    } catch (error) {
+      console.error(`[Shopify Webhook] Invalid JSON payload for ${shopDomain}:`, error?.stack || error);
       return res.status(400).json({ status: 'error', message: 'Webhook payload must be valid JSON.' });
     }
     if (!orderPayload || typeof orderPayload !== 'object' || Array.isArray(orderPayload)) {
@@ -287,6 +301,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
 
     if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH
       || !customerPhone || totalAmount === null || lineItems === null) {
+      console.error(`[Shopify Webhook] Order validation failed for ${shopDomain}: id=${Boolean(platformOrderId)}, phone=${Boolean(customerPhone)}, total=${totalAmount !== null}, line_items=${lineItems !== null}`);
       return res.status(400).json({
         status: 'error',
         message: 'Shopify order must include a valid ID, Bangladesh customer phone, total_price and up to 250 line items.',
@@ -385,7 +400,9 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
 
       await client.query('COMMIT');
       transactionOpen = false;
+      console.info(`[Shopify Webhook] Upserted order #${cleanText(orderPayload.order_number == null ? orderPayload.name : String(orderPayload.order_number), 100) || platformOrderId} into database (store: ${shopDomain}, topic: ${topic})`);
     } catch (error) {
+      console.error(`[Shopify Webhook] Database error for order ${platformOrderId} at ${shopDomain}:`, error?.stack || error);
       if (transactionOpen) {
         await client.query('ROLLBACK').catch(() => {});
         transactionOpen = false;
@@ -398,7 +415,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     try {
       await onOrderPersist(resolvedMerchantId);
     } catch (error) {
-      console.error('[KashNode] Pending SMS reconciliation deferred after Shopify order:', error);
+      console.error('[Shopify Webhook] Pending SMS reconciliation deferred:', error?.stack || error);
     }
 
     return res.status(202).json({
