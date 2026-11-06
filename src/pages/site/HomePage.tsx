@@ -8,27 +8,27 @@ const HERO_STRIP = [
   { icon: ShieldCheck, title: 'Order Verification', text: 'Confirm real customers' },
   { icon: CreditCard, title: 'Payment Matching', text: 'Auto-match bKash, Nagad, Rocket' },
   { icon: PhoneCall, title: 'Kash AI Calls', text: 'Talk to customers automatically' },
-  { icon: Truck, title: 'Courier Automation', text: 'Book & track parcels' },
+  { icon: Truck, title: 'Fulfilment Handoff', text: 'Prepare verified orders for dispatch' },
   { icon: BarChart3, title: 'Higher Efficiency', text: 'Save time, reduce cost' },
 ]
 
 const PILLARS = [
   { icon: PhoneCall, title: 'AI Voice Order Verification', text: 'Kash calls your customers in a natural Bangla voice to confirm orders — no human touch, no missed calls, no manual follow-ups.' },
   { icon: Wallet, title: 'Instant Payment Matching', text: 'Mobile payments are verified automatically by code and TrxID, so you know which orders are really paid before you dispatch.' },
-  { icon: Truck, title: 'Automated Courier Dispatch', text: 'Only verified orders move to fulfilment. KashNode books parcels with Steadfast or Pathao and keeps the tracking in one place.' },
+  { icon: Truck, title: 'Courier & Fulfilment Handoff', text: 'Keep verified order details ready for fulfilment. Live courier booking and tracking are not generally available until a provider adapter and credentials are configured.' },
 ]
 
 const OUTCOMES = [
   { title: 'Fewer fake orders', text: 'Every COD order is verified by SMS from your own business SIM before it ships, so fake and fraud orders are stopped at the door.' },
   { title: 'No more manual calling', text: 'Routine confirmation calls run on their own. Your team spends its time growing the business instead of chasing customers on the phone.' },
-  { title: 'Faster dispatch', text: 'Verified orders go straight to the courier. Less waiting between order and delivery means happier customers.' },
+  { title: 'Faster dispatch', text: 'Keep verified orders and fulfilment details together. Live courier booking and tracking depend on a configured provider integration.' },
   { title: 'One place to see it all', text: 'Orders, verifications, calls, minutes and your Box — the merchant dashboard shows whether the system is actually working.' },
 ]
 
 const FAQS = [
   { q: 'How does KashNode verify a COD order?', a: 'When a customer places an order, KashNode sends a verification SMS from your business SIM in the KashNode Box. The customer confirms with the code, proving the order comes from a real person with a real phone number.' },
   { q: 'Do I need the KashNode Box to start?', a: 'No. You can start with the KashNode Platform — your merchant web dashboard — and explore it first. The Box is a dedicated device for merchants who want 24/7 reliability with their business SIM always connected.' },
-  { q: 'Which stores and payments does KashNode work with?', a: 'WooCommerce, Shopify and custom stores, with payment verification for bKash, Nagad, Rocket and Upay, and courier booking with Steadfast and Pathao.' },
+  { q: 'Which stores and payments does KashNode work with?', a: 'Available store, payment and courier connections depend on the current production setup. Payment SMS ingestion and device requirements are confirmed during onboarding. Contact the team before relying on a specific provider integration.' },
   { q: 'How does pricing work?', a: 'You choose a monthly package by orders, and each package includes an AI minute bundle — Free Trial is 10 orders and 10 minutes at ৳0. Extra AI minutes are a flat ৳7 per minute with in-app recharge.' },
   { q: 'Does Kash speak Bangla?', a: 'Yes. Kash talks with customers in Bangla on confirmation calls. The website and dashboard are in English.' },
 ]
