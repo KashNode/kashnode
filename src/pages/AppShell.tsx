@@ -106,8 +106,8 @@ export default function AppShell({ user, onSignOut }: Props) {
         setWalletBalance(Number(payload.walletBalance || 0))
         setAvailableVoiceMinutes(Number(payload.availableVoiceMinutes || 0))
       })
-      .catch((error) => {
-        if (alive) setSecretError(error instanceof Error ? error.message : 'Could not load package access.')
+      .catch(() => {
+        if (alive) setActivePackage('basic')
       })
       .finally(() => {
         if (alive) {
