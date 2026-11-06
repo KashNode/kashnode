@@ -101,35 +101,113 @@ export function createMerchantPaymentHandlers({ pool, sendSms, otpSecret, proces
     if (!who) return res.status(401).json({ message: 'Merchant authentication required.' });
     const gateway = req.body?.gateway;
     const trxId = typeof req.body?.trx_id === 'string' ? req.body.trx_id.trim().toUpperCase() : '';
-    const amount = Number(req.body?.amount);
-    if (!GATEWAYS.has(gateway) || !/^[A-Z0-9-]{5,40}$/.test(trxId) || !Number.isFinite(amount) || amount <= 0 || amount > 1000000) {
-      return res.status(400).json({ message: 'Provide a valid gateway, TrxID and amount.' });
+    const minutes = Number(req.body?.minutes);
+    if (!GATEWAYS.has(gateway) || !/^[A-Z0-9-]{5,40}$/.test(trxId)
+      || !Number.isSafeInteger(minutes) || minutes <= 0) {
+      return res.status(400).json({ message: 'Provide a valid gateway, TrxID and whole number of minutes.' });
     }
-    const merchant = await pool.query(
-      'SELECT billing_phone, is_billing_phone_verified FROM public.merchants WHERE id=$1 AND owner_user_id=$2',
-      [who.merchantId, who.userId],
-    );
-    if (!merchant.rows[0]?.is_billing_phone_verified || !merchant.rows[0]?.billing_phone) {
-      return res.status(403).json({ message: 'Verify your billing phone before submitting a top-up.' });
-    }
-    if (req.body?.sender_phone && normalizePhone(req.body.sender_phone) !== merchant.rows[0].billing_phone) {
-      return res.status(400).json({ message: 'Sender phone must match your verified billing number.' });
-    }
+
+    const client = await pool.connect();
     try {
-      const inserted = await pool.query(
-        `INSERT INTO public.merchant_topups (merchant_id,gateway,trx_id,amount,sender_phone)
-         VALUES ($1,$2,$3,$4::numeric,$5) RETURNING id,gateway,trx_id,amount,status,created_at`,
-        [who.merchantId, gateway, trxId, amount.toFixed(2), merchant.rows[0].billing_phone],
+      await client.query('BEGIN');
+      const result = await client.query(
+        `SELECT m.billing_phone, m.is_billing_phone_verified, p.slug, p.price_per_minute,
+                p.minimum_topup_minutes
+           FROM public.merchants m
+           JOIN public.subscription_plans p ON lower(p.slug)=lower(m.subscription_plan) AND p.is_active=TRUE
+          WHERE m.id=$1 AND m.owner_user_id=$2
+          FOR SHARE OF m, p`,
+        [who.merchantId, who.userId],
       );
+      const merchant = result.rows[0];
+      if (!merchant) { await client.query('ROLLBACK'); return res.status(404).json({ message: 'Merchant plan is unavailable. Contact support.' }); }
+      if (!merchant.is_billing_phone_verified || !merchant.billing_phone) {
+        await client.query('ROLLBACK');
+        return res.status(403).json({ message: 'Verify your billing phone before submitting a top-up.' });
+      }
+      if (req.body?.sender_phone && normalizePhone(req.body.sender_phone) !== merchant.billing_phone) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Sender phone must match your verified billing number.' });
+      }
+      const minimum = Number(merchant.minimum_topup_minutes);
+      const rate = Number(merchant.price_per_minute);
+      if (!Number.isSafeInteger(minimum) || minutes < minimum || !Number.isFinite(rate) || rate < 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Selected minutes do not meet the active plan minimum.' });
+      }
+      const amount = (minutes * rate).toFixed(2);
+      if (!Number.isFinite(Number(amount)) || Number(amount) <= 0 || Number(amount) > 1000000) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Calculated top-up amount is outside the allowed range.' });
+      }
+      const inserted = await client.query(
+        `INSERT INTO public.merchant_topups
+          (merchant_id,gateway,trx_id,amount,sender_phone,minutes_purchased,plan_slug)
+         VALUES ($1,$2,$3,$4::numeric,$5,$6,$7)
+         RETURNING id,gateway,trx_id,amount,status,minutes_purchased,plan_slug,created_at`,
+        [who.merchantId, gateway, trxId, amount, merchant.billing_phone, minutes, merchant.slug],
+      );
+      await client.query('COMMIT');
       let match = { outcome: 'pending' };
       try { match = await processor.matchExistingTopup({ merchantId: who.merchantId, gateway, trxId }); }
       catch (error) { console.error('[KashNode] Deferred top-up SMS reconciliation:', error); }
       const topup = { ...inserted.rows[0], status: match.outcome === 'matched_and_credited' ? 'matched' : 'pending' };
-      return res.status(201).json({ status: topup.status, topup, verification: match.outcome });
+      return res.status(201).json({ status: topup.status, topup, calculatedAmount: amount, verification: match.outcome });
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {});
+      if (error.code === '23505') return res.status(409).json({ message: 'This TrxID has already been submitted.' });
+      throw error;
+    } finally { client.release(); }
+  }
+
+  async function createPlanUpgradeRequest(req, res) {
+    const who = identity(req);
+    if (!who) return res.status(401).json({ message: 'Merchant authentication required.' });
+    const planSlug = typeof req.body?.plan_slug === 'string' ? req.body.plan_slug.trim().toLowerCase() : '';
+    const senderPhone = normalizePhone(req.body?.sender_phone);
+    const gateway = req.body?.gateway;
+    const trxId = typeof req.body?.trx_id === 'string' ? req.body.trx_id.trim().toUpperCase() : '';
+    if (!/^[a-z0-9_-]{1,64}$/.test(planSlug) || !senderPhone
+      || !['bKash','Nagad','Rocket'].includes(gateway) || !/^[A-Z0-9-]{5,40}$/.test(trxId)) {
+      return res.status(400).json({ message: 'Provide a valid plan, sender mobile, MFS gateway and TrxID.' });
+    }
+    const plan = await pool.query(
+      'SELECT slug FROM public.subscription_plans WHERE lower(slug)=lower($1) AND is_active=TRUE',
+      [planSlug],
+    );
+    if (!plan.rows[0]) return res.status(400).json({ message: 'Selected plan is no longer available.' });
+    const destination = await pool.query('SELECT 1 FROM public.mfs_payment_destinations WHERE provider=$1 AND is_active=TRUE LIMIT 1', [gateway]);
+    if (!destination.rows[0]) return res.status(409).json({ message: 'This payment gateway has no official KashNode destination configured. Contact support.' });
+    try {
+      const result = await pool.query(
+        `INSERT INTO public.merchant_plan_upgrade_requests
+          (merchant_id,requested_plan_slug,sender_phone,gateway,trx_id,status)
+         VALUES ($1,$2,$3,$4,$5,'pending_review')
+         RETURNING id,requested_plan_slug,status,created_at`,
+        [who.merchantId, plan.rows[0].slug, senderPhone, gateway, trxId],
+      );
+      return res.status(201).json({ status: 'pending_review', request: result.rows[0] });
     } catch (error) {
       if (error.code === '23505') return res.status(409).json({ message: 'This TrxID has already been submitted.' });
       throw error;
     }
+  }
+
+  async function getMerchantBillingConfig(req, res) {
+    const who = identity(req);
+    if (!who) return res.status(401).json({ message: 'Merchant authentication required.' });
+    const [plans, destinations, merchant] = await Promise.all([
+      pool.query(`SELECT slug,name,monthly_fee,included_minutes,price_per_minute,
+        minimum_topup_minutes,currency FROM public.subscription_plans
+        WHERE is_active=TRUE ORDER BY display_order, name`),
+      pool.query(`SELECT provider,account_label,phone_number FROM public.mfs_payment_destinations
+        WHERE is_active=TRUE ORDER BY display_order,provider`),
+      pool.query(`SELECT p.slug,p.name,p.price_per_minute,p.minimum_topup_minutes
+        FROM public.merchants m JOIN public.subscription_plans p
+          ON lower(p.slug)=lower(m.subscription_plan) AND p.is_active=TRUE
+        WHERE m.id=$1 AND m.owner_user_id=$2`, [who.merchantId,who.userId]),
+    ]);
+    return res.json({ source: 'database', plans: plans.rows, destinations: destinations.rows, activePlan: merchant.rows[0] || null });
   }
 
   async function ingestAdminPaymentSms(req, res) {
@@ -154,5 +232,5 @@ export function createMerchantPaymentHandlers({ pool, sendSms, otpSecret, proces
     return res.status(202).json({ status: 'accepted', ...outcome });
   }
 
-  return { requestBillingPhoneOtp, verifyBillingPhoneOtp, createTopup, ingestAdminPaymentSms };
+  return { requestBillingPhoneOtp, verifyBillingPhoneOtp, createTopup, createPlanUpgradeRequest, getMerchantBillingConfig, ingestAdminPaymentSms };
 }

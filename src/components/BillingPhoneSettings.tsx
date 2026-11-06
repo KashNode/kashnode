@@ -33,9 +33,11 @@ export default function BillingPhoneSettings({ phone = '', verified = false }: {
   return <div className="md-card">
     <div className="md-card-top"><strong>Billing MFS number</strong><span className={`md-badge ${isVerified ? 'ok' : 'warn'}`}>{isVerified ? 'Verified' : 'Verification required'}</span></div>
     <p className="md-muted">Use this bKash, Nagad or Rocket number to Send Money for wallet top-ups.</p>
-    <label className="md-field-label">Primary number<input type="tel" value={value} onChange={event => { setValue(event.target.value); setIsVerified(false); setSent(false) }} placeholder="01XXXXXXXXX" disabled={busy || isVerified} /></label>
-    {!isVerified && <button className="md-secondary" type="button" disabled={busy || !value.trim()} onClick={() => void sendCode()}>{sent ? 'Resend OTP' : 'Send 6-digit OTP'}</button>}
-    {sent && !isVerified && <><label className="md-field-label">OTP<input value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="6-digit code" /></label><button className="md-primary" type="button" disabled={busy || code.length !== 6} onClick={() => void verify()}>Verify number</button></>}
+    <div className="md-billing-phone-row">
+      <label className="md-billing-phone-field"><span>Primary number</span><input type="tel" value={value} onChange={event => { setValue(event.target.value); setIsVerified(false); setSent(false) }} placeholder="01XXXXXXXXX" disabled={busy || isVerified} /></label>
+      {!isVerified && <button className="md-secondary md-billing-otp-button" type="button" disabled={busy || !value.trim()} onClick={() => void sendCode()}>{sent ? 'Resend OTP' : 'Send 6-digit OTP'}</button>}
+    </div>
+    {sent && !isVerified && <><label className="md-billing-phone-field md-billing-otp-field"><span>6-digit OTP</span><input value={code} onChange={event => setCode(event.target.value.replace(/\D/g, '').slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="6-digit code" /></label><button className="md-primary" type="button" disabled={busy || code.length !== 6} onClick={() => void verify()}>Verify number</button></>}
     {message && <p className="md-muted" role="status">{message}</p>}
   </div>
 }

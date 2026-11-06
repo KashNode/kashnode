@@ -6,6 +6,7 @@ import { getCallHistory, getCourierOrders, getMerchantOrders, getMerchantPackage
 import KashNodeLogo from '../components/KashNodeLogo'
 import MerchantIntegrationsSettings from '../components/MerchantIntegrationsSettings'
 import MerchantTopupForm from '../components/MerchantTopupForm'
+import PlanUpgrade from '../components/PlanUpgrade'
 import BillingPhoneSettings from '../components/BillingPhoneSettings'
 import MerchantDeviceCredentialsCard from '../components/MerchantDeviceCredentialsCard'
 import Sidebar from '../components/Sidebar'
@@ -31,9 +32,10 @@ export default function AppShell({ user, onSignOut }: Props) {
               : pathname.startsWith('/dashboard/settings') ? 'settings'
                 : pathname === '/dashboard/alerts' ? 'alerts' : 'home'
   const settingsSection = pathname === '/dashboard/settings/billing' ? 'billing' : pathname === '/dashboard/settings/api' ? 'api' : 'profile'
-  const integrationSection = pathname === '/dashboard/integrations/stores' ? 'stores' : pathname === '/dashboard/integrations/webhooks' ? 'webhooks' : 'couriers'
-  const validDashboardPaths = ['/dashboard', '/dashboard/orders', '/dashboard/calls', '/dashboard/box', '/dashboard/wallet', '/dashboard/alerts', '/dashboard/integrations', '/dashboard/integrations/couriers', '/dashboard/integrations/stores', '/dashboard/integrations/webhooks', '/dashboard/settings', '/dashboard/settings/profile', '/dashboard/settings/billing', '/dashboard/settings/api']
+  const integrationSection = pathname === '/dashboard/integrations/stores' ? 'stores' : 'couriers'
+  const validDashboardPaths = ['/dashboard', '/dashboard/orders', '/dashboard/calls', '/dashboard/box', '/dashboard/wallet', '/dashboard/alerts', '/dashboard/integrations', '/dashboard/integrations/couriers', '/dashboard/integrations/stores', '/dashboard/settings', '/dashboard/settings/profile', '/dashboard/settings/billing', '/dashboard/settings/api']
   useEffect(() => {
+    if (pathname === '/dashboard/integrations/webhooks') { navigate('/dashboard/integrations/stores', { replace: true }); return }
     if (!validDashboardPaths.includes(pathname)) navigate('/dashboard', { replace: true })
   }, [pathname, navigate])
   const [theme, setTheme] = useState<Theme>('dark')
@@ -55,11 +57,13 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [callsError, setCallsError] = useState('')
   const [courierOrders, setCourierOrders] = useState<MerchantCourierOrder[]>([])
   const [courierOrdersError, setCourierOrdersError] = useState('')
-  const [activePackage, setActivePackage] = useState<'free' | 'basic' | 'standard' | 'premium'>('basic')
+  const [activePackage, setActivePackage] = useState('free')
   const [walletBalance, setWalletBalance] = useState<number | null>(null)
   const [availableVoiceMinutes, setAvailableVoiceMinutes] = useState<number | null>(null)
   const [gatewayProfile, setGatewayProfile] = useState<MerchantOnboardingProfile | null>(null)
-  const [packageRate, setPackageRate] = useState(7)
+  const [packageRate, setPackageRate] = useState<number | null>(null)
+  const [minimumTopupMinutes, setMinimumTopupMinutes] = useState<number | null>(null)
+  const [activePlanName, setActivePlanName] = useState('')
   const [packageLoading, setPackageLoading] = useState(true)
   const [merchantId, setMerchantId] = useState('')
   const [merchantSecretKey, setMerchantSecretKey] = useState('')
@@ -114,12 +118,14 @@ export default function AppShell({ user, onSignOut }: Props) {
       .then(async (payload) => {
         if (!alive) return
         setActivePackage(payload.package)
-        setPackageRate(Number.isFinite(Number(payload.ratePerMinute)) ? Number(payload.ratePerMinute) : 7)
+        setActivePlanName(payload.plan?.name || payload.package)
+        setPackageRate(Number.isFinite(Number(payload.ratePerMinute)) ? Number(payload.ratePerMinute) : null)
+        setMinimumTopupMinutes(Number.isFinite(Number(payload.minimumTopupMinutes)) ? Number(payload.minimumTopupMinutes) : null)
         setWalletBalance(Number(payload.walletBalance || 0))
         setAvailableVoiceMinutes(Number(payload.availableVoiceMinutes || 0))
       })
       .catch(() => {
-        if (alive) setActivePackage('basic')
+        if (alive) { setActivePackage('free'); setPackageRate(null); setMinimumTopupMinutes(null) }
       })
       .finally(() => {
         if (alive) {
@@ -177,8 +183,8 @@ export default function AppShell({ user, onSignOut }: Props) {
             <section>
               <p className="md-eyebrow">GOOD MORNING, {firstName.toUpperCase()}</p>
               <h1 className="md-title">Is everything working?</h1>
-              <p className="md-muted">{packageLoading ? 'Loading package…' : activePackage === 'free' ? `Free Trial · ${availableVoiceMinutes ?? 0} mins remaining (10 mins included)` : `${activePackage[0].toUpperCase()}${activePackage.slice(1)} package · ৳${(Number.isFinite(packageRate) ? packageRate : 7).toFixed(2)}/minute`}</p>
-              {activePackage === 'free' && <p className="md-muted">৳{packageRate.toFixed(2)}/minute applies only after your included free minutes are used. No per-minute charge while included minutes remain.</p>}
+              <p className="md-muted">{packageLoading ? 'Loading package…' : activePackage === 'free' ? `Free Trial · ${availableVoiceMinutes ?? 0} mins remaining` : `${activePlanName || activePackage} package${packageRate === null ? '' : ` · ৳${packageRate.toFixed(2)}/minute`}`}</p>
+              {activePackage === 'free' && <p className="md-muted">{packageRate === null ? 'Your plan rate is not configured.' : `৳${packageRate.toFixed(2)}/minute applies after included minutes are used.`} No per-minute charge while included minutes remain.</p>}
               <p className="md-sub">Live status for Kash AI, your KashNode Box and your store, in one place.</p>
               <div className="md-status-list">
                 <div className="md-status-row"><span><i className="md-dot ok" /> Kash AI</span><strong>Live</strong></div>
@@ -334,9 +340,10 @@ export default function AppShell({ user, onSignOut }: Props) {
               <div className="md-card">
                 <div className="md-card-top"><strong>{activePackage === 'free' ? 'Free Trial Minutes Remaining' : 'Available Voice Minutes'}</strong><span className="md-badge">Live from Supabase</span></div>
                 <h2>{availableVoiceMinutes == null ? 'Loading…' : `${availableVoiceMinutes} min`}</h2>
-                <p className="md-muted">{activePackage === 'free' ? `Your first 10 AI voice minutes are included. ৳${packageRate.toFixed(2)}/minute is charged only after those free minutes expire.` : `Your current overage rate is ৳${packageRate.toFixed(2)}/minute after available minutes are used.`}</p>
+                <p className="md-muted">{activePackage === 'free' ? packageRate === null ? 'Plan pricing is unavailable.' : `Your plan rate is ৳${packageRate.toFixed(2)}/minute after included minutes are used.` : packageRate === null ? 'Plan pricing is unavailable.' : `Your current overage rate is ৳${packageRate.toFixed(2)}/minute after included minutes are used.`}</p>
               </div>
-              <MerchantTopupForm billingPhone={gatewayProfile?.billingPhone || ''} billingPhoneVerified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
+              <div className="md-card-top"><span className="md-badge">Current Plan: {activePlanName || activePackage} · Rate: {packageRate === null ? 'Unavailable' : `৳${packageRate.toFixed(2)}/min`}</span><PlanUpgrade currentPlan={activePackage} /></div>
+              <MerchantTopupForm billingPhone={gatewayProfile?.billingPhone || ''} billingPhoneVerified={Boolean(gatewayProfile?.isBillingPhoneVerified)} ratePerMinute={packageRate} minimumMinutes={minimumTopupMinutes} />
             </section>
           )}
 
@@ -349,13 +356,13 @@ export default function AppShell({ user, onSignOut }: Props) {
                       <div><strong>Workspace profile</strong><p className="md-muted">Your selected connection method and workspace package.</p></div>
                       <span className="md-badge ok">{gatewayProfile?.gatewayPreference === 'box' ? 'KashNode Box' : 'Kash AI App'}</span>
                     </div>
-                    <p>Package: {(gatewayProfile?.selectedPlan || activePackage).toString().toUpperCase()}</p>
+                    <div className="md-card-top"><p>Package: {(gatewayProfile?.selectedPlan || activePackage).toString().toUpperCase()}</p><PlanUpgrade currentPlan={activePackage} /></div>
                     {gatewayProfile?.gatewayPreference === 'box' ? (
                       <>
                         <p>Hardware price: <strong>৳8,000 one-time</strong></p>
                         <p>Hardware fulfillment: <strong>{(gatewayProfile.boxFulfillmentStatus || 'not_requested').replaceAll('_', ' ')}</strong></p>
                         <p className="md-muted">Your Box pre-order status will appear here. SIM details can be added during setup or when the device is ready.</p>
-                        <a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a>
+                        <div className="md-profile-action"><a className="md-secondary md-gateway-link" href="/hardware">View KashNode Box details</a></div>
                       </>
                     ) : (
                       <>
@@ -383,7 +390,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                   <div className="md-card">
                     <strong>Integration configuration</strong>
                     <p className="md-muted">Store and courier credentials, connection tests, and webhook setup are managed from the Integrations page.</p>
-                    <button className="md-secondary" type="button" onClick={() => navigate('/dashboard/integrations/webhooks')}>Open webhook settings</button>
+                    <button className="md-secondary" type="button" onClick={() => navigate('/dashboard/integrations/stores')}>Open E-Commerce Stores</button>
                   </div>
                 </>
               )}
