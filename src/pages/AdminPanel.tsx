@@ -4,7 +4,7 @@ import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
 import { getAdminSystemSettings, saveAdminSystemSettings, type AdminSystemSettings, type LlmProvider } from '../lib/adminSettings'
 
-type Props = { user: AuthUser; onSignOut: () => void }
+type Props = { user: AuthUser; onSignOut: () => void }\ntype CatalogPlan = { slug:string; name:string; tagline:string; price_per_minute:string|number; short_features:string[]; details:string[]; feature_groups:{category:string;items:string[]}[]; is_active?:boolean; updated_at?:string }
 type Section = 'overview' | 'merchants' | 'orders' | 'calls' | 'courier' | 'devices' | 'integrations' | 'reliability' | 'plans' | 'settings'
 type LiveData = {
   source: 'database'; generatedAt: string
@@ -42,7 +42,7 @@ export default function AdminPanel({user,onSignOut}:Props) {
   const [defaultVoiceRate,setDefaultVoiceRate]=useState('7.00')
   const [providerKeys,setProviderKeys]=useState<Record<LlmProvider,string>>({openai:'',gemini:'',groq:''})
   const [clearProviderKeys,setClearProviderKeys]=useState<LlmProvider[]>([])
-  const [notice,setNotice]=useState('')
+  const [notice,setNotice]=useState('')\n  const [catalogPlans,setCatalogPlans]=useState<CatalogPlan[]>([])\n  const [catalogLoading,setCatalogLoading]=useState(false)\n  const [catalogError,setCatalogError]=useState('')
 
   async function loadLiveData() {
     try {
@@ -64,7 +64,7 @@ export default function AdminPanel({user,onSignOut}:Props) {
       .finally(()=>{if(active)setSettingsLoading(false)})
     return()=>{active=false}
   },[section])
-  async function saveSettings(event:FormEvent<HTMLFormElement>) {
+  useEffect(()=>{\n    if(section!=='plans')return\n    let active=true;setCatalogLoading(true);setCatalogError('')\n    fetch('/api/admin/plans',{credentials:'include',headers:{Accept:'application/json'},cache:'no-store'})\n      .then(async response=>{const payload=await response.json();if(!response.ok||payload.source!=='database'||!Array.isArray(payload.plans))throw new Error(payload.message||'Could not load database plan catalog.');if(active)setCatalogPlans(payload.plans)})\n      .catch(e=>{if(active)setCatalogError(e instanceof Error?e.message:'Could not load plan catalog.')})\n      .finally(()=>{if(active)setCatalogLoading(false)})\n    return()=>{active=false}\n  },[section])\n  async function saveSettings(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();if(settingsSaving)return;setSettingsSaving(true);setSettingsError('')
     try {
       const apiKeys:Partial<Record<LlmProvider,string>>={}
@@ -117,36 +117,26 @@ export default function AdminPanel({user,onSignOut}:Props) {
           {section==='integrations'&&<div className="cd-section">{panel('Merchant integrations','Provider-level connection status; credentials are never exposed',<Table headers={['Provider','Configured','Active','Failed tests','Last updated']} empty="No merchant integrations configured yet." rows={data.integrations.map(i=><tr key={i.provider}><td>{i.provider}</td><td>{i.total}</td><td>{i.active}</td><td>{i.failed_tests}</td><td>{date(i.last_updated)}</td></tr>)}/>)}</div>}
           {section==='reliability'&&<div className="cd-section">{panel('Queue health & platform reliability','Actual background job states from Supabase',<><h3>Courier fulfillment</h3><Table headers={['Status','Jobs','Attempts']} empty="No courier queue records." rows={data.courierQueue.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{r.attempts}</td></tr>)}/><h3>Voice billing recovery</h3><Table headers={['Status','Jobs','Attempts']} empty="No voice billing jobs." rows={data.voiceQueue.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{r.attempts}</td></tr>)}/><h3>Payment transaction states</h3><Table headers={['Status','Transactions','Amount']} empty="No transaction records." rows={data.transactions.map(r=><tr key={r.status}><td>{r.status}</td><td>{r.total}</td><td>{money(r.amount)}</td></tr>)}/></>)}</div>}
           {section==='plans'&&<div className="cd-section">
-            <div className="cd-settings-intro"><div><p className="cd-settings-kicker">SUBSCRIPTION CATALOG</p><h2>Plans & feature comparison</h2><p>Standardized plan matrix for clear package comparison. Box hardware is a separate one-time purchase for every plan.</p></div><span className="cd-settings-live"><i/> PLAN CATALOG</span></div>
-            <div className="cd-panel">
-              <div className="cd-card-heading"><div><h2>Voice usage rates</h2><p>Pay per actual AI call duration. No monthly subscription or per-order fee.</p></div></div>
-              <div className="cd-stats cd-stats-3">
-                <Stat label="Basic" value="৳5.50 / min" note="Essential automation"/>
-                <Stat label="Standard" value="৳6.50 / min" note="Advanced workflows · Most popular"/>
-                <Stat label="Premium" value="৳7.00 / min" note="Full-featured automation"/>
+            <div className="cd-settings-intro"><div><p className="cd-settings-kicker">DATABASE SUBSCRIPTION CATALOG</p><h2>Plans & feature comparison</h2><p>Live catalog shared with the public website. Changes to the database catalog are reflected in the pricing cards.</p></div><span className="cd-settings-live"><i/> DATABASE SOURCE</span></div>
+            {catalogLoading&&<div className="cd-panel">Loading package catalog from database…</div>}
+            {catalogError&&<div className="cd-notice" role="alert">{catalogError}</div>}
+            {!catalogLoading&&!catalogError&&catalogPlans.length===0&&<div className="cd-panel">No subscription plans are configured in the database.</div>}
+            {!catalogLoading&&!catalogError&&catalogPlans.length>0&&<>
+              <div className="cd-panel">
+                <div className="cd-card-heading"><div><h2>Voice usage rates</h2><p>Live values from public.subscription_plans.</p></div></div>
+                <div className="cd-stats cd-stats-3">{catalogPlans.filter(p=>p.slug!=='free').map(plan=><Stat key={plan.slug} label={plan.name} value={money(plan.price_per_minute)+' / min'} note={plan.tagline}/>)}</div>
               </div>
-            </div>
-            <div className="cd-panel">
-              <div className="cd-card-heading"><div><h2>Feature comparison</h2><p>Check marks show which capabilities are included in each package.</p></div></div>
-              <div className="cd-table-wrap"><table className="cd-table cd-plan-matrix">
-                <thead><tr><th>Service / Feature</th><th>Basic · ৳5.50</th><th>Standard · ৳6.50</th><th>Premium · ৳7.00</th></tr></thead>
-                <tbody>
-                  {[
-                    ['AI voice order verification','Standard','Advanced','Ultra-realistic · custom tone'],
-                    ['Gateway devices','1 app or Basic Box','Up to 2 devices / SIMs','Unlimited devices / Boxes'],
-                    ['AI voice quality','Standard male / female','Faster, natural response','Custom voice tone'],
-                    ['Call history','7 days','30 days','Extended history'],
-                    ['Payment SMS matching','—','bKash & Nagad · TrxID auto-match','Included'],
-                    ['Courier booking','—','Steadfast or Pathao API','Included'],
-                    ['Smart retry & scheduling','—','—','✓'],
-                    ['Fraud / fake-order detection','—','—','Advanced detection + blocklist'],
-                    ['API & webhooks','—','—','Full access'],
-                    ['Support','Email / ticket','Priority chat','Dedicated manager + VIP phone'],
-                  ].map(row=><tr key={row[0]}><td><strong>{row[0]}</strong></td>{row.slice(1).map((value,i)=><td key={i}>{value==='—'?<span aria-label="Not included">—</span>:<span className="cd-plan-included"><Check size={15}/>{value}</span>}</td>)}</tr>)}
-                </tbody>
-              </table></div>
-              <p className="cd-panel-note">KashNode Box: ৳8,000 one-time hardware price, same for all packages. Existing device / gateway eligibility is subject to the selected plan.</p>
-            </div>
+              <div className="cd-panel">
+                <div className="cd-card-heading"><div><h2>Feature comparison</h2><p>Included services grouped by category, sourced from the same database records as the homepage.</p></div></div>
+                <div className="cd-table-wrap"><table className="cd-table cd-plan-matrix">
+                  <thead><tr><th>Service category</th>{catalogPlans.filter(p=>p.slug!=='free').map(p=><th key={p.slug}>{p.name} · {money(p.price_per_minute)}</th>)}</tr></thead>
+                  <tbody>{Array.from(new Set(catalogPlans.flatMap(p=>(p.feature_groups||[]).map(g=>g.category)))).map(category=><tr key={category}><td><strong>{category}</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(plan=>{const group=(plan.feature_groups||[]).find(g=>g.category===category);return <td key={plan.slug}>{group?<span className="cd-plan-included"><Check size={15}/>{group.items.join(' · ')}</span>:<span aria-label="Not included">—</span>}</td>})}</tr>)}
+                  <tr><td><strong>Short feature list</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(p=><td key={p.slug}>{(p.short_features||[]).join(' · ')}</td>)}</tr>
+                  <tr><td><strong>More details</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(p=><td key={p.slug}>{(p.details||[]).join(' ')}</td>)}</tr></tbody>
+                </table></div>
+                <p className="cd-panel-note">KashNode Box: ৳8,000 one-time hardware price, same for all packages. Catalog rows are read-only in this release; edits must be made through a controlled database migration until an audited plan editor is implemented.</p>
+              </div>
+            </>}
           </div>}
           {section==='settings'&&<div className="cd-section">
             <div className="cd-settings-intro"><div><p className="cd-settings-kicker">PLATFORM CONFIGURATION</p><h2>AI provider & voice pricing</h2><p>Provider keys remain server-side in Supabase Vault.</p></div><span className="cd-settings-live"><i/> LIVE SETTINGS</span></div>
