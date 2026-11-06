@@ -35,7 +35,10 @@ export default function MerchantTopupForm({ billingPhone = '' }: { billingPhone?
     <form className="md-card" onSubmit={submit}>
       <strong>Automated wallet top-up</strong>
       <p className="md-muted">Send Money from your verified billing number, then enter the transfer details below.</p>
-      <label className="md-field-label">Sender phone (verified billing number)\n        <input type="tel" value={billingPhone} readOnly placeholder="Verify your billing phone in Settings first" required />\n      </label>\n      <label className="md-field-label">MFS gateway
+      <label className="md-field-label">Sender phone (verified billing number)
+        <input type="tel" value={billingPhone} readOnly placeholder="Verify your billing phone in Settings first" required />
+      </label>
+      <label className="md-field-label">MFS gateway
         <select value={gateway} onChange={event => setGateway(event.target.value as Gateway)}>
           <option>bKash</option><option>Nagad</option><option>Rocket</option><option>Upay</option>
         </select>
