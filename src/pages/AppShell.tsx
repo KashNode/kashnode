@@ -311,7 +311,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <h2>{availableVoiceMinutes == null ? 'Loading…' : `${availableVoiceMinutes} min`}</h2>
                 <p className="md-muted">{activePackage === 'free' ? `Your first 10 AI voice minutes are included. ৳${packageRate.toFixed(2)}/minute is charged only after those free minutes expire.` : `Your current overage rate is ৳${packageRate.toFixed(2)}/minute after available minutes are used.`}</p>
               </div>
-              <MerchantTopupForm billingPhone={gatewayProfile?.billingPhone || ''} />
+              <MerchantTopupForm billingPhone={gatewayProfile?.billingPhone || ''} billingPhoneVerified={Boolean(gatewayProfile?.isBillingPhoneVerified)} />
             </section>
           )}
 
