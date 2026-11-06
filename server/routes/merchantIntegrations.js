@@ -126,7 +126,7 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
           [id.merchantId, provider, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion,
             JSON.stringify(allowedConfig), testMessage],
         );
-        if (COURIER_PROVIDERS.has(provider)) {
+        {
           await client.query(
             "UPDATE public.courier_fulfillment_outbox SET status = 'pending', next_attempt_at = NOW(), last_error = NULL, updated_at = NOW() WHERE merchant_id = $1 AND status = 'blocked'",
             [id.merchantId],
