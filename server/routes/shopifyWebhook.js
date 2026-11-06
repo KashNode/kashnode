@@ -318,6 +318,12 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
           financialStatus,
           currency,
           paymentStatus,
+          shippingAddress,
+          shippingCity,
+          shippingZone,
+          shippingArea,
+          shippingPostcode,
+          alternativePhone,
         ]);
         order = updated.rows[0];
         if (!order) throw new Error('Shopify order update did not return the updated order.');
