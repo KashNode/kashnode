@@ -221,7 +221,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     let webhookSecret = null;
     if (integrationResult.rows[0]) {
       const credentials = decryptIntegrationCredentials(integrationResult.rows[0]);
-      webhookSecret = credentials.webhookSecret;
+      webhookSecret = credentials.webhookSecret || credentials.clientSecret;
     } else {
       const legacy = await pool.query(
         `SELECT id, shopify_webhook_secret FROM public.merchants
