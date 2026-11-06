@@ -3,10 +3,10 @@ import crypto from 'node:crypto';
 const GATEWAYS = new Set(['bKash', 'Nagad', 'Rocket', 'Upay']);
 function normalizePhone(value) {
   if (typeof value !== 'string') return null;
-  let digits = value.replace(/\\D/g, '');
+  let digits = value.replace(/\D/g, '');
   if (digits.startsWith('00880')) digits = '0' + digits.slice(5);
   else if (digits.startsWith('880')) digits = '0' + digits.slice(3);
-  return /^01[3-9]\\d{8}$/.test(digits) ? digits : null;
+  return /^01[3-9]\d{8}$/.test(digits) ? digits : null;
 }
 function identity(req) {
   const u = req.session?.user;
@@ -65,7 +65,7 @@ export function createMerchantPaymentHandlers({ pool, sendSms, otpSecret, proces
     const who = identity(req);
     if (!who) return res.status(401).json({ message: 'Merchant authentication required.' });
     const code = typeof req.body?.code === 'string' ? req.body.code.trim() : '';
-    if (!/^\\d{6}$/.test(code) || !otpSecret) return res.status(400).json({ message: 'Enter the 6-digit verification code.' });
+    if (!/^\d{6}$/.test(code) || !otpSecret) return res.status(400).json({ message: 'Enter the 6-digit verification code.' });
 
     const client = await pool.connect();
     try {
