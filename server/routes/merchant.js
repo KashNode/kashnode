@@ -141,7 +141,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
 
     const result = await pool.query(
-      'SELECT webhook_secret, is_onboarding_complete FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+      'SELECT id, webhook_secret, is_onboarding_complete FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
       [identity.merchantId, identity.userId],
     );
     const merchant = result.rows[0];
@@ -152,6 +152,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
 
     return res.json({
       status: 'success',
+      merchantId: merchant.id,
       merchantSecretKey: merchant.webhook_secret,
     });
   }
