@@ -55,6 +55,32 @@ export function createMerchantDashboardHandlers({ pool, defaultDataQuotaMb = DEF
     });
   }
 
+
+  async function getCourierOrders(req, res) {
+    const identity = merchantSession(req);
+    if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
+    if (!pool?.query) return res.status(503).json({ status: 'error', message: 'Courier orders are unavailable.' });
+    const result = await pool.query(
+      `SELECT order_code, courier_name, tracking_code, consignment_id, status, delivery_charge, created_at
+       FROM public.courier_orders
+       WHERE merchant_id = $1::uuid
+       ORDER BY created_at DESC
+       LIMIT 100`,
+      [identity.merchantId],
+    );
+    return res.json({
+      source: 'database',
+      courierOrders: (result.rows || []).map(row => ({
+        orderId: row.order_code,
+        courier: row.courier_name,
+        trackingCode: row.tracking_code || row.consignment_id || '',
+        status: row.status,
+        deliveryCharge: row.delivery_charge == null ? null : Number(row.delivery_charge),
+        createdAt: row.created_at,
+      })),
+    });
+  }
+
   async function getSim(req, res) {
     const identity = merchantSession(req);
     if (!identity) return res.status(401).json({ status: 'error', message: 'Merchant authentication required.' });
@@ -111,5 +137,5 @@ export function createMerchantDashboardHandlers({ pool, defaultDataQuotaMb = DEF
     });
   }
 
-  return { getCalls, getSim };
+  return { getCalls, getSim, getCourierOrders };
 }

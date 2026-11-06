@@ -23,11 +23,10 @@ export default function SecurityPage() {
       <section className="site-section">
         <div className="site-wrap">
           <div className="site-ledger">
-            {ITEMS.map((item, index) => {
+            {ITEMS.map(item => {
               const Icon = item.icon
               return (
                 <div key={item.title} className="site-ledger-row">
-                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
                   <div>
                     <span className="site-card-icon"><Icon size={20} /></span>
                     <h3>{item.title}</h3>

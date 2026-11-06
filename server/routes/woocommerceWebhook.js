@@ -81,8 +81,9 @@ const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
     (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
      payment_status, delivery_status, payment_method, customer_trx_id, line_items,
-     is_phone_verified, ai_call_status, currency)
-  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8, $9::jsonb, FALSE, 'pending', $10)
+     is_phone_verified, ai_call_status, currency, store_provider, shipping_address, shipping_city, shipping_zone,
+     shipping_area, shipping_postcode, alternative_phone)
+  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8, $9::jsonb, FALSE, 'pending', $10, 'woocommerce', $11, $12, $13, $14, $15, $16)
   RETURNING id, payment_status, delivery_status
 `;
 
@@ -98,7 +99,14 @@ const UPDATE_ORDER_SQL = `
         WHEN payment_status IN ('paid', 'manual_review') THEN payment_status
         ELSE $8
       END,
-      currency = COALESCE($9, currency)
+      currency = COALESCE($9, currency),
+      store_provider = 'woocommerce',
+      shipping_address = COALESCE($10, shipping_address),
+      shipping_city = COALESCE($11, shipping_city),
+      shipping_zone = COALESCE($12, shipping_zone),
+      shipping_area = COALESCE($13, shipping_area),
+      shipping_postcode = COALESCE($14, shipping_postcode),
+      alternative_phone = COALESCE($15, alternative_phone)
   WHERE id = $1
   RETURNING id, payment_status, delivery_status
 `;
@@ -172,6 +180,20 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
     const customerTrxId = typeof body.customer_trx_id === 'string'
       ? (body.customer_trx_id.trim().slice(0, 100) || null)
       : null;
+    const shipping = body.shipping || {};
+    const shippingAddress = [shipping.address_1, shipping.address_2, shipping.city, shipping.state, shipping.postcode]
+      .filter(value => typeof value === 'string' && value.trim()).join(', ').slice(0, 1000) || null;
+    const orderMeta = Array.isArray(body.meta_data) ? body.meta_data : [];
+    const metaValue = key => orderMeta.find(item => String(item?.key || '').toLowerCase() === key)?.value;
+    const pathaoValue = (field, key) => shipping[field] ?? metaValue(key);
+    const shippingCityValue = pathaoValue('pathao_city_id', '_pathao_city_id');
+    const shippingZoneValue = pathaoValue('pathao_zone_id', '_pathao_zone_id');
+    const shippingAreaValue = pathaoValue('pathao_area_id', '_pathao_area_id');
+    const shippingCity = shippingCityValue == null ? null : String(shippingCityValue).slice(0, 20);
+    const shippingZone = shippingZoneValue == null ? null : String(shippingZoneValue).slice(0, 20);
+    const shippingArea = shippingAreaValue == null ? null : String(shippingAreaValue).slice(0, 20);
+    const shippingPostcode = typeof shipping.postcode === 'string' ? shipping.postcode.trim().slice(0, 20) : null;
+    const alternativePhone = normalizeBdPhone(shipping.phone);
 
     if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH
       || !customerPhone || !totalAmount || lineItems === null) {
@@ -224,6 +246,12 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
           JSON.stringify(lineItems),
           paymentStatus,
           currency,
+          shippingAddress,
+          shippingCity,
+          shippingZone,
+          shippingArea,
+          shippingPostcode,
+          alternativePhone,
         ]);
         order = updated.rows[0];
         if (!order) throw new Error('Order update did not return the updated order.');
@@ -254,6 +282,12 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
           customerTrxId,
           JSON.stringify(lineItems),
           currency,
+          shippingAddress,
+          shippingCity,
+          shippingZone,
+          shippingArea,
+          shippingPostcode,
+          alternativePhone,
         ]);
         order = inserted.rows[0];
         if (!order) throw new Error('Order insert did not return the created order.');

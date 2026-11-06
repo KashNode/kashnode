@@ -1,4 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react'
+import { useLocation } from 'react-router-dom'
 import { ArrowLeft, Eye, EyeOff, Loader2, Mail, ShieldCheck } from 'lucide-react'
 import KashNodeLogo from '../components/KashNodeLogo'
 import {
@@ -10,7 +11,7 @@ import {
   type AuthUser,
 } from '../lib/auth'
 
-type Props = { onLogin: (user: AuthUser) => void; sessionError?: string }
+type Props = { onLogin: (user: AuthUser) => void; sessionError?: string; initialMode?: Mode }
 type Mode = 'login' | 'signup'
 type SignupStep = 'details' | 'otp'
 
@@ -79,8 +80,14 @@ function GoogleMark() {
   )
 }
 
-export default function LoginPage({ onLogin, sessionError }: Props) {
-  const [mode, setMode] = useState<Mode>('login')
+export default function LoginPage({ onLogin, sessionError, initialMode = 'login' }: Props) {
+  const location = useLocation()
+  const params = new URLSearchParams(location.search)
+  const requestedPlan = params.get('plan')?.toLowerCase() || 'basic'
+  const requestedGateway = params.get('gateway')?.toLowerCase() || 'app'
+  const [selectedPlan, setSelectedPlan] = useState<'basic' | 'standard' | 'premium'>(['basic', 'standard', 'premium'].includes(requestedPlan) ? requestedPlan as 'basic' | 'standard' | 'premium' : 'basic')
+  const [selectedGateway, setSelectedGateway] = useState<'app' | 'box'>(requestedGateway === 'box' ? 'box' : 'app')
+  const [mode, setMode] = useState<Mode>(initialMode)
   const [signupStep, setSignupStep] = useState<SignupStep>('details')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -152,7 +159,7 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
           callback: async (response) => {
             try {
               if (!response.credential) throw new Error('Google did not return a sign-in credential.')
-              const user = await signInWithGoogleCredential(response.credential)
+              const user = await signInWithGoogleCredential(response.credential, mode === 'signup' ? { plan: selectedPlan, gateway: selectedGateway } : {})
               onLogin(user)
             } catch (cause) {
               setError(cause instanceof Error ? cause.message : 'Google sign-in failed. Please try again.')
@@ -220,7 +227,7 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
     setBusy(true)
     setError('')
     try {
-      await requestSignupOtp(name.trim(), email.trim(), password)
+      await requestSignupOtp(name.trim(), email.trim(), password, { plan: selectedPlan, gateway: selectedGateway })
       setOtp('')
       setSignupStep('otp')
       setNotice(`We sent a 6-digit code to ${email.trim()}. It expires in 10 minutes.`)
@@ -268,7 +275,7 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
       <section className="auth-card" aria-label={mode === 'login' ? 'Sign in to KashNode' : 'Create your free KashNode account'}>
         <div className="auth-heading">
           <h1>{mode === 'login' ? 'Sign in to KashNode' : signupStep === 'otp' ? 'Verify your email' : 'Create your account'}</h1>
-          <p>{mode === 'login' ? 'Enter your details to continue.' : signupStep === 'otp' ? 'Enter the code we sent to your email.' : 'Start with a free account.'}</p>
+          <p>{mode === 'login' ? 'Enter your details to continue.' : signupStep === 'otp' ? 'Enter the code we sent to your email.' : 'Your selected package and gateway will be saved to your workspace.'}</p>
         </div>
 
         <button type="button" className="auth-google" onClick={handleGoogle} disabled={googleBusy || busy}>
@@ -342,6 +349,13 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
               <li><strong>2</strong><span>Receive 6-digit OTP</span></li>
               <li><strong>3</strong><span>Verify &amp; create account</span></li>
             </ol>
+            <div className="auth-selection-card">
+              <div><strong>Selected package</strong><span>{selectedPlan[0].toUpperCase() + selectedPlan.slice(1)}</span></div>
+              <div className="auth-gateway-options">
+                <label><input type="radio" name="signup-gateway" checked={selectedGateway === 'app'} onChange={() => setSelectedGateway('app')} /><span><strong>Kash AI App</strong><small>Free Android gateway</small></span></label>
+                <label><input type="radio" name="signup-gateway" checked={selectedGateway === 'box'} onChange={() => setSelectedGateway('box')} /><span><strong>KashNode Box</strong><small>Dedicated hardware · pre-order inquiry</small></span></label>
+              </div>
+            </div>
             <form className="auth-form" onSubmit={handleSignupDetails}>
               <label>
                 <span>Your name</span>
@@ -415,7 +429,7 @@ export default function LoginPage({ onLogin, sessionError }: Props) {
                     setBusy(true)
                     setError('')
                     try {
-                      await requestSignupOtp(name.trim(), email.trim(), password)
+                      await requestSignupOtp(name.trim(), email.trim(), password, { plan: selectedPlan, gateway: selectedGateway })
                       setNotice(`A new 6-digit code was sent to ${email.trim()}. It expires in 10 minutes.`)
                     } catch (cause) {
                       setError(cause instanceof Error ? cause.message : 'Could not resend the code.')

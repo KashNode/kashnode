@@ -11,6 +11,7 @@ import rateLimit from 'express-rate-limit'
 import pg from 'pg'
 import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
+import { existsSync } from 'node:fs'
 import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
@@ -18,6 +19,9 @@ import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
 import { createAdminSettingsHandlers } from './server/routes/adminSettings.js'
 import { createMerchantDashboardHandlers } from './server/routes/merchantDashboard.js'
 import { createDeviceStatusHandler } from './server/routes/deviceStatus.js'
+import { createMerchantIntegrationHandlers } from './server/routes/merchantIntegrations.js'
+import { startCourierFulfillmentWorker } from './server/services/courierFulfillmentService.js'
+import { createRequirePackage, packageRateFor, normalizeMerchantPackage } from './server/middleware/packageAccess.js'
 import { reconcilePendingSmsForMerchant, reconcileSms } from './server/services/reconcileService.js'
 import { createAllowedOrigins, isAllowedOrigin } from './server/utils/origins.js'
 import { createAuthController } from './server/controllers/authController.js'
@@ -149,6 +153,7 @@ const loginLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHe
 const registerLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many account creation attempts. Try again later.' } })
 const otpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many verification attempts. Try again later.' } })
 const googleLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 10, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many Google sign-in attempts. Try again later.' } })
+const integrationLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: 'draft-8', legacyHeaders: false, message: { status: 'error', message: 'Too many integration requests. Try again later.' } })
 
 async function createUserSession(req, user) {
   await new Promise((resolve, reject) => req.session.regenerate(error => error ? reject(error) : resolve()))
@@ -168,22 +173,42 @@ const merchantOnboardingHandlers = createMerchantOnboardingHandlers({ pool })
 const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
 const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaultDataQuotaMb: DATA_QUOTA_MB })
 const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
+const merchantIntegrationHandlers = createMerchantIntegrationHandlers({ pool })
+let stopCourierFulfillmentWorker = () => {}
+const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
+const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
 // Merchant ownership is resolved from the signed server session, never from request body input.
 app.get('/api/merchant/onboarding', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getOnboarding))
 app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyncRoute(merchantOnboardingHandlers.postOnboarding))
-// Reveal integration credentials only to the merchant owner after onboarding is complete.
-app.get('/api/merchant/credentials', requireMerchantSession, asyncRoute(merchantOnboardingHandlers.getCredentials))
+// Package status is read from the database so the dashboard always reflects the active tier.
+app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, res) => {
+  const result = await pool.query(
+    'SELECT subscription_plan FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+    [req.session.user.merchantId, req.session.user.id],
+  )
+  const merchant = result.rows?.[0]
+  if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' })
+  const plan = normalizeMerchantPackage(merchant.subscription_plan)
+  return res.json({ package: plan, ratePerMinute: packageRateFor(plan), currency: 'BDT' })
+}))
+// Full API credential access is reserved for Premium; the route rechecks the live tier.
+app.get('/api/merchant/credentials', requireMerchantSession, requirePremiumPackage, asyncRoute(merchantOnboardingHandlers.getCredentials))
 app.get('/api/merchant/calls', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCalls))
+app.get('/api/merchant/courier-orders', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getCourierOrders))
 app.get('/api/merchant/sim', requireMerchantSession, asyncRoute(merchantDashboardHandlers.getSim))
+app.get('/api/merchant/integrations', requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.list))
+app.post('/api/merchant/integrations/:provider/test', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.test))
+app.put('/api/merchant/integrations/:provider', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.save))
+app.delete('/api/merchant/integrations/:provider', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(merchantIntegrationHandlers.remove))
 
 // Super Admin-only platform settings. Provider key material is written to Vault server-side.
 app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
 app.post('/api/admin/settings', requireOrigin, requireAdmin, asyncRoute(adminSettingsHandlers.postSettings))
 
-app.post('/api/v1/edge/sms', asyncRoute(createEdgeSmsHandler({
+app.post('/api/v1/edge/sms', requireStandardPackage, asyncRoute(createEdgeSmsHandler({
   pool,
   onPersist: smsId => reconcileSms({ pool, smsId }),
 })))
@@ -301,6 +326,18 @@ app.get('/api/calls/history', requireAdmin, asyncRoute(async (_req, res) => {
   res.json({ source: 'database', calls: result.rows.map(row => ({ id: String(row.id), phone: row.phone_number, occurredAt: row.created_at, durationSeconds: Number(row.duration || 0), status: row.status, summary: row.ai_summary || '', recordingUrl: safeRecordingUrl(row.recording_url) })) })
 }))
 
+const apkDownloadPath = path.resolve('public/downloads/kash-ai-android.apk')
+app.get('/downloads/kash-ai-android.apk', (_req, res) => {
+  if (!existsSync(apkDownloadPath)) {
+    return res.status(503).json({
+      status: 'unavailable',
+      code: 'ANDROID_APK_NOT_PUBLISHED',
+      message: 'The signed Kash AI Android release is being prepared. Please check back soon.',
+    })
+  }
+  return res.download(apkDownloadPath, 'kash-ai-android.apk')
+})
+
 const distDir = path.resolve('dist')
 app.use(express.static(distDir))
 app.get(/^(?!\/api(?:\/|$)).*/, (_req, res, next) => {
@@ -322,6 +359,7 @@ async function shutdown(signal) {
 
   // voiceStreamingService.shutdown synchronously rejects new upgrades before
   // it starts closing active sockets and draining the durable billing queue.
+  stopCourierFulfillmentWorker()
   const voiceClose = voiceStreamingService.shutdown({ timeoutMs: 20000 })
   const httpClose = new Promise(resolve => {
     if (!httpServer.listening) return resolve()
@@ -366,6 +404,8 @@ async function start() {
     await pool.query('SELECT session_id FROM public.voice_session_billing_jobs LIMIT 0')
     await pool.query('SELECT box_device_id FROM public.merchants LIMIT 0')
     await pool.query('SELECT merchant_id FROM public.device_logs LIMIT 0')
+    await pool.query('SELECT provider FROM public.merchant_integrations LIMIT 0')
+    await pool.query('SELECT order_id FROM public.courier_fulfillment_outbox LIMIT 0')
     console.info('[KashNode] Database startup checks passed.')
     if (ADMIN_EMAIL && ADMIN_PASSWORD_HASH) {
       await pool.query(`INSERT INTO users (email, name, password_hash, role)
@@ -373,6 +413,7 @@ async function start() {
       [ADMIN_EMAIL, process.env.KASHNODE_ADMIN_NAME || 'Workspace Admin', ADMIN_PASSWORD_HASH])
     }
     await voiceStreamingService.start()
+    stopCourierFulfillmentWorker = startCourierFulfillmentWorker({ pool })
   }
   httpServer.listen(PORT, HOST, () => console.info(`KashNode API + voice WebSocket listening on http://${HOST}:${PORT} (${NODE_ENV})`))
 }

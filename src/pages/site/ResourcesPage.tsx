@@ -9,11 +9,11 @@ const GUIDES = [
   { icon: FileText, title: 'Payment signal setup', text: 'Understand the device, SIM and message-format requirements for payment signal ingestion.' },
   { icon: PlayCircle, title: 'Your first Kash call', text: 'What happens on a Kash confirmation call, and how to read the call summary.' },
   { icon: BookOpen, title: 'KashNode Box setup', text: 'Plug in the Box, insert your business SIM, and connect it to your workspace.' },
-  { icon: BookOpen, title: 'Minutes & packages', text: 'How order and minute bundles work, and what happens when minutes run out.' },
+  { icon: BookOpen, title: 'Per-minute billing', text: 'Understand how AI voice usage is charged by call duration at your selected package rate.' },
 ]
 
 const FAQS = [
-  { q: 'How do I start with KashNode?', a: 'Create a free workspace from the sign-in page and explore the merchant platform. Store connector availability and first-order setup are confirmed during onboarding. The Free Trial includes 10 orders and 10 AI minutes.' },
+  { q: 'How do I start with KashNode?', a: 'Create a free workspace from the sign-in page and explore the merchant platform. Store connector availability and first-order setup are confirmed during onboarding. The Free Trial includes 10 complimentary AI minutes.' },
   { q: 'Where do I see whether the system is working?', a: 'Your merchant dashboard shows live status for Kash AI, your Box and your store, plus today’s orders, calls and remaining minutes.' },
   { q: 'How do I change the AI voice?', a: 'In your merchant dashboard, open Alerts & Settings and switch the Kash voice between male and female.' },
   { q: 'What if a verification fails?', a: 'Failed verifications appear in the review queue in your dashboard, so your team can check them and decide what happens next.' },
@@ -35,11 +35,10 @@ export default function ResourcesPage() {
           <Eyebrow>Guides</Eyebrow>
           <h2 className="site-h2">Learn by doing.</h2>
           <div className="site-ledger">
-            {GUIDES.map((item, index) => {
+            {GUIDES.map(item => {
               const Icon = item.icon
               return (
                 <div key={item.title} className="site-ledger-row">
-                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
                   <div>
                     <span className="site-card-icon"><Icon size={20} /></span>
                     <h3>{item.title}</h3>

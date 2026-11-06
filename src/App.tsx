@@ -131,6 +131,14 @@ export default function App() {
       <Route path="/privacy" element={<PrivacyPage />} />
       <Route path="/terms" element={<TermsPage />} />
       <Route
+        path="/signup"
+        element={
+          user
+            ? <Navigate to={user.role === 'admin' ? '/admin' : onboardingComplete ? '/dashboard' : '/onboarding'} replace />
+            : <LoginPage initialMode="signup" onLogin={handleLogin} sessionError={sessionError} />
+        }
+      />
+      <Route
         path="/login"
         element={
           user

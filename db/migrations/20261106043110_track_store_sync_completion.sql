@@ -1,0 +1,5 @@
+BEGIN;
+ALTER TABLE public.orders
+  ADD COLUMN IF NOT EXISTS store_tracking_synced BOOLEAN NOT NULL DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS store_sync_error TEXT;
+COMMIT;

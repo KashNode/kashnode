@@ -10,7 +10,7 @@ const OPTIONS = [
     points: ['Explicit SIM 1 / SIM 2 payment-service mapping', 'Select the SIM used for outgoing customer SMS', 'Local SQLite queue for offline capture and later sync', 'Persistent service notification for operational visibility'],
   },
   {
-    icon: Radio, name: 'Option B — ESP32 cellular node', label: 'Dedicated standalone hardware',
+    icon: Radio, name: 'KashNode Box', label: '৳8,000 · one-time hardware purchase',
     description: 'A LilyGO / TTGO T-Call style board uses its own cellular connection to send captured transaction data to the central service. It is designed for merchants who prefer a dedicated device instead of an Android phone.',
     points: ['SIM-based cellular data; no Wi-Fi or PC required', 'SMS capture and outbound confirmation through the node SIM', '5V power from a charger or power bank', 'Custom C++ firmware with OTA update support'],
   },
@@ -23,7 +23,7 @@ export default function HardwarePage() {
         <div className="site-wrap">
           <Eyebrow>Hardware & device agents</Eyebrow>
           <h1>Two ways to connect <em>your payment SIM.</em></h1>
-          <p className="site-lede">Choose a software agent on an Android dual-SIM phone or a standalone ESP32 cellular board. Both options capture transaction notifications and forward them to the central platform for verification.</p>
+          <p className="site-lede">Start free with the Kash AI Android app, or choose the dedicated KashNode Box for ৳8,000 (one-time hardware purchase). Both options capture transaction notifications and forward them to the central platform for verification.</p>
           <div className="site-dual-cta">
             <a href="#device-options" className="site-btn site-btn-primary site-btn-lg">Compare device options <ArrowRight size={17} /></a>
             <Link to="/contact" className="site-btn site-btn-outline-light site-btn-lg">Discuss deployment</Link>
@@ -33,7 +33,7 @@ export default function HardwarePage() {
       <section className="site-section" id="device-options">
         <div className="site-wrap">
           <Eyebrow>Device choices</Eyebrow>
-          <h2 className="site-h2">Select the deployment that fits your operation.</h2>
+          <h2 className="site-h2">Select the deployment that fits your operation.</h2><p className="site-lede">KashNode Box price: <strong>৳8,000</strong> one-time. Contact us to confirm availability and arrange pre-order / fulfillment.</p>
           <div className="site-eco-cards">
             {OPTIONS.map(option => {
               const Icon = option.icon

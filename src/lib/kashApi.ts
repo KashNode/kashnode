@@ -33,6 +33,10 @@ export type OrderTrackingResult = {
   checkedAt: string
 }
 
+export type MerchantPackage = { package: 'basic' | 'standard' | 'premium'; ratePerMinute: number; currency: 'BDT' }
+
+export type MerchantCourierOrder = { orderId: string; courier: string; trackingCode: string; status: string; deliveryCharge: number | null; createdAt: string }
+
 export type SimUssdSettings = {
   autoBalance: boolean
   frequency: 'Every 6 hours' | 'Daily' | 'Manual'
@@ -63,8 +67,16 @@ async function apiWrite<T>(path: string, method: 'PUT' | 'POST', body: unknown):
   return payload as T
 }
 
+export function getMerchantPackage() {
+  return apiRequest<MerchantPackage>('/api/merchant/package')
+}
+
 export function getSimStatus() {
   return apiRequest<{ source: 'database'; sim: SimStatus | null }>('/api/merchant/sim')
+}
+
+export function getCourierOrders() {
+  return apiRequest<{ source: 'database'; courierOrders: MerchantCourierOrder[] }>('/api/merchant/courier-orders')
 }
 
 export function getCallHistory() {

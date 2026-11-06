@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, ChevronDown } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Smartphone, Box } from 'lucide-react'
 import { BoxRender } from './SiteVisuals'
 
 export type FaqItem = { q: string; a: string }
@@ -24,23 +24,23 @@ export function Faq({ items }: { items: FaqItem[] }) {
 
 export const PLANS = [
   {
-    id: 'free', name: 'Free Trial', tag: 'Try it first', price: '৳0', per: 'free', orders: '10 orders', minutes: '10 AI minutes',
+    id: 'free', name: 'Free Trial', tag: 'Try it first', price: '৳0', per: 'trial', usage: '10 free AI minutes',
     features: ['Order verification by SMS', 'AI confirmation calls', 'Payment code verification', 'Merchant dashboard'],
     cta: 'Start Free Trial',
   },
   {
-    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳2,000', per: '/month', orders: '300 orders', minutes: '300 AI minutes',
+    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳6.50', per: '/minute', usage: 'Pay only for voice time used',
     features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Merchant operations dashboard'],
     cta: 'Choose Basic',
   },
   {
-    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳5,500', per: '/month', orders: '1,000 orders', minutes: '1,000 AI minutes',
+    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
     popular: true,
     features: ['Everything in Basic', 'Merchant voice rules', 'Conversation history & summaries', 'Priority support workflow'],
     cta: 'Choose Standard',
   },
   {
-    id: 'premium', name: 'Premium', tag: 'For high-volume stores', price: '৳14,000', per: '/month', orders: '3,000 orders', minutes: '3,000 AI minutes',
+    id: 'premium', name: 'Premium', tag: 'For advanced operations', price: '৳5.50', per: '/minute', usage: 'Pay only for voice time used',
     features: ['Everything in Standard', 'Priority support', 'Multi-box operations', 'Advanced reporting'],
     cta: 'Choose Premium',
   },
@@ -48,31 +48,48 @@ export const PLANS = [
 
 export function PricingTiers({ compact = false }: { compact?: boolean }) {
   const plans = compact ? PLANS.slice(1) : PLANS
+  const [gateways, setGateways] = useState<Record<string, 'app' | 'box'>>({})
   return (
     <div className="site-plans">
-      {plans.map(plan => (
-        <article key={plan.id} className={`site-plan ${plan.popular ? 'popular' : ''}`}>
-          {plan.popular && <span className="site-plan-badge">Most Popular</span>}
-          <p className="site-plan-tag">{plan.tag}</p>
-          <h3>{plan.name}</h3>
-          <p className="site-plan-price">{plan.price} <span>{plan.per}</span></p>
-          <p className="site-plan-allowance">{plan.orders} · {plan.minutes}</p>
-          <ul>
-            {plan.features.map(feature => (
-              <li key={feature}><Check size={15} /> {feature}</li>
-            ))}
-          </ul>
-          <Link to={`/login?plan=${plan.id}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : 'site-btn-outline-dark'} site-btn-block`}>
-            {plan.cta} <ArrowRight size={16} />
-          </Link>
-        </article>
-      ))}
+      {plans.map(plan => {
+        const gateway = gateways[plan.id] || 'app'
+        return (
+          <article key={plan.id} className={`site-plan ${plan.popular ? 'popular' : ''}`}>
+            {plan.popular && <span className="site-plan-badge">Most Popular</span>}
+            <p className="site-plan-tag">{plan.tag}</p>
+            <h3>{plan.name}</h3>
+            <p className="site-plan-price">{plan.price} <span>{plan.per}</span></p>
+            <p className="site-plan-allowance">{plan.usage}</p>
+            <ul>
+              {plan.features.map(feature => (
+                <li key={feature}><Check size={15} /> {feature}</li>
+              ))}
+            </ul>
+            <fieldset className="site-gateway-picker">
+              <legend>Choose your gateway</legend>
+              <label className={gateway === 'app' ? 'selected' : ''}>
+                <input type="radio" name={`gateway-${plan.id}`} value="app" checked={gateway === 'app'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'app' }))} />
+                <Smartphone size={18} />
+                <span><strong>Start with Kash AI App</strong><small>Free Android gateway · no hardware required</small></span>
+              </label>
+              <label className={gateway === 'box' ? 'selected' : ''}>
+                <input type="radio" name={`gateway-${plan.id}`} value="box" checked={gateway === 'box'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'box' }))} />
+                <Box size={18} />
+                <span><strong>Add KashNode Box</strong><small>Dedicated hardware · ৳8,000 one-time purchase</small></span>
+              </label>
+            </fieldset>
+            <Link to={`/signup?plan=${plan.id}&gateway=${gateway}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : `site-btn-plan-${plan.id}`} site-btn-block`}>
+              {plan.cta} <ArrowRight size={16} />
+            </Link>
+          </article>
+        )
+      })}
     </div>
   )
 }
 
 export function OverageNote() {
-  return <p className="site-overage">Every plan includes its order and minute bundle. Extra AI minutes are a flat <strong>৳7 per minute</strong> with in-app recharge. The KashNode Box is a one-time hardware purchase — <Link to="/hardware">request availability</Link> for current pricing.</p>
+  return <p className="site-overage">AI voice usage is billed by actual call duration at your selected plan rate. There are no monthly subscriptions or per-order charges. The KashNode Box is a separate one-time hardware purchase at ৳8,000 — <Link to="/hardware">view Box details</Link>.</p>
 }
 
 /** Avoid displaying unverified provider logos or names as live integrations. */
@@ -87,7 +104,7 @@ export function FinalCta() {
         <BoxRender compact />
         <div className="site-final-cta-copy">
           <h2>Ready to automate your store?</h2>
-          <p>Start with the Platform today, or get the KashNode Box for full automation with your business SIM.</p>
+          <p>Start with the Platform today, or get the KashNode Box for ৳8,000 (one-time) and full automation with your business SIM.</p>
           <div className="site-dual-cta">
             <Link to="/login" className="site-btn site-btn-primary site-btn-lg">Create Your Workspace <ArrowRight size={17} /></Link>
             <Link to="/hardware" className="site-btn site-btn-outline-light site-btn-lg">Explore KashNode Box <ArrowRight size={17} /></Link>

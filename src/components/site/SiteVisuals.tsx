@@ -108,7 +108,6 @@ export function WorkflowSteps() {
         const Icon = step.icon
         return (
           <li key={step.title}>
-            <span className="site-flow-num">{String(index + 1).padStart(2, '0')}</span>
             <span className="site-flow-icon"><Icon size={20} /></span>
             <strong>{step.title}</strong>
             <p>{step.text}</p>

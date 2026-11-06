@@ -6,6 +6,10 @@ export type MerchantOnboardingProfile = {
   websiteUrl: string
   adminContactPhone: string
   boxSimPhone: string
+  selectedPlan: 'basic' | 'standard' | 'premium'
+  gatewayPreference: 'app' | 'box'
+  boxFulfillmentStatus: string
+  boxPreorderRequestedAt: string | null
 }
 
 export type MerchantOnboardingInput = Omit<MerchantOnboardingProfile, 'isOnboardingComplete'>
@@ -27,12 +31,12 @@ export async function signIn(email: string, password: string, rememberMe = false
   return payload.user as AuthUser
 }
 
-export async function requestSignupOtp(name: string, email: string, password: string): Promise<void> {
+export async function requestSignupOtp(name: string, email: string, password: string, selection: { plan?: string; gateway?: string } = {}): Promise<void> {
   const response = await fetch('/api/auth/signup', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ name, email, password }),
+    body: JSON.stringify({ name, email, password, plan: selection.plan, gateway: selection.gateway }),
   })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload.message || 'Could not send the verification code.')
@@ -65,12 +69,12 @@ export async function getGoogleSignInNonce(): Promise<string> {
   return payload.nonce
 }
 
-export async function signInWithGoogleCredential(credential: string): Promise<AuthUser> {
+export async function signInWithGoogleCredential(credential: string, selection: { plan?: string; gateway?: string } = {}): Promise<AuthUser> {
   const response = await fetch('/api/auth/google', {
     method: 'POST',
     credentials: 'include',
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-    body: JSON.stringify({ credential }),
+    body: JSON.stringify({ credential, plan: selection.plan, gateway: selection.gateway }),
   })
   const payload = await response.json().catch(() => ({}))
   if (!response.ok) throw new Error(payload.message || 'Could not sign in with Google.')

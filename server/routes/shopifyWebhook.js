@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { decryptIntegrationCredentials } from '../services/integrationCrypto.js';
 
 const MAX_ORDER_ID_LENGTH = 100;
 const MAX_LINE_ITEMS = 250;
@@ -160,8 +161,9 @@ function mapPaymentMethod(order) {
 const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
     (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
-     payment_status, delivery_status, payment_method, line_items, financial_status, currency)
-  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10)
+     payment_status, delivery_status, payment_method, line_items, financial_status, currency, store_provider,
+     shipping_address, shipping_city, shipping_zone, shipping_area, shipping_postcode, alternative_phone)
+  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10, 'shopify', $11, $12, $13, $14, $15, $16)
   RETURNING id, payment_status, delivery_status
 `;
 
@@ -174,6 +176,13 @@ const UPDATE_ORDER_SQL = `
       line_items = $6::jsonb,
       financial_status = $7,
       currency = $8,
+      store_provider = 'shopify',
+      shipping_address = COALESCE($10, shipping_address),
+      shipping_city = COALESCE($11, shipping_city),
+      shipping_zone = COALESCE($12, shipping_zone),
+      shipping_area = COALESCE($13, shipping_area),
+      shipping_postcode = COALESCE($14, shipping_postcode),
+      alternative_phone = COALESCE($15, alternative_phone),
       payment_status = CASE
         WHEN payment_status = 'paid' AND $9 = 'unpaid' THEN 'paid'
         ELSE $9
@@ -199,19 +208,34 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
-    const merchantResult = await pool.query(
-      `SELECT id, shopify_webhook_secret
-       FROM public.merchants
-       WHERE lower(shopify_domain) = $1
+    const integrationResult = await pool.query(
+      `SELECT merchant_id, credentials_ciphertext, credentials_nonce, credentials_auth_tag,
+              credentials_key_version
+       FROM public.merchant_integrations
+       WHERE provider = 'shopify' AND is_active = TRUE
+         AND lower(config->>'shopDomain') = $1
        LIMIT 1`,
       [shopDomain],
     );
-    const merchant = merchantResult.rows[0];
-    if (!merchant?.id || !merchant.shopify_webhook_secret) {
+    let merchantId = integrationResult.rows[0]?.merchant_id;
+    let webhookSecret = null;
+    if (integrationResult.rows[0]) {
+      const credentials = decryptIntegrationCredentials(integrationResult.rows[0]);
+      webhookSecret = credentials.webhookSecret;
+    } else {
+      const legacy = await pool.query(
+        `SELECT id, shopify_webhook_secret FROM public.merchants
+         WHERE lower(shopify_domain) = $1 LIMIT 1`,
+        [shopDomain],
+      );
+      merchantId = legacy.rows[0]?.id;
+      webhookSecret = legacy.rows[0]?.shopify_webhook_secret;
+    }
+    if (!merchantId || !webhookSecret) {
       return res.status(401).json({ status: 'error', message: 'Invalid webhook credentials.' });
     }
 
-    const expected = crypto.createHmac('sha256', merchant.shopify_webhook_secret)
+    const expected = crypto.createHmac('sha256', webhookSecret)
       .update(rawBody)
       .digest('base64');
     if (!safeEqualBase64(signature, expected)) {
@@ -250,6 +274,16 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     const paymentStatus = mapFinancialStatus(financialStatus);
     const paymentMethod = mapPaymentMethod(orderPayload || {});
     const currency = cleanText(orderPayload?.currency, 3)?.toUpperCase() || null;
+    const shipping = orderPayload?.shipping_address || orderPayload?.billing_address || {};
+    const shippingAddress = [shipping.address1, shipping.address2, shipping.city, shipping.province, shipping.zip]
+      .filter(value => typeof value === 'string' && value.trim()).join(', ').slice(0, 1000) || null;
+    const noteAttributes = Array.isArray(orderPayload?.note_attributes) ? orderPayload.note_attributes : [];
+    const noteValue = key => noteAttributes.find(item => String(item?.name || '').toLowerCase() === key)?.value;
+    const shippingCity = cleanText(noteValue('pathao_city_id'), 20);
+    const shippingZone = cleanText(noteValue('pathao_zone_id'), 20);
+    const shippingArea = cleanText(noteValue('pathao_area_id'), 20);
+    const shippingPostcode = cleanText(shipping.zip, 20);
+    const alternativePhone = normalizePhone(shipping.phone);
 
     if (!platformOrderId || platformOrderId.length > MAX_ORDER_ID_LENGTH
       || !customerPhone || totalAmount === null || lineItems === null) {
@@ -259,7 +293,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       });
     }
 
-    const merchantId = String(merchant.id);
+    const resolvedMerchantId = String(merchantId);
     const client = await pool.connect();
     let transactionOpen = false;
     let order;
@@ -273,7 +307,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
          FROM public.merchants
          WHERE id = $1
          FOR UPDATE`,
-        [merchantId],
+        [resolvedMerchantId],
       );
       if (!merchantLock.rows[0]) {
         await client.query('ROLLBACK');
@@ -287,7 +321,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
          WHERE merchant_id = $1 AND platform_order_id = $2
          LIMIT 1
          FOR UPDATE`,
-        [merchantId, platformOrderId],
+        [resolvedMerchantId, platformOrderId],
       );
 
       if (existingOrder.rows[0]) {
@@ -301,6 +335,12 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
           financialStatus,
           currency,
           paymentStatus,
+          shippingAddress,
+          shippingCity,
+          shippingZone,
+          shippingArea,
+          shippingPostcode,
+          alternativePhone,
         ]);
         order = updated.rows[0];
         if (!order) throw new Error('Shopify order update did not return the updated order.');
@@ -322,7 +362,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
         }
 
         const inserted = await client.query(INSERT_ORDER_SQL, [
-          merchantId,
+          resolvedMerchantId,
           platformOrderId,
           customerPhone,
           customerName,
@@ -332,6 +372,12 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
           JSON.stringify(lineItems),
           financialStatus,
           currency,
+          shippingAddress,
+          shippingCity,
+          shippingZone,
+          shippingArea,
+          shippingPostcode,
+          alternativePhone,
         ]);
         order = inserted.rows[0];
         if (!order) throw new Error('Shopify order insert did not return the created order.');
@@ -350,7 +396,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     }
 
     try {
-      await onOrderPersist(merchantId);
+      await onOrderPersist(resolvedMerchantId);
     } catch (error) {
       console.error('[KashNode] Pending SMS reconciliation deferred after Shopify order:', error);
     }
