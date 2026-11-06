@@ -23,7 +23,7 @@ const initialForms: Record<Provider, Record<string, string>> = {
   steadfast: { apiKey: '', secretKey: '' },
   pathao: { environment: 'production', clientId: '', clientSecret: '', username: '', password: '', storeId: '' },
   woocommerce: { storeUrl: '', consumerKey: '', consumerSecret: '', webhookUrl: '' },
-  shopify: { shopDomain: '', clientId: '', clientSecret: '' },
+  shopify: { shopDomain: '', clientId: '', clientSecret: '', webhookSecret: '' },
 };
 
 async function callApi(path: string, method = 'GET', body?: unknown) {
@@ -118,12 +118,13 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
         shopDomain: credentials.shopDomain,
         clientId: credentials.clientId,
         clientSecret: credentials.clientSecret,
+        ...(credentials.webhookSecret.trim() ? { webhookSecret: credentials.webhookSecret.trim() } : {}),
         ...(testOnly ? { testOnly: true } : {}),
       });
       if (testOnly) {
         onNotify('Shopify credentials verified. Select Save & Connect to finish.');
       } else {
-        setForms(current => ({ ...current, shopify: { ...current.shopify, clientId: '', clientSecret: '' } }));
+        setForms(current => ({ ...current, shopify: { ...current.shopify, clientId: '', clientSecret: '', webhookSecret: '' } }));
         await refresh();
         onNotify('Shopify connected successfully.');
       }
@@ -242,8 +243,9 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
             {provider.id === 'shopify' && <div className="md-integration-grid">
               {input('shopify', 'shopDomain', 'Shop Domain', 'text', 'store.myshopify.com')}
               {input('shopify', 'clientId', 'Client ID', 'text', 'Shopify app Client ID')}
-              {input('shopify', 'clientSecret', 'Client Secret', 'password', 'Shopify app Client Secret')}
-              <p className="md-muted md-integration-help">Use credentials from an app created in this store’s Shopify organization. Client credentials and access tokens are encrypted before storage.</p>
+              {input('shopify', 'clientSecret', 'App Client Secret', 'password', 'Shopify app Client Secret')}
+              {input('shopify', 'webhookSecret', 'Shopify Admin Webhook Secret (optional)', 'password', 'Only for webhooks created manually in Shopify Admin')}
+              <p className="md-muted md-integration-help">App-registered webhooks use the App Client Secret. If you create a webhook manually in Shopify Admin, enter the signing secret Shopify provides here. Secrets and access tokens are encrypted before storage.</p>
             </div>}
             {(provider.group === 'Courier') && (
               <label className="md-integration-toggle">
