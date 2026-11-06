@@ -1,112 +1,90 @@
+import { ArrowRight, Check } from 'lucide-react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Box, Check, LayoutDashboard } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
-import { Faq, FinalCta, OverageNote, PricingTiers } from '../../components/site/SiteSections'
+import { Faq, FinalCta } from '../../components/site/SiteSections'
 
-const COMPARISON: { feature: string; free: string; basic: string; standard: string; premium: string }[] = [
-  { feature: 'Orders included', free: '10 / month', basic: '300 / month', standard: '1,000 / month', premium: '3,000 / month' },
-  { feature: 'AI voice minutes', free: '10 minutes', basic: '300 minutes', standard: '1,000 minutes', premium: '3,000 minutes' },
-  { feature: 'Order & payment verification', free: 'Yes', basic: 'Yes', standard: 'Yes', premium: 'Yes' },
-  { feature: 'Kash AI customer calls', free: 'Yes', basic: 'Yes', standard: 'Yes', premium: 'Yes' },
-  { feature: 'Courier booking', free: '—', basic: 'Yes', standard: 'Yes', premium: 'Yes' },
-  { feature: 'Merchant voice rules', free: '—', basic: '—', standard: 'Yes', premium: 'Yes' },
-  { feature: 'Conversation history', free: '—', basic: '—', standard: 'Yes', premium: 'Yes' },
-  { feature: 'Multi-box operations', free: '—', basic: '—', standard: '—', premium: 'Yes' },
-  { feature: 'Support', free: 'Standard', basic: 'Standard', standard: 'Priority workflow', premium: 'Priority support' },
+type Cell = string
+type PlanRow = { feature: string; basic: Cell; standard: Cell; premium: Cell }
+
+const ISP_ROWS: PlanRow[] = [
+  { feature: 'MikroTik routers', basic: '1 router', standard: 'Up to 3 routers', premium: 'Unlimited' },
+  { feature: 'Customer capacity', basic: 'Up to 500', standard: 'Up to 2,000', premium: 'Unlimited' },
+  { feature: 'Automatic line restore', basic: 'TrxID / number match', standard: 'TrxID / number match', premium: 'TrxID / number match' },
+  { feature: 'Notifications', basic: 'SMS', standard: 'SMS + WhatsApp text', premium: 'SMS + WhatsApp + email' },
+  { feature: 'Invoices', basic: 'Basic receipt', standard: 'Digital summary', premium: 'Dynamic PDF invoice' },
+  { feature: 'Automatic reminders', basic: '—', standard: '3 days before expiry', premium: '3 days + 1 day before expiry, with bot' },
+  { feature: 'Staff collection portal', basic: '—', standard: '—', premium: 'Cash collection portal' },
+  { feature: 'Monthly transaction quota', basic: '500', standard: '2,500', premium: 'Unlimited' },
 ]
 
+const STORE_ROWS: PlanRow[] = [
+  { feature: 'Website connections', basic: '1 website', standard: 'Up to 3 websites', premium: 'Unlimited' },
+  { feature: 'Payment verification', basic: 'Manual TrxID entry', standard: 'Zero-input auto matching', premium: 'Zero-input + TrxID fallback' },
+  { feature: 'Customer identity', basic: 'SMS OTP', standard: 'WhatsApp-first OTP', premium: 'WhatsApp + email OTP' },
+  { feature: 'Checkout', basic: 'Standard payment page', standard: 'Branded checkout', premium: 'White-label + live socket' },
+  { feature: 'Order status', basic: 'Automatic Paid mark', standard: 'Automatic Paid mark', premium: 'Instant Paid + full fulfilment' },
+  { feature: 'Invoice delivery', basic: 'SMS', standard: 'WhatsApp / email text', premium: 'Branded PDF on WhatsApp' },
+  { feature: 'Merchant alerts', basic: 'Dashboard only', standard: 'Telegram notification', premium: 'WhatsApp + Telegram bot' },
+  { feature: 'Monthly transaction quota', basic: '300', standard: '1,500', premium: 'Unlimited' },
+]
+
+function PlanMatrix({ title, intro, rows }: { title: string; intro: string; rows: PlanRow[] }) {
+  return (
+    <section className="site-section">
+      <div className="site-wrap">
+        <Eyebrow>30-day renewable licence</Eyebrow>
+        <h2 className="site-h2">{title}</h2>
+        <p className="site-body">{intro}</p>
+        <div className="site-compare" role="region" aria-label={title} tabIndex={0}>
+          <table>
+            <thead><tr><th scope="col">Capability</th><th scope="col">Basic</th><th scope="col">Standard</th><th scope="col">Premium</th></tr></thead>
+            <tbody>{rows.map(row => (
+              <tr key={row.feature}>
+                <th scope="row">{row.feature}</th>
+                <td>{row.basic}</td>
+                <td><strong>{row.standard}</strong></td>
+                <td>{row.premium}</td>
+              </tr>
+            ))}</tbody>
+          </table>
+        </div>
+        <p className="site-note"><Check size={14} /> Package limits and features follow the platform architecture specification. Prices are not published in that specification.</p>
+      </div>
+    </section>
+  )
+}
+
 const FAQS = [
-  { q: 'How do the packages work?', a: 'Each monthly package is sized by orders and includes an AI minute bundle — for example, Basic is 300 orders and 300 minutes for ৳2,000 a month. You pay for the package, not per call.' },
-  { q: 'What happens when my minutes run out?', a: 'Extra AI minutes are a flat ৳7 per minute, topped up from your merchant dashboard. Your package renews monthly with a fresh order and minute bundle.' },
-  { q: 'Is the KashNode Box included in a plan?', a: 'No. Plans cover the platform and AI minutes. The Box is a one-time hardware purchase — request availability on the hardware page for current pricing.' },
-  { q: 'Can I start for free?', a: 'Yes. The Free Trial is ৳0 and includes 10 orders and 10 AI minutes, so you can verify real orders with Kash before choosing a plan.' },
+  { q: 'Are ISP and e-commerce plans the same?', a: 'No. The platform defines separate plan matrices. ISP plans are sized by routers, customer capacity and monthly transactions. E-commerce plans are sized by website connections and monthly transactions.' },
+  { q: 'How long does a licence last?', a: 'Each merchant licence is renewable every 30 days.' },
+  { q: 'What payment methods are in scope?', a: 'The architecture names bKash, Nagad, Rocket and Upay. Payment receipts are captured and matched against transaction references.' },
+  { q: 'Are prices listed here?', a: 'The architecture blueprint defines plan limits and included capabilities, but it does not specify subscription prices. Contact the team for a current commercial quote.' },
 ]
 
 export default function PricingPage() {
   return (
-    <SiteLayout title="Pricing">
+    <SiteLayout title="Plans & Licensing">
       <section className="site-page-hero">
         <div className="site-wrap">
-          <Eyebrow>Pricing</Eyebrow>
-          <h1>Simple, predictable pricing <em>for every stage.</em></h1>
-          <p className="site-lede">Pick your starting point, then pick your package. Every plan is monthly, sized by orders, with AI minutes included.</p>
-        </div>
-      </section>
-
-      <section className="site-section">
-        <div className="site-wrap">
-          <Eyebrow>Step 1 — How you start</Eyebrow>
-          <h2 className="site-h2">Start with the Platform, or add the Box.</h2>
-          <div className="site-path-cards site-path-cards-wide site-path-cards-light">
-            <article>
-              <span className="site-path-icon"><LayoutDashboard size={20} /></span>
-              <h3>KashNode Platform</h3>
-              <p className="site-plan-price">৳0 <span>to start</span></p>
-              <p>Your merchant web dashboard — create a workspace, connect your store, and verify real orders. No hardware needed.</p>
-              <ul className="site-check-list">
-                <li>No hardware needed</li>
-                <li>Set up in minutes</li>
-                <li>Same platform, same dashboard</li>
-              </ul>
-              <Link to="/login" className="site-btn site-btn-primary">Start Free <ArrowRight size={16} /></Link>
-            </article>
-            <article className="box">
-              <span className="site-path-icon"><Box size={20} /></span>
-              <h3>KashNode Box</h3>
-              <p className="site-plan-price">One-time fee <span>· request availability</span></p>
-              <p>Dedicated plug-and-play hardware for your business SIM, built for 24/7 reliability.</p>
-              <ul className="site-check-list">
-                <li>Always on, day and night</li>
-                <li>Stable 4G LTE connection</li>
-                <li>Instant SMS &amp; voice routing</li>
-              </ul>
-              <Link to="/hardware" className="site-btn site-btn-dark">Explore KashNode Box <ArrowRight size={16} /></Link>
-            </article>
+          <Eyebrow>Plans & licensing</Eyebrow>
+          <h1>One platform. <em>Plans shaped around your business.</em></h1>
+          <p className="site-lede">Choose the plan family that matches your operation: internet service provider or e-commerce. Every licence renews on a 30-day cycle.</p>
+          <div className="site-dual-cta">
+            <a href="#isp-plans" className="site-btn site-btn-primary site-btn-lg">ISP plans <ArrowRight size={16} /></a>
+            <a href="#store-plans" className="site-btn site-btn-outline-dark site-btn-lg">E-commerce plans <ArrowRight size={16} /></a>
           </div>
         </div>
       </section>
-
-      <section className="site-section site-section-light">
-        <div className="site-wrap">
-          <Eyebrow>Step 2 — Your package</Eyebrow>
-          <h2 className="site-h2">Monthly packages, minutes included.</h2>
-          <PricingTiers />
-          <OverageNote />
-        </div>
-      </section>
-
-      <section className="site-section">
-        <div className="site-wrap">
-          <Eyebrow>Compare plans</Eyebrow>
-          <h2 className="site-h2">What each plan includes.</h2>
-          <div className="site-compare">
-            <table>
-              <thead><tr><th></th><th>Free Trial</th><th>Basic</th><th>Standard</th><th>Premium</th></tr></thead>
-              <tbody>
-                {COMPARISON.map(row => (
-                  <tr key={row.feature}>
-                    <td>{row.feature}</td>
-                    <td>{row.free}</td>
-                    <td>{row.basic}</td>
-                    <td><strong>{row.standard}</strong></td>
-                    <td>{row.premium}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="site-note"><Check size={14} /> Prices shown are the published KashNode packages. The Box is priced separately on inquiry.</p>
-        </div>
-      </section>
-
+      <div id="isp-plans"><PlanMatrix title="For ISP businesses" intro="Built around MikroTik RouterOS v7, subscriber capacity, automatic line restoration and recurring bill collection." rows={ISP_ROWS} /></div>
+      <div id="store-plans"><PlanMatrix title="For e-commerce businesses" intro="Built around store connections, customer verification, payment matching and order-status automation." rows={STORE_ROWS} /></div>
       <section className="site-section site-section-light">
         <div className="site-wrap site-faq-wrap">
-          <Eyebrow>Pricing questions</Eyebrow>
-          <h2 className="site-h2">Questions, answered.</h2>
+          <Eyebrow>Licensing questions</Eyebrow>
+          <h2 className="site-h2">Clear limits. Predictable renewals.</h2>
           <Faq items={FAQS} />
+          <p className="site-note">For a quote or help choosing a plan, <Link to="/contact">contact the team</Link>.</p>
         </div>
       </section>
-
       <FinalCta />
     </SiteLayout>
   )
