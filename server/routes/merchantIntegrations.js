@@ -84,9 +84,23 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env, fet
         { shopDomain, clientId, clientSecret },
         { fetchImpl },
       );
-      const webhookSecret = typeof req.body?.webhookSecret === 'string' ? req.body.webhookSecret.trim() : '';
-      if (webhookSecret.length > 1000) throw new Error('Shopify Webhook Secret is too long.');
-      const credentials = { ...tokenCredentials, ...(webhookSecret ? { webhookSecret } : {}) };
+      const adminWebhookSecret = typeof req.body?.admin_webhook_secret === 'string' ? req.body.admin_webhook_secret.trim()
+        : (typeof req.body?.webhookSecret === 'string' ? req.body.webhookSecret.trim() : '');
+      if (adminWebhookSecret.length > 1000) throw new Error('Shopify Admin Webhook Secret is too long.');
+      let previousAdminSecret = '';
+      if (!adminWebhookSecret) {
+        const existing = await pool.query(
+          `SELECT credentials_ciphertext, credentials_nonce, credentials_auth_tag, credentials_key_version
+           FROM public.merchant_integrations WHERE merchant_id = $1 AND provider = 'shopify' LIMIT 1`,
+          [id.merchantId],
+        );
+        if (existing.rows[0]) {
+          const prior = decryptIntegrationCredentials(existing.rows[0], env);
+          previousAdminSecret = prior.admin_webhook_secret || prior.webhookSecret || '';
+        }
+      }
+      const credentials = { ...tokenCredentials,
+        ...((adminWebhookSecret || previousAdminSecret) ? { admin_webhook_secret: adminWebhookSecret || previousAdminSecret } : {}) };
       if (req.body?.testOnly === true) {
         return res.status(200).json({ status: 'verified', provider: 'shopify', verified: true, message: 'Shopify credentials verified. Save & Connect to finish.' });
       }
