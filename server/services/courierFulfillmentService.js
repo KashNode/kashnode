@@ -83,15 +83,15 @@ async function processJob(pool, job) {
   const byProvider = new Map(integrations.rows.map(row => [row.provider, row]));
   const courierRow = order.courier_provider ? byProvider.get(order.courier_provider) : (byProvider.get('steadfast') || byProvider.get('pathao'));
   if (!courierRow || !COURIERS.has(courierRow.provider) || courierRow.config?.autoBook === false) {
-    await completeJob(pool, job.id, 'failed', 'No active auto-booking courier integration is configured.', false, job.attempts);
+    await completeJob(pool, job.id, 'blocked', 'No active auto-booking courier integration is configured.', false, job.attempts);
     return;
   }
   if (!order.shipping_address || !order.customer_phone) {
-    await completeJob(pool, job.id, 'failed', 'Order is missing a delivery address or customer phone.', false, job.attempts);
+    await completeJob(pool, job.id, 'blocked', 'Order is missing a delivery address or customer phone.', false, job.attempts);
     return;
   }
   if (courierRow.provider === 'pathao' && (!/^\d+$/.test(String(order.shipping_city || '')) || !/^\d+$/.test(String(order.shipping_zone || '')))) {
-    await completeJob(pool, job.id, 'failed', 'Pathao orders require city and zone IDs from the merchant dashboard.', false, job.attempts);
+    await completeJob(pool, job.id, 'blocked', 'Pathao orders require city and zone IDs in the source order metadata.', false, job.attempts);
     return;
   }
 
