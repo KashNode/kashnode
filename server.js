@@ -198,7 +198,10 @@ app.get('/api/merchant/onboarding', requireMerchantSession, asyncRoute(merchantO
 app.post('/api/merchant/onboarding', requireOrigin, requireMerchantSession, asyncRoute(merchantOnboardingHandlers.postOnboarding))
 app.post('/api/merchant/billing-phone/otp', requireOrigin, requireMerchantSession, otpLimiter, asyncRoute(merchantPaymentHandlers.requestBillingPhoneOtp))
 app.post('/api/merchant/billing-phone/verify', requireOrigin, requireMerchantSession, otpLimiter, asyncRoute(merchantPaymentHandlers.verifyBillingPhoneOtp))
+app.post('/api/merchant/wallet/topup', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createTopup))
 app.post('/api/merchant/topup', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createTopup))
+app.get('/api/merchant/billing-config', requireMerchantSession, asyncRoute(merchantPaymentHandlers.getMerchantBillingConfig))
+app.post('/api/merchant/plan-upgrade', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createPlanUpgradeRequest))
 app.post('/api/admin/device/payment-sms', requireDevice, asyncRoute((req, res) => {
   if (DEVICE_ID && req.body?.device_id !== DEVICE_ID) return res.status(403).json({ message: 'Unrecognized payment collection device.' })
   return merchantPaymentHandlers.ingestAdminPaymentSms(req, res)
@@ -206,15 +209,21 @@ app.post('/api/admin/device/payment-sms', requireDevice, asyncRoute((req, res) =
 // Package status is read from the database so the dashboard always reflects the active tier.
 app.get('/api/merchant/package', requireMerchantSession, asyncRoute(async (req, res) => {
   const result = await pool.query(
-    'SELECT subscription_plan, overage_rate_per_min, wallet_balance, available_voice_minutes FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1',
+    `SELECT m.subscription_plan, p.slug, p.name, p.price_per_minute, p.minimum_topup_minutes,
+            p.monthly_fee, p.included_minutes, m.wallet_balance, m.available_voice_minutes
+       FROM public.merchants m
+       LEFT JOIN public.subscription_plans p ON lower(p.slug)=lower(m.subscription_plan) AND p.is_active=TRUE
+      WHERE m.id = $1 AND m.owner_user_id = $2 LIMIT 1`,
     [req.session.user.merchantId, req.session.user.id],
   )
   const merchant = result.rows?.[0]
   if (!merchant) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' })
-  const plan = normalizeMerchantPackage(merchant.subscription_plan)
+  if (!merchant.slug) return res.status(409).json({ status: 'error', message: 'Your active plan is not configured in the plan catalog.' })
   return res.json({
-    package: plan,
-    ratePerMinute: Number(merchant.overage_rate_per_min ?? packageRateFor(plan) ?? 7),
+    package: merchant.slug,
+    plan: { slug: merchant.slug, name: merchant.name, ratePerMinute: Number(merchant.price_per_minute), minimumTopupMinutes: Number(merchant.minimum_topup_minutes), monthlyFee: Number(merchant.monthly_fee), includedMinutes: Number(merchant.included_minutes) },
+    ratePerMinute: Number(merchant.price_per_minute),
+    minimumTopupMinutes: Number(merchant.minimum_topup_minutes),
     walletBalance: Number(merchant.wallet_balance || 0),
     availableVoiceMinutes: Number(merchant.available_voice_minutes || 0),
     currency: 'BDT',
