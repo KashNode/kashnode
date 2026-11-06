@@ -33,6 +33,7 @@ ALTER TABLE public.orders
   ADD COLUMN IF NOT EXISTS shipping_area TEXT,
   ADD COLUMN IF NOT EXISTS shipping_postcode TEXT,
   ADD COLUMN IF NOT EXISTS alternative_phone TEXT,
+  ADD COLUMN IF NOT EXISTS store_provider TEXT CHECK (store_provider IN ('woocommerce', 'shopify')),
   ADD COLUMN IF NOT EXISTS courier_provider TEXT,
   ADD COLUMN IF NOT EXISTS courier_consignment_id TEXT,
   ADD COLUMN IF NOT EXISTS courier_tracking_code TEXT,
