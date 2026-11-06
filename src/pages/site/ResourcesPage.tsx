@@ -35,11 +35,10 @@ export default function ResourcesPage() {
           <Eyebrow>Guides</Eyebrow>
           <h2 className="site-h2">Learn by doing.</h2>
           <div className="site-ledger">
-            {GUIDES.map((item, index) => {
+            {GUIDES.map(item => {
               const Icon = item.icon
               return (
                 <div key={item.title} className="site-ledger-row">
-                  <span className="site-ledger-num">{String(index + 1).padStart(2, '0')}</span>
                   <div>
                     <span className="site-card-icon"><Icon size={20} /></span>
                     <h3>{item.title}</h3>
