@@ -93,8 +93,9 @@ export function createMerchantOnboardingHandlers({ pool }) {
     }
 
     const gatewayMode = req.body?.gatewayMode === 'kashnode_box' ? 'kashnode_box' : 'android_app';
-    const current = await pool.query('SELECT gateway_preference FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1', [identity.merchantId, identity.userId]);
+    const current = await pool.query('SELECT is_billing_phone_verified, billing_phone FROM public.merchants WHERE id = $1 AND owner_user_id = $2 LIMIT 1', [identity.merchantId, identity.userId]);
     if (!current.rows[0]) return res.status(404).json({ status: 'error', message: 'Merchant workspace was not found.' });
+    if (!current.rows[0].is_billing_phone_verified || !current.rows[0].billing_phone) return res.status(403).json({ status: 'error', message: 'Verify your primary billing MFS number before completing setup.' });
     const gatewayPreference = gatewayMode === 'kashnode_box' ? 'box' : 'app';
     if (gatewayPreference === 'box' && !boxSimPhone) {
       return res.status(400).json({ status: 'error', message: 'Enter a valid Bangladesh mobile number for the Pocket Box SIM.' });
@@ -109,6 +110,8 @@ export function createMerchantOnboardingHandlers({ pool }) {
         website.value,
         adminContactPhone,
         boxSimPhone,
+        gatewayMode,
+        gatewayPreference,
       ],
     );
 
