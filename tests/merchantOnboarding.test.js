@@ -57,10 +57,13 @@ test('GET onboarding returns only the authenticated owner merchant profile', asy
 
 test('POST onboarding validates and saves normalized merchant details', async () => {
   let queryArgs;
+  let queryCount = 0;
   const handlers = createMerchantOnboardingHandlers({
     pool: {
       async query(_sql, args) {
         queryArgs = args;
+        queryCount += 1;
+        if (queryCount === 1) return { rows: [{ billing_phone: '01712345678', is_billing_phone_verified: true }] };
         return {
           rows: [{
             is_onboarding_complete: true,
@@ -92,6 +95,8 @@ test('POST onboarding validates and saves normalized merchant details', async ()
     'https://example.com/',
     '01712345678',
     '01812345678',
+    'android_app',
+    'app',
   ]);
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.onboarding.isOnboardingComplete, true);
