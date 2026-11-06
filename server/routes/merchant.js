@@ -93,7 +93,7 @@ export function createMerchantOnboardingHandlers({ pool }) {
     }
 
     const result = await pool.query(
-      'UPDATE public.merchants SET business_name = $3, website_url = $4, admin_contact_phone = $5, box_sim_phone = $6, is_onboarding_complete = TRUE WHERE id = $1 AND owner_user_id = $2 RETURNING is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone',
+      'UPDATE public.merchants SET business_name = $3, website_url = $4, admin_contact_phone = $5, box_sim_phone = $6, is_onboarding_complete = TRUE WHERE id = $1 AND owner_user_id = $2 RETURNING is_onboarding_complete, business_name, website_url, admin_contact_phone, box_sim_phone, subscription_plan, gateway_preference, box_fulfillment_status',
       [
         identity.merchantId,
         identity.userId,
@@ -116,9 +116,9 @@ export function createMerchantOnboardingHandlers({ pool }) {
         websiteUrl: merchant.website_url || '',
         adminContactPhone: merchant.admin_contact_phone,
         boxSimPhone: merchant.box_sim_phone || '',
-        gatewayPreference,
-        selectedPlan: (await pool.query('SELECT subscription_plan FROM public.merchants WHERE id = $1', [identity.merchantId])).rows[0]?.subscription_plan || 'basic',
-        boxFulfillmentStatus: (await pool.query('SELECT box_fulfillment_status FROM public.merchants WHERE id = $1', [identity.merchantId])).rows[0]?.box_fulfillment_status || 'not_requested',
+        gatewayPreference: merchant.gateway_preference || gatewayPreference,
+        selectedPlan: merchant.subscription_plan || 'basic',
+        boxFulfillmentStatus: merchant.box_fulfillment_status || 'not_requested',
       },
     });
   }
