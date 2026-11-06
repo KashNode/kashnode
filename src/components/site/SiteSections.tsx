@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, ChevronDown, Smartphone, Box } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Smartphone, Box, X } from 'lucide-react'
 import { BoxRender } from './SiteVisuals'
 
 export type FaqItem = { q: string; a: string }
@@ -28,6 +28,103 @@ type Plan = {
 }
 const FALLBACK_PLANS: Plan[] = []
 
+// Feature comparison rows for the full pricing table, grouped the way a
+// buyer reads them. Values are keyed by plan slug: a string is shown as-is,
+// true renders a check, false renders a cross. Tiers are cumulative — each
+// paid tier includes everything below it plus its own additions — so rows
+// derived from a lower tier's features show as included on the tiers above.
+type PriceCell = string | boolean
+const PRICE_TABLE_GROUPS: { group: string; rows: { label: string; values: Record<string, PriceCell> }[] }[] = [
+  { group: 'AI voice & verification', rows: [
+    { label: 'AI voice verification', values: { free: 'AI confirmation calls', basic: 'Standard voice', standard: 'Advanced, faster responses', premium: 'Ultra-realistic, custom tone' } },
+    { label: 'Order verification by SMS', values: { free: true, basic: true, standard: true, premium: true } },
+    { label: 'Payment code verification', values: { free: true, basic: true, standard: true, premium: true } },
+    { label: 'Gateway', values: { free: 'Kash AI Android app', basic: '1 gateway — app or Basic Box', standard: 'Up to 2 devices / SIMs + failover', premium: 'Unlimited devices / Box' } },
+  ] },
+  { group: 'Payments & courier', rows: [
+    { label: 'bKash & Nagad SMS matching', values: { free: false, basic: false, standard: true, premium: true } },
+    { label: 'Automatic TrxID matching', values: { free: false, basic: false, standard: true, premium: true } },
+    { label: 'Courier booking (Steadfast / Pathao)', values: { free: false, basic: false, standard: true, premium: true } },
+  ] },
+  { group: 'History & support', rows: [
+    { label: 'Call & payment history', values: { free: '—', basic: '7 days', standard: '30 days', premium: '30 days' } },
+    { label: 'Support', values: { free: '—', basic: 'Email / ticket', standard: 'Priority chat', premium: 'Dedicated manager + VIP phone' } },
+  ] },
+  { group: 'Advanced', rows: [
+    { label: 'Smart retry & dynamic scheduling', values: { free: false, basic: false, standard: false, premium: true } },
+    { label: 'Fraud & fake-order detection', values: { free: false, basic: false, standard: false, premium: true } },
+    { label: 'API & webhook access', values: { free: false, basic: false, standard: false, premium: true } },
+  ] },
+]
+
+function PricingTable({ plans }: { plans: Plan[] }) {
+  const sorted = [...plans].sort((a, b) => a.display_order - b.display_order)
+  return (
+    <div className="site-price-table-wrap">
+      <table className="site-price-table">
+        <thead>
+          <tr>
+            <th scope="col" className="site-price-table-label"><span>Features</span></th>
+            {sorted.map(plan => (
+              <th scope="col" key={plan.slug} className={`site-price-table-plan ${plan.slug === 'standard' ? 'popular' : ''}`}>
+                {plan.slug === 'standard' && <span className="site-price-table-badge">Most Popular</span>}
+                <span className="site-price-table-name">{plan.name}</span>
+                <span className="site-price-table-price">৳{Number(plan.price_per_minute).toLocaleString('en-BD', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} <small>{plan.billing_unit === 'minute' ? '/ minute' : plan.billing_unit}</small></span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row">Description</th>
+            {sorted.map(plan => (
+              <td key={plan.slug} className={plan.slug === 'standard' ? 'popular' : ''}>{plan.tagline}</td>
+            ))}
+          </tr>
+          <tr>
+            <th scope="row">Billing</th>
+            {sorted.map(plan => (
+              <td key={plan.slug} className={plan.slug === 'standard' ? 'popular' : ''}>{plan.slug === 'free' ? '10 complimentary AI minutes' : 'Pay only for voice time used'}</td>
+            ))}
+          </tr>
+          {PRICE_TABLE_GROUPS.map(group => (
+            <Fragment key={group.group}>
+              <tr className="site-price-table-group">
+                <th colSpan={sorted.length + 1}>{group.group}</th>
+              </tr>
+              {group.rows.map(row => (
+                <tr key={row.label}>
+                  <th scope="row">{row.label}</th>
+                  {sorted.map(plan => {
+                    const value = row.values[plan.slug]
+                    return (
+                      <td key={plan.slug} className={plan.slug === 'standard' ? 'popular' : ''}>
+                        {value === true ? <Check size={20} aria-label="Included" /> : value === false ? <X size={18} className="site-price-table-no" aria-label="Not included" /> : value ?? '—'}
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </Fragment>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td aria-hidden="true" />
+            {sorted.map(plan => (
+              <td key={plan.slug} className={plan.slug === 'standard' ? 'popular' : ''}>
+                <Link to={plan.slug === 'free' ? '/signup?plan=free' : `/signup?plan=${plan.slug}&gateway=app`} className={`site-btn ${plan.slug === 'standard' ? 'site-btn-primary' : 'site-btn-outline-dark'} site-btn-block`}>
+                  {plan.slug === 'free' ? 'Start Free Trial' : `Choose ${plan.name}`} <ArrowRight size={16} />
+                </Link>
+              </td>
+            ))}
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  )
+}
+
 export function PricingTiers({ compact = false }: { compact?: boolean }) {
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
   const [loading, setLoading] = useState(true)
@@ -48,6 +145,16 @@ export function PricingTiers({ compact = false }: { compact?: boolean }) {
   const visiblePlans = (compact ? plans.filter(plan => plan.slug !== 'free') : plans)
   if (loading) return <div className="site-note" role="status">Loading package details…</div>
   if (catalogError || !plans.length) return <div className="site-note" role="alert">{catalogError || 'Package information is temporarily unavailable. Please contact our team.'}</div>
+  // Full pricing page: a feature-comparison table. The homepage preview
+  // (compact) keeps the card grid.
+  if (!compact) {
+    return (
+      <>
+        <PricingTable plans={visiblePlans} />
+        <p className="site-note">Every paid plan starts with the free Kash AI Android app — or add the KashNode Box for ৳8,000 (one-time hardware purchase). <Link to="/hardware">See the Box</Link>.</p>
+      </>
+    )
+  }
   return (
     <div className="site-plans">
       {visiblePlans.map(plan => {
