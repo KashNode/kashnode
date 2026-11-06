@@ -30,7 +30,7 @@ export const PLANS = [
   },
   {
     id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳2,000', per: '/month', orders: '300 orders', minutes: '300 AI minutes',
-    features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Courier booking'],
+    features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Merchant operations dashboard'],
     cta: 'Choose Basic',
   },
   {
@@ -75,27 +75,9 @@ export function OverageNote() {
   return <p className="site-overage">Every plan includes its order and minute bundle. Extra AI minutes are a flat <strong>৳7 per minute</strong> with in-app recharge. The KashNode Box is a one-time hardware purchase — <Link to="/hardware">request availability</Link> for current pricing.</p>
 }
 
-const INTEGRATION_CHIPS: { name: string; tone: 'purple' | 'pink' | 'teal' }[] = [
-  { name: 'WooCommerce', tone: 'purple' },
-  { name: 'Shopify', tone: 'purple' },
-  { name: 'bKash', tone: 'pink' },
-  { name: 'Nagad', tone: 'pink' },
-  { name: 'Rocket', tone: 'pink' },
-  { name: 'Upay', tone: 'pink' },
-  { name: 'Steadfast', tone: 'teal' },
-  { name: 'Pathao', tone: 'teal' },
-]
-
-/** Text wordmarks only — no brand logo graphics. */
+/** Avoid displaying unverified provider logos or names as live integrations. */
 export function IntegrationStrip() {
-  return (
-    <div className="site-int-chips">
-      {INTEGRATION_CHIPS.map(chip => (
-        <span key={chip.name} className={`site-int-chip ${chip.tone}`}><i aria-hidden="true" />{chip.name}</span>
-      ))}
-      <span className="site-int-chip more">+ More</span>
-    </div>
-  )
+  return <p className="site-note">Provider availability is confirmed during onboarding. Courier booking and tracking require a configured production adapter.</p>
 }
 
 export function FinalCta() {
