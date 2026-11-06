@@ -12,7 +12,7 @@ export type MerchantOnboardingProfile = {
   boxPreorderRequestedAt: string | null
 }
 
-export type MerchantOnboardingInput = Omit<MerchantOnboardingProfile, 'isOnboardingComplete'>
+export type MerchantOnboardingInput = Pick<MerchantOnboardingProfile, 'businessName' | 'websiteUrl' | 'adminContactPhone' | 'boxSimPhone'>
 
 /**
  * The API should verify the password and set a Secure, HttpOnly, SameSite=Lax
