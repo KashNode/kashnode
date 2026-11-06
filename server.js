@@ -87,7 +87,7 @@ app.post('/api/webhooks/shopify', express.raw({ type: 'application/json', limit:
     pool,
     onOrderPersist: merchantId => reconcilePendingSmsForMerchant({ pool, merchantId }),
   })(req, res)).catch(error => {
-    console.error('[Shopify Webhook] Unhandled validation or processing error:', error?.stack || error)
+    console.error('[Shopify Webhook Error] Failed to process webhook:', error.message); console.error(error.stack)
     next(error)
   })
 })
