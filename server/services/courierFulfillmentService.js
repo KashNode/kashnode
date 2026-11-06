@@ -19,8 +19,8 @@ async function claimNext(pool) {
        FROM public.courier_fulfillment_outbox
        WHERE status IN ('pending','failed') AND next_attempt_at <= NOW()
        ORDER BY created_at ASC
-       FOR UPDATE SKIP LOCKED
-       LIMIT 1`,
+       LIMIT 1
+       FOR UPDATE SKIP LOCKED`,
     );
     const job = result.rows[0];
     if (!job) {
