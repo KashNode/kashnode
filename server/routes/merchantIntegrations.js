@@ -95,25 +95,44 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env } = 
       const testMessage = await testProviderCredentials(provider, credentials);
       const encrypted = encryptIntegrationCredentials(credentials, env);
       const allowedConfig = { autoBook: COURIER_PROVIDERS.has(provider) ? req.body?.config?.autoBook !== false : false };
-      await pool.query(
-        `INSERT INTO public.merchant_integrations
-          (merchant_id, provider, credentials_ciphertext, credentials_nonce, credentials_auth_tag,
-           credentials_key_version, config, is_active, last_tested_at, last_test_status, last_test_message, updated_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,TRUE,NOW(),'connected',$8,NOW())
-         ON CONFLICT (merchant_id, provider) DO UPDATE SET
-           credentials_ciphertext = EXCLUDED.credentials_ciphertext,
-           credentials_nonce = EXCLUDED.credentials_nonce,
-           credentials_auth_tag = EXCLUDED.credentials_auth_tag,
-           credentials_key_version = EXCLUDED.credentials_key_version,
-           config = EXCLUDED.config,
-           is_active = TRUE,
-           last_tested_at = NOW(),
-           last_test_status = 'connected',
-           last_test_message = EXCLUDED.last_test_message,
-           updated_at = NOW()`,
-        [id.merchantId, provider, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion,
-          JSON.stringify(allowedConfig), testMessage],
-      );
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        if (COURIER_PROVIDERS.has(provider) && allowedConfig.autoBook) {
+          await client.query(
+            `UPDATE public.merchant_integrations
+             SET config = jsonb_set(COALESCE(config, '{}'::jsonb), '{autoBook}', 'false'::jsonb, TRUE),
+                 updated_at = NOW()
+             WHERE merchant_id = $1 AND provider <> $2 AND provider IN ('steadfast','pathao')`,
+            [id.merchantId, provider],
+          );
+        }
+        await client.query(
+          `INSERT INTO public.merchant_integrations
+            (merchant_id, provider, credentials_ciphertext, credentials_nonce, credentials_auth_tag,
+             credentials_key_version, config, is_active, last_tested_at, last_test_status, last_test_message, updated_at)
+           VALUES ($1,$2,$3,$4,$5,$6,$7::jsonb,TRUE,NOW(),'connected',$8,NOW())
+           ON CONFLICT (merchant_id, provider) DO UPDATE SET
+             credentials_ciphertext = EXCLUDED.credentials_ciphertext,
+             credentials_nonce = EXCLUDED.credentials_nonce,
+             credentials_auth_tag = EXCLUDED.credentials_auth_tag,
+             credentials_key_version = EXCLUDED.credentials_key_version,
+             config = EXCLUDED.config,
+             is_active = TRUE,
+             last_tested_at = NOW(),
+             last_test_status = 'connected',
+             last_test_message = EXCLUDED.last_test_message,
+             updated_at = NOW()`,
+          [id.merchantId, provider, encrypted.ciphertext, encrypted.nonce, encrypted.authTag, encrypted.keyVersion,
+            JSON.stringify(allowedConfig), testMessage],
+        );
+        await client.query('COMMIT');
+      } catch (error) {
+        await client.query('ROLLBACK').catch(() => {});
+        throw error;
+      } finally {
+        client.release();
+      }
       return res.json({ status: 'success', provider, configured: true, message: 'Connection verified and saved.' });
     } catch (error) {
       return res.status(422).json({ status: 'error', message: publicMessage(error) });
