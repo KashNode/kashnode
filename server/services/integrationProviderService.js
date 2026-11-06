@@ -76,10 +76,10 @@ function assertProvider(provider) {
   if (!PROVIDERS.has(provider)) throw new Error('Unsupported integration provider.');
 }
 
-const SHOPIFY_DOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.myshopify\\.com$/;
+const SHOPIFY_DOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.myshopify\.com$/;
 
 export function normalizeShopifyDomain(value) {
-  const domain = clean(value, 255).toLowerCase().replace(/\\.$/, '');
+  const domain = clean(value, 255).toLowerCase().replace(/\.$/, '');
   if (!SHOPIFY_DOMAIN_PATTERN.test(domain)) {
     throw new Error('Enter a valid Shopify domain, such as store.myshopify.com.');
   }
