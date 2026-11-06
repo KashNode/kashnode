@@ -76,6 +76,67 @@ function assertProvider(provider) {
   if (!PROVIDERS.has(provider)) throw new Error('Unsupported integration provider.');
 }
 
+const SHOPIFY_DOMAIN_PATTERN = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\\.myshopify\\.com$/;
+
+export function normalizeShopifyDomain(value) {
+  const domain = clean(value, 255).toLowerCase().replace(/\\.$/, '');
+  if (!SHOPIFY_DOMAIN_PATTERN.test(domain)) {
+    throw new Error('Enter a valid Shopify domain, such as store.myshopify.com.');
+  }
+  return domain;
+}
+
+export async function requestShopifyClientCredentialsToken(credentials, { fetchImpl = fetch, now = Date.now() } = {}) {
+  const shopDomain = normalizeShopifyDomain(credentials.shopDomain);
+  const clientId = clean(credentials.clientId, 255);
+  const clientSecret = clean(credentials.clientSecret, 1000);
+  if (!clientId || !clientSecret) throw new Error('Enter both your Shopify Client ID and Client Secret.');
+
+  let response;
+  try {
+    response = await fetchImpl(`https://${shopDomain}/admin/oauth/access_token`, {
+      method: 'POST',
+      redirect: 'error',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ client_id: clientId, client_secret: clientSecret, grant_type: 'client_credentials' }),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    });
+  } catch (error) {
+    if (error.name === 'AbortError' || error.name === 'TimeoutError') {
+      throw new Error('Shopify did not respond in time. Please try again.');
+    }
+    throw new Error('Could not reach your Shopify store. Check the shop domain and try again.');
+  }
+
+  const payload = await response.json().catch(() => ({}));
+  const errorCode = String(payload.error || payload.code || '').toLowerCase();
+  const errorText = String(payload.error_description || payload.message || '').toLowerCase();
+  if (!response.ok) {
+    if (errorCode === 'shop_not_permitted' || errorText.includes('shop not permitted') || errorText.includes('not permitted for this app')) {
+      throw new Error('This app is not permitted to access that store. Create the app inside this Shopify store’s organization and use its credentials.');
+    }
+    if ([400, 401, 403].includes(response.status) || errorCode.includes('invalid_client') || errorText.includes('invalid client')) {
+      throw new Error('Shopify did not accept these credentials. Double-check the Client ID and Client Secret.');
+    }
+    throw new Error('Shopify could not connect this store right now. Please try again later.');
+  }
+
+  const expiresIn = Number(payload.expires_in);
+  if (typeof payload.access_token !== 'string' || !payload.access_token || !Number.isFinite(expiresIn) || expiresIn <= 0) {
+    throw new Error('Shopify returned an unexpected token response. Please verify the app credentials and try again.');
+  }
+  return {
+    shopDomain,
+    clientId,
+    clientSecret,
+    accessToken: payload.access_token,
+    scope: typeof payload.scope === 'string' ? payload.scope : '',
+    accessTokenExpiresAt: new Date(now + expiresIn * 1000).toISOString(),
+    accessTokenExpiresIn: expiresIn,
+    apiVersion: '2026-10',
+  };
+}
+
 export function validateIntegrationCredentials(provider, input) {
   assertProvider(provider);
   const value = input && typeof input === 'object' && !Array.isArray(input) ? input : {};
@@ -156,11 +217,20 @@ async function testWooCommerce(credentials) {
   return 'WooCommerce REST API credentials verified.';
 }
 
+
 export async function refreshShopifyAccessToken(credentials, { env = process.env, fetchImpl = fetch, now = Date.now() } = {}) {
   const expiresAt = Date.parse(credentials.accessTokenExpiresAt || '');
-  if (!credentials.refreshToken || !Number.isFinite(expiresAt) || expiresAt > now + 5 * 60 * 1000) return credentials;
+  if (Number.isFinite(expiresAt) && expiresAt > now + 5 * 60 * 1000) return credentials;
+
+  // Merchant-owned apps use their own encrypted credentials to obtain a fresh
+  // 24-hour token. The legacy OAuth refresh-token path remains for existing
+  // installations until they reconnect using BYO credentials.
+  if (credentials.clientId && credentials.clientSecret) {
+    return requestShopifyClientCredentialsToken(credentials, { fetchImpl, now });
+  }
 
   const refreshExpiresAt = Date.parse(credentials.refreshTokenExpiresAt || '');
+  if (!credentials.refreshToken || !Number.isFinite(expiresAt)) return credentials;
   if (Number.isFinite(refreshExpiresAt) && refreshExpiresAt <= now) {
     throw new Error('Shopify authorization expired. Reconnect this store to continue syncing.');
   }
@@ -203,13 +273,12 @@ export async function refreshShopifyAccessToken(credentials, { env = process.env
     || !Number.isFinite(refreshLifetime) || refreshLifetime <= 0) {
     throw new Error('Shopify returned an invalid token refresh response.');
   }
-  const refreshedAt = now;
   return {
     ...credentials,
     accessToken: payload.access_token,
     refreshToken: payload.refresh_token,
-    accessTokenExpiresAt: new Date(refreshedAt + accessLifetime * 1000).toISOString(),
-    refreshTokenExpiresAt: new Date(refreshedAt + refreshLifetime * 1000).toISOString(),
+    accessTokenExpiresAt: new Date(now + accessLifetime * 1000).toISOString(),
+    refreshTokenExpiresAt: new Date(now + refreshLifetime * 1000).toISOString(),
   };
 }
 
