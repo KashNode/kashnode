@@ -2793,3 +2793,13 @@ body { min-height: 100dvh; overflow-x: hidden; }
 .md-billing-otp-button{min-height:46px;white-space:nowrap;margin:0 0 10px}
 .md-billing-otp-field{margin-top:16px}
 @media(max-width:520px){.md-billing-phone-row{grid-template-columns:minmax(0,1fr)}.md-billing-otp-button{width:100%;margin:0}}
+
+
+/* Database-driven manual plan upgrade dialog */
+.md-plan-modal-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.68);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
+.md-plan-modal{width:min(100%,980px);max-height:min(90vh,900px);overflow:auto;background:var(--md-card-bg,#101820);border:1px solid var(--md-border,rgba(255,255,255,.16));box-shadow:0 24px 80px rgba(0,0,0,.4)}
+.md-plan-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin:18px 0}
+.md-plan-grid>.md-card{padding:16px;min-width:0}
+.md-upgrade-payment{margin-top:18px;padding:18px}
+.md-success{padding:12px;border:1px solid #278b61;border-radius:10px;color:#68d6a0}
+@media(max-width:640px){.md-plan-modal-backdrop{padding:8px;align-items:flex-start}.md-plan-modal{max-height:96vh}.md-plan-grid{grid-template-columns:1fr}}
