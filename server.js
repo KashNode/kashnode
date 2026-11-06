@@ -208,6 +208,96 @@ app.delete('/api/merchant/integrations/:provider', requireOrigin, requireMerchan
 app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
 app.post('/api/admin/settings', requireOrigin, requireAdmin, asyncRoute(adminSettingsHandlers.postSettings))
 
+// Live Super Admin operations data. All figures below come directly from PostgreSQL;
+// every query is scoped to this server-side admin route (never exposed to merchant sessions).
+app.get('/api/admin/overview', requireAdmin, asyncRoute(async (_req, res) => {
+  if (!pool) return res.status(503).json({ status: 'error', message: 'Database unavailable.' })
+  const [
+    merchantResult, orderSummary, recentOrders, callSummary, recentCalls,
+    deviceResult, courierResult, integrationResult, fulfillmentResult, voiceJobsResult,
+    smsSummary, transactionSummary,
+  ] = await Promise.all([
+    pool.query(`SELECT m.id, COALESCE(NULLIF(m.business_name, ''), m.name, 'Unnamed merchant') AS name,
+      COALESCE(m.email, u.email, '') AS email, m.subscription_plan, m.wallet_balance,
+      m.available_voice_minutes, m.available_orders, m.is_onboarding_complete, m.box_device_id,
+      m.box_fulfillment_status, m.gateway_preference, m.created_at
+      FROM public.merchants m LEFT JOIN public.users u ON u.id = m.owner_user_id
+      ORDER BY m.created_at DESC LIMIT 250`),
+    pool.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS last_30_days,
+      COUNT(*) FILTER (WHERE lower(COALESCE(payment_status,'')) IN ('paid','completed','verified'))::int AS paid,
+      COUNT(*) FILTER (WHERE COALESCE(is_phone_verified,false))::int AS phone_verified,
+      COALESCE(SUM(total_amount) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days'),0)::numeric AS gross_30_days
+      FROM public.orders`),
+    pool.query(`SELECT o.id, o.platform_order_id, o.customer_name, o.total_amount, o.currency, o.payment_status,
+      o.delivery_status, o.ai_call_status, o.created_at, m.business_name, m.name AS merchant_name
+      FROM public.orders o JOIN public.merchants m ON m.id=o.merchant_id
+      ORDER BY o.created_at DESC LIMIT 12`),
+    pool.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS last_30_days,
+      COALESCE(SUM(billed_amount),0)::numeric AS billed_total,
+      COALESCE(SUM(call_duration_seconds),0)::numeric AS duration_seconds
+      FROM public.call_billing_ledger`),
+    pool.query(`SELECT l.id, l.created_at, l.call_duration_seconds, l.billed_amount, l.currency, l.billing_source,
+      o.customer_phone, o.platform_order_id, COALESCE(m.business_name,m.name) AS merchant_name
+      FROM public.call_billing_ledger l
+      LEFT JOIN public.orders o ON o.id=l.order_id AND o.merchant_id=l.merchant_id
+      LEFT JOIN public.merchants m ON m.id=l.merchant_id
+      ORDER BY l.created_at DESC LIMIT 12`),
+    pool.query(`SELECT DISTINCT ON (m.id) m.id AS merchant_id, COALESCE(m.business_name,m.name) AS merchant_name,
+      m.box_device_id, d.device_id, d.balance_bdt, d.data_mb, d.signal_strength, d.is_online,
+      d.raw_payload, d.created_at,
+      (d.created_at >= NOW() - INTERVAL '2 minutes' AND COALESCE(d.raw_payload->>'online','true')='true') AS online
+      FROM public.merchants m LEFT JOIN public.device_logs d
+      ON d.merchant_id=m.id AND (m.box_device_id IS NULL OR d.device_id=m.box_device_id)
+      ORDER BY m.id, d.created_at DESC NULLS LAST`),
+    pool.query(`SELECT c.id, c.order_code, c.courier_name, c.tracking_code, c.consignment_id,
+      c.status, c.delivery_charge, c.created_at, COALESCE(m.business_name,m.name) AS merchant_name
+      FROM public.courier_orders c LEFT JOIN public.merchants m ON m.id=c.merchant_id
+      ORDER BY c.created_at DESC LIMIT 12`),
+    pool.query(`SELECT provider, COUNT(*)::int AS total,
+      COUNT(*) FILTER (WHERE is_active)::int AS active,
+      COUNT(*) FILTER (WHERE last_test_status='error')::int AS failed_tests,
+      MAX(updated_at) AS last_updated
+      FROM public.merchant_integrations GROUP BY provider ORDER BY provider`),
+    pool.query(`SELECT status, COUNT(*)::int AS total, COALESCE(SUM(attempts),0)::int AS attempts
+      FROM public.courier_fulfillment_outbox GROUP BY status ORDER BY status`),
+    pool.query(`SELECT status, COUNT(*)::int AS total, COALESCE(SUM(attempts),0)::int AS attempts
+      FROM public.voice_session_billing_jobs GROUP BY status ORDER BY status`),
+    pool.query(`SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE received_at >= NOW() - INTERVAL '24 hours')::int AS last_24_hours,
+      COUNT(*) FILTER (WHERE NOT COALESCE(is_reconciled,false))::int AS unreconciled
+      FROM public.raw_sms_inbox`),
+    pool.query(`SELECT status, COUNT(*)::int AS total, COALESCE(SUM(amount),0)::numeric AS amount
+      FROM public.transactions GROUP BY status ORDER BY status`),
+  ])
+  const merchants = merchantResult.rows.map(row => ({
+    id: row.id, name: row.name, email: row.email, plan: row.subscription_plan || 'free',
+    walletBalance: Number(row.wallet_balance || 0), voiceMinutes: Number(row.available_voice_minutes || 0),
+    availableOrders: Number(row.available_orders || 0), onboardingComplete: Boolean(row.is_onboarding_complete),
+    boxDeviceId: row.box_device_id, boxFulfillmentStatus: row.box_fulfillment_status || 'not_requested',
+    gatewayPreference: row.gateway_preference || 'box', createdAt: row.created_at,
+  }))
+  const devices = deviceResult.rows.map(row => ({
+    merchantId: row.merchant_id, merchantName: row.merchant_name, assignedDeviceId: row.box_device_id,
+    deviceId: row.device_id, online: Boolean(row.online), balance: Number(row.balance_bdt || 0),
+    dataMb: Number(row.data_mb || 0), signal: row.signal_strength == null ? null : Number(row.signal_strength),
+    networkType: row.raw_payload?.networkType || 'Unknown', updatedAt: row.created_at,
+  }))
+  res.json({
+    source: 'database', generatedAt: new Date().toISOString(),
+    summary: {
+      merchants: merchants.length,
+      onboardedMerchants: merchants.filter(item => item.onboardingComplete).length,
+      walletBalance: merchants.reduce((sum,item) => sum + item.walletBalance,0),
+      orders: orderSummary.rows[0] || {}, calls: callSummary.rows[0] || {},
+      devices: { assigned: devices.filter(item => item.assignedDeviceId).length, reporting: devices.filter(item => item.deviceId).length, online: devices.filter(item => item.online).length },
+      sms: smsSummary.rows[0] || {},
+    },
+    merchants, orders: recentOrders.rows, calls: recentCalls.rows, devices,
+    courierOrders: courierResult.rows, integrations: integrationResult.rows,
+    courierQueue: fulfillmentResult.rows, voiceQueue: voiceJobsResult.rows,
+    transactions: transactionSummary.rows,
+  })
+}))
+
 app.post('/api/v1/edge/sms', requireStandardPackage, asyncRoute(createEdgeSmsHandler({
   pool,
   onPersist: smsId => reconcileSms({ pool, smsId }),
