@@ -49,7 +49,7 @@ function getCustomerName(order) {
   const first = cleanText(customer.first_name, 120) || cleanText(address.first_name, 120);
   const last = cleanText(customer.last_name, 120) || cleanText(address.last_name, 120);
   return cleanText([first, last].filter(Boolean).join(' '), 255)
-    || cleanText(address.name, 255);
+    || cleanText(address.name, 255) || 'Shopify customer';
 }
 
 function skipWhitespace(source, index) {
@@ -289,7 +289,7 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       || platformOrderId;
     const currency = cleanText(orderPayload?.currency, 3)?.toUpperCase() || null;
     const shipping = orderPayload?.shipping_address || orderPayload?.billing_address || {};
-    const shippingAddress = [shipping.address1, shipping.address2, shipping.city, shipping.province, shipping.zip]
+    const shippingAddress = [shipping.address1, shipping.address2, shipping.city, shipping.province, shipping.zip, shipping.country]
       .filter(value => typeof value === 'string' && value.trim()).join(', ').slice(0, 1000) || null;
     const noteAttributes = Array.isArray(orderPayload?.note_attributes) ? orderPayload.note_attributes : [];
     const noteValue = key => noteAttributes.find(item => String(item?.name || '').toLowerCase() === key)?.value;
