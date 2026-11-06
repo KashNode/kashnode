@@ -124,7 +124,7 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
       if (testOnly) {
         onNotify('Shopify credentials verified. Select Save & Connect to finish.');
       } else {
-        setForms(current => ({ ...current, shopify: { ...current.shopify, clientId: '', clientSecret: '', webhookSecret: '' } }));
+        setForms(current => ({ ...current, shopify: { ...current.shopify, clientId: '', clientSecret: '', admin_webhook_secret: '' } }));
         await refresh();
         onNotify('Shopify connected successfully.');
       }
