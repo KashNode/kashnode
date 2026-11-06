@@ -160,22 +160,25 @@ function mapPaymentMethod(order) {
 
 const INSERT_ORDER_SQL = `
   INSERT INTO public.orders
-    (merchant_id, platform_order_id, customer_phone, customer_name, total_amount,
-     payment_status, delivery_status, payment_method, line_items, financial_status, currency, store_provider,
-     shipping_address, shipping_city, shipping_zone, shipping_area, shipping_postcode, alternative_phone)
-  VALUES ($1, $2, $3, $4, $5::numeric, $6, 'pending', $7, $8::jsonb, $9, $10, 'shopify', $11, $12, $13, $14, $15, $16)
+    (merchant_id, platform_order_id, order_number, customer_phone, customer_name, total_amount,
+     payment_status, delivery_status, payment_method, line_items, financial_status, fulfillment_status,
+     currency, store_provider, shipping_address, shipping_city, shipping_zone, shipping_area,
+     shipping_postcode, alternative_phone)
+  VALUES ($1, $2, $3, $4, $5, $6::numeric, $7, 'pending', $8, $9::jsonb, $10, $11, $12, 'shopify', $13, $14, $15, $16, $17, $18)
   RETURNING id, payment_status, delivery_status
 `;
 
 const UPDATE_ORDER_SQL = `
   UPDATE public.orders
-  SET customer_phone = $2,
-      customer_name = $3,
-      total_amount = $4::numeric,
-      payment_method = $5,
-      line_items = $6::jsonb,
-      financial_status = $7,
-      currency = $8,
+  SET order_number = $2,
+      customer_phone = $3,
+      customer_name = $4,
+      total_amount = $5::numeric,
+      payment_method = $6,
+      line_items = $7::jsonb,
+      financial_status = $8,
+      fulfillment_status = $9,
+      currency = $10,
       store_provider = 'shopify',
       shipping_address = COALESCE($10, shipping_address),
       shipping_city = COALESCE($11, shipping_city),
@@ -184,8 +187,8 @@ const UPDATE_ORDER_SQL = `
       shipping_postcode = COALESCE($14, shipping_postcode),
       alternative_phone = COALESCE($15, alternative_phone),
       payment_status = CASE
-        WHEN payment_status = 'paid' AND $9 = 'unpaid' THEN 'paid'
-        ELSE $9
+        WHEN payment_status = 'paid' AND $11 = 'unpaid' THEN 'paid'
+        ELSE $11
       END
   WHERE id = $1
   RETURNING id, payment_status, delivery_status
@@ -285,8 +288,14 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
     const totalAmount = normalizeAmount(orderPayload?.total_price);
     const lineItems = getLineItems(orderPayload?.line_items);
     const financialStatus = cleanText(orderPayload?.financial_status, 50)?.toLowerCase() || 'pending';
-    const paymentStatus = mapFinancialStatus(financialStatus);
     const paymentMethod = mapPaymentMethod(orderPayload || {});
+    const isCod = /cash on delivery|\bcod\b/i.test(paymentMethod || '');
+    const paymentStatus = isCod ? 'unpaid' : mapFinancialStatus(financialStatus);
+    const fulfillmentStatus = cleanText(orderPayload?.fulfillment_status, 50)?.toLowerCase() || 'unfulfilled';
+    const deliveryStatus = fulfillmentStatus === 'fulfilled' ? 'fulfilled'
+      : fulfillmentStatus === 'partial' ? 'partially_fulfilled' : 'pending';
+    const orderNumber = cleanText(orderPayload?.name || (orderPayload?.order_number == null ? null : String(orderPayload.order_number)), 100)
+      || platformOrderId;
     const currency = cleanText(orderPayload?.currency, 3)?.toUpperCase() || null;
     const shipping = orderPayload?.shipping_address || orderPayload?.billing_address || {};
     const shippingAddress = [shipping.address1, shipping.address2, shipping.city, shipping.province, shipping.zip]
@@ -342,12 +351,14 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
       if (existingOrder.rows[0]) {
         const updated = await client.query(UPDATE_ORDER_SQL, [
           existingOrder.rows[0].id,
+          orderNumber,
           customerPhone,
           customerName,
           totalAmount,
-          paymentMethod,
+          isCod ? 'Cash on Delivery' : paymentMethod,
           JSON.stringify(lineItems),
           financialStatus,
+          fulfillmentStatus,
           currency,
           paymentStatus,
           shippingAddress,
@@ -379,13 +390,15 @@ export function createShopifyWebhookHandler({ pool, onOrderPersist = async () =>
         const inserted = await client.query(INSERT_ORDER_SQL, [
           resolvedMerchantId,
           platformOrderId,
+          orderNumber,
           customerPhone,
           customerName,
           totalAmount,
           paymentStatus,
-          paymentMethod,
+          isCod ? 'Cash on Delivery' : paymentMethod,
           JSON.stringify(lineItems),
           financialStatus,
+          fulfillmentStatus,
           currency,
           shippingAddress,
           shippingCity,
