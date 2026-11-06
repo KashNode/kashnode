@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 import { CheckCircle2, Link2, Loader2, PlugZap, ShieldCheck, Trash2, XCircle } from 'lucide-react';
 
 type Provider = 'steadfast' | 'pathao' | 'woocommerce' | 'shopify';
@@ -24,7 +23,7 @@ const initialForms: Record<Provider, Record<string, string>> = {
   steadfast: { apiKey: '', secretKey: '' },
   pathao: { environment: 'production', clientId: '', clientSecret: '', username: '', password: '', storeId: '' },
   woocommerce: { storeUrl: '', consumerKey: '', consumerSecret: '', webhookUrl: '' },
-  shopify: { shopDomain: '' },
+  shopify: { shopDomain: '', clientId: '', clientSecret: '' },
 };
 
 async function callApi(path: string, method = 'GET', body?: unknown) {
@@ -56,8 +55,6 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [tested, setTested] = useState<Provider[]>([]);
-  const location = useLocation();
-  const handledOAuthStatus = useRef<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -69,7 +66,7 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
       const wooSaved = saved.find((item: Integration) => item.provider === 'woocommerce');
       if (wooSaved?.config?.webhookUrl) setForms(current => ({ ...current, woocommerce: { ...current.woocommerce, webhookUrl: String(wooSaved.config.webhookUrl) } }));
       const shopifySaved = saved.find((item: Integration) => item.provider === 'shopify');
-      if (shopifySaved?.config?.shopDomain) setForms(current => ({ ...current, shopify: { shopDomain: String(shopifySaved.config.shopDomain) } }));
+      if (shopifySaved?.config?.shopDomain) setForms(current => ({ ...current, shopify: { ...current.shopify, shopDomain: String(shopifySaved.config.shopDomain) } }));
       const steadfastSaved = saved.find((item: Integration) => item.provider === 'steadfast');
       const pathaoSaved = saved.find((item: Integration) => item.provider === 'pathao');
       setAutoBook({
@@ -84,14 +81,6 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
   }
 
   useEffect(() => { void refresh(); }, []);
-
-  useEffect(() => {
-    const status = new URLSearchParams(location.search).get('status');
-    if (!status || !['connected', 'error'].includes(status) || handledOAuthStatus.current === status) return;
-    handledOAuthStatus.current = status;
-    if (status === 'connected') onNotify('Shopify connected successfully.');
-    else setError('Shopify connection could not be completed. Please try connecting again.');
-  }, [location.search, onNotify]);
 
   function update(provider: Provider, field: string, value: string) {
     setForms(current => ({ ...current, [provider]: { ...current[provider], [field]: value } }));
@@ -110,6 +99,38 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
       setError(err instanceof Error ? err.message : 'Connection test failed.');
     } finally {
       setTesting(null);
+    }
+  }
+
+
+  async function connectShopify(testOnly = false) {
+    const credentials = forms.shopify;
+    if (!credentials.shopDomain.trim() || !credentials.clientId.trim() || !credentials.clientSecret.trim()) {
+      setError('Enter your Shopify shop domain, Client ID and Client Secret.');
+      return;
+    }
+    setTesting('shopify');
+    if (!testOnly) setSaving('shopify');
+    setError('');
+    try {
+      const payload = await callApi('/api/merchant/integrations/shopify/connect', 'POST', {
+        shopDomain: credentials.shopDomain,
+        clientId: credentials.clientId,
+        clientSecret: credentials.clientSecret,
+        ...(testOnly ? { testOnly: true } : {}),
+      });
+      if (testOnly) {
+        onNotify('Shopify credentials verified. Select Save & Connect to finish.');
+      } else {
+        setForms(current => ({ ...current, shopify: { ...current.shopify, clientId: '', clientSecret: '' } }));
+        await refresh();
+        onNotify('Shopify connected successfully.');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not connect Shopify. Check your credentials and try again.');
+    } finally {
+      setTesting(null);
+      setSaving(null);
     }
   }
 
@@ -204,8 +225,10 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
               {input('woocommerce', 'webhookUrl', 'Store Webhook URL', 'url', 'https://yourstore.com/wp-json/kashnode/v1/webhook')}
             </div>}
             {provider.id === 'shopify' && <div className="md-integration-grid">
-              {input('shopify', 'shopDomain', 'Shop Domain', 'text', 'your-store.myshopify.com')}
-              <p className="md-muted md-integration-help">You will be redirected to Shopify to securely authorize KashNode. Your access token is stored encrypted.</p>
+              {input('shopify', 'shopDomain', 'Shop Domain', 'text', 'store.myshopify.com')}
+              {input('shopify', 'clientId', 'Client ID', 'text', 'Shopify app Client ID')}
+              {input('shopify', 'clientSecret', 'Client Secret', 'password', 'Shopify app Client Secret')}
+              <p className="md-muted md-integration-help">Use credentials from an app created in this store’s Shopify organization. Client credentials and access tokens are encrypted before storage.</p>
             </div>}
             {(provider.group === 'Courier') && (
               <label className="md-integration-toggle">
@@ -215,12 +238,11 @@ export default function MerchantIntegrationsSettings({ onNotify, section = 'all'
             )}
             {saved?.lastTestedAt && <p className="md-muted">Last verified: {new Date(saved.lastTestedAt).toLocaleString()}</p>}
             {provider.id === 'shopify' ? <div className="md-integration-actions">
-              <button className="md-primary" onClick={() => {
-                const shop = forms.shopify.shopDomain.trim();
-                if (!shop) { setError('Enter your Shopify shop domain first.'); return; }
-                window.location.assign(`/api/merchant/integrations/shopify/auth?shop=${encodeURIComponent(shop)}`);
-              }} disabled={busy || !forms.shopify.shopDomain.trim()}>
-                <Link2 size={15} /> Connect with Shopify
+              <button className="md-secondary" onClick={() => void connectShopify(true)} disabled={busy}>
+                {testing === 'shopify' ? <Loader2 className="md-spin" size={15} /> : <PlugZap size={15} />} Test Connection
+              </button>
+              <button className="md-primary" onClick={() => void connectShopify(false)} disabled={busy}>
+                {saving === 'shopify' ? <Loader2 className="md-spin" size={15} /> : <CheckCircle2 size={15} />} Save &amp; Connect
               </button>
               {saved?.configured && <button className="md-secondary" onClick={() => void remove(provider.id)} disabled={busy}><Trash2 size={15} /> Remove</button>}
             </div> : <div className="md-integration-actions">
