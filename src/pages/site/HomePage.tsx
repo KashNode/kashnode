@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, BarChart3, Box, Check, CreditCard, PhoneCall, ShieldCheck, Truck, Wallet } from 'lucide-react'
+import { ArrowRight, BarChart3, Box, Check, CreditCard, LayoutDashboard, PhoneCall, ShieldCheck, Truck, Wallet } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { Faq, FinalCta, OverageNote, PricingTiers } from '../../components/site/SiteSections'
 import { BoxRender, CallInterface, DashboardMock, WorkflowSteps } from '../../components/site/SiteVisuals'
@@ -77,6 +77,32 @@ export default function HomePage() {
               </div>
             )
           })}
+        </div>
+      </section>
+
+      <section className="site-section site-section-light site-start-section" aria-labelledby="site-start-heading">
+        <div className="site-wrap">
+          <div className="site-start-heading">
+            <Eyebrow>Get started your way</Eyebrow>
+            <h2 className="site-h2" id="site-start-heading">A workspace that fits the way you run your store.</h2>
+            <p className="site-body">Start with the platform, then add a connected device when your workflow needs it.</p>
+          </div>
+          <div className="site-path-cards site-path-cards-light site-start-grid">
+            <article>
+              <span className="site-path-icon"><LayoutDashboard size={20} /></span>
+              <h2>Start with KashNode Platform</h2>
+              <p>Create your business workspace, explore the platform, and begin configuring your store.</p>
+              <Link to="/login" className="site-btn site-btn-primary">Create Your Workspace <ArrowRight size={16} /></Link>
+              <small>Get started in minutes. No hardware needed.</small>
+            </article>
+            <article className="box">
+              <span className="site-path-icon"><Box size={20} /></span>
+              <h2>Connect a KashNode Box</h2>
+              <p>Bring your business SIM into the ecosystem and activate device-connected automation.</p>
+              <Link to="/hardware" className="site-btn site-btn-dark">Explore KashNode Box <ArrowRight size={16} /></Link>
+              <small>For workflows that use your business SIM.</small>
+            </article>
+          </div>
         </div>
       </section>
 
