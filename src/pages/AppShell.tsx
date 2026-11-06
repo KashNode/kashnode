@@ -191,7 +191,7 @@ export default function AppShell({ user, onSignOut }: Props) {
               </div>
               <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'No merchant device has reported yet'}</p>
               <button className="md-primary" onClick={() => navigate('/dashboard/orders')}>Check today’s orders</button>
-              <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
+
               <article className="md-card md-app-download-card">
                 <div className="md-card-top"><strong><Smartphone size={18}/> Download Kash AI App</strong><span className="md-badge">Android</span></div>
                 <p className="md-muted">Install the Android app and pair it using your Merchant ID and secret above.</p>
@@ -312,7 +312,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                 <p className="md-muted">Last sync: {simStatus ? new Date(simStatus.updatedAt).toLocaleString() : 'Waiting for device pairing'}</p>
                 <button className="md-secondary" onClick={() => void refreshSim()} disabled={simRefreshing}>{simRefreshing ? 'Refreshing…' : 'Refresh SIM status'}</button>
               </div>
-              <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
+
               <div className="md-card">
                 <strong>Store connections</strong>
                 <p className="md-muted">Manage Shopify and WooCommerce credentials in one place.</p>
@@ -365,7 +365,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                       </>
                     )}
                   </div>
-                  <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
+    
                 </>
               )}
               {settingsSection === 'billing' && (
@@ -380,7 +380,11 @@ export default function AppShell({ user, onSignOut }: Props) {
                   <h1 className="md-title">Security &amp; API keys</h1>
                   <p className="md-sub">Manage your merchant device credentials and connected webhook/API integrations.</p>
                   <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
-                  <MerchantIntegrationsSettings section="webhooks" onNotify={notify} />
+                  <div className="md-card">
+                    <strong>Integration configuration</strong>
+                    <p className="md-muted">Store and courier credentials, connection tests, and webhook setup are managed from the Integrations page.</p>
+                    <button className="md-secondary" type="button" onClick={() => navigate('/dashboard/integrations/webhooks')}>Open webhook settings</button>
+                  </div>
                 </>
               )}
             </section>
