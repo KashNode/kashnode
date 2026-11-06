@@ -80,10 +80,13 @@ export function createMerchantIntegrationHandlers({ pool, env = process.env, fet
         throw new Error('Enter a valid Shopify Client ID and Client Secret.');
       }
 
-      const credentials = await requestShopifyClientCredentialsToken(
+      const tokenCredentials = await requestShopifyClientCredentialsToken(
         { shopDomain, clientId, clientSecret },
         { fetchImpl },
       );
+      const webhookSecret = typeof req.body?.webhookSecret === 'string' ? req.body.webhookSecret.trim() : '';
+      if (webhookSecret.length > 1000) throw new Error('Shopify Webhook Secret is too long.');
+      const credentials = { ...tokenCredentials, ...(webhookSecret ? { webhookSecret } : {}) };
       if (req.body?.testOnly === true) {
         return res.status(200).json({ status: 'verified', provider: 'shopify', verified: true, message: 'Shopify credentials verified. Save & Connect to finish.' });
       }
