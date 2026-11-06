@@ -249,18 +249,61 @@ app.post('/api/admin/settings', requireOrigin, requireAdmin, asyncRoute(adminSet
 // Public package catalog is read from PostgreSQL so marketing and admin views share one source.
 app.get('/api/plans', asyncRoute(async (_req, res) => {
   if (!pool) return res.status(503).json({ status: 'error', message: 'Package catalog is temporarily unavailable.' })
-  const result = await pool.query(`SELECT slug, name, tagline, price_per_minute, currency, billing_unit,
+  const result = await pool.query(`SELECT slug, name, tagline, monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, currency, billing_unit,
     short_features, details, feature_groups, display_order
     FROM public.subscription_plans WHERE is_active = true ORDER BY display_order ASC`)
   res.json({ source: 'database', plans: result.rows })
 }))
 app.get('/api/admin/plans', requireAdmin, asyncRoute(async (_req, res) => {
   if (!pool) return res.status(503).json({ status: 'error', message: 'Database unavailable.' })
-  const result = await pool.query(`SELECT slug, name, tagline, price_per_minute, currency, billing_unit,
+  const result = await pool.query(`SELECT slug, name, tagline, monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, currency, billing_unit,
     short_features, details, feature_groups, display_order, is_active, updated_at
     FROM public.subscription_plans ORDER BY display_order ASC`)
   res.json({ source: 'database', plans: result.rows })
 }))
+app.put('/api/admin/plans/:slug', requireOrigin, requireAdmin, asyncRoute(async (req, res) => {
+  const { name, monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, is_active } = req.body || {}
+  const monthlyFee = Number(monthly_fee), includedMinutes = Number(included_minutes)
+  const rate = Number(price_per_minute), minimum = Number(minimum_topup_minutes)
+  if (typeof name !== 'string' || !name.trim() || ![monthlyFee,rate].every(Number.isFinite)
+    || monthlyFee < 0 || rate < 0 || !Number.isSafeInteger(includedMinutes) || includedMinutes < 0
+    || !Number.isSafeInteger(minimum) || minimum < 1 || typeof is_active !== 'boolean') {
+    return res.status(400).json({ message: 'Provide valid plan name, fees, minutes, rate, minimum and active status.' })
+  }
+  const result = await pool.query(`UPDATE public.subscription_plans SET name=$2,monthly_fee=$3,
+    included_minutes=$4,price_per_minute=$5,minimum_topup_minutes=$6,is_active=$7,updated_at=NOW()
+    WHERE lower(slug)=lower($1) RETURNING slug,name,monthly_fee,included_minutes,price_per_minute,minimum_topup_minutes,is_active`,
+  [req.params.slug, name.trim(), monthlyFee, includedMinutes, rate, minimum, is_active])
+  if (!result.rows[0]) return res.status(404).json({ message: 'Plan not found.' })
+  res.json({ source: 'database', plan: result.rows[0] })
+}))
+app.get('/api/admin/mfs-destinations', requireAdmin, asyncRoute(async (_req,res) => {
+  const result = await pool.query('SELECT id,provider,account_label,phone_number,is_active,display_order FROM public.mfs_payment_destinations ORDER BY display_order,provider')
+  res.json({ source:'database', destinations:result.rows })
+}))
+app.put('/api/admin/mfs-destinations', requireOrigin, requireAdmin, asyncRoute(async (req,res) => {
+  const items = req.body?.destinations
+  if (!Array.isArray(items) || items.length > 30 || items.some(x => !x || !['bKash','Nagad','Rocket'].includes(x.provider)
+    || typeof x.account_label !== 'string' || !x.account_label.trim()
+    || typeof x.phone_number !== 'string' || !/^01[3-9]\\d{8}$/.test(x.phone_number)
+    || typeof x.is_active !== 'boolean' || !Number.isInteger(x.display_order))) {
+    return res.status(400).json({ message:'Provide valid MFS destination records.' })
+  }
+  const client=await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await client.query('UPDATE public.mfs_payment_destinations SET is_active=FALSE,updated_at=NOW()')
+    for(const item of items) await client.query(`INSERT INTO public.mfs_payment_destinations
+      (provider,account_label,phone_number,is_active,display_order,updated_at)
+      VALUES($1,$2,$3,$4,$5,NOW()) ON CONFLICT(provider,phone_number) DO UPDATE SET
+      account_label=EXCLUDED.account_label,is_active=EXCLUDED.is_active,display_order=EXCLUDED.display_order,updated_at=NOW()`,
+    [item.provider,item.account_label.trim(),item.phone_number,item.is_active,item.display_order])
+    await client.query('COMMIT')
+  } catch(error) { await client.query('ROLLBACK').catch(()=>{}); throw error }
+  finally { client.release() }
+  res.json({ status:'saved' })
+}))
+
 
 // Live Super Admin operations data. All figures below come directly from PostgreSQL;
 // every query is scoped to this server-side admin route (never exposed to merchant sessions).
