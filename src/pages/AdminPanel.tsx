@@ -4,7 +4,8 @@ import KashNodeLogo from '../components/KashNodeLogo'
 import type { AuthUser } from '../lib/auth'
 import { getAdminSystemSettings, saveAdminSystemSettings, type AdminSystemSettings, type LlmProvider } from '../lib/adminSettings'
 
-type Props = { user: AuthUser; onSignOut: () => void }\ntype CatalogPlan = { slug:string; name:string; tagline:string; price_per_minute:string|number; short_features:string[]; details:string[]; feature_groups:{category:string;items:string[]}[]; is_active?:boolean; updated_at?:string }
+type Props = { user: AuthUser; onSignOut: () => void }
+type CatalogPlan = { slug:string; name:string; tagline:string; price_per_minute:string|number; short_features:string[]; details:string[]; feature_groups:{category:string;items:string[]}[]; is_active?:boolean; updated_at?:string }
 type Section = 'overview' | 'merchants' | 'orders' | 'calls' | 'courier' | 'devices' | 'integrations' | 'reliability' | 'plans' | 'settings'
 type LiveData = {
   source: 'database'; generatedAt: string
@@ -42,7 +43,10 @@ export default function AdminPanel({user,onSignOut}:Props) {
   const [defaultVoiceRate,setDefaultVoiceRate]=useState('7.00')
   const [providerKeys,setProviderKeys]=useState<Record<LlmProvider,string>>({openai:'',gemini:'',groq:''})
   const [clearProviderKeys,setClearProviderKeys]=useState<LlmProvider[]>([])
-  const [notice,setNotice]=useState('')\n  const [catalogPlans,setCatalogPlans]=useState<CatalogPlan[]>([])\n  const [catalogLoading,setCatalogLoading]=useState(false)\n  const [catalogError,setCatalogError]=useState('')
+  const [notice,setNotice]=useState('')
+  const [catalogPlans,setCatalogPlans]=useState<CatalogPlan[]>([])
+  const [catalogLoading,setCatalogLoading]=useState(false)
+  const [catalogError,setCatalogError]=useState('')
 
   async function loadLiveData() {
     try {
@@ -64,7 +68,16 @@ export default function AdminPanel({user,onSignOut}:Props) {
       .finally(()=>{if(active)setSettingsLoading(false)})
     return()=>{active=false}
   },[section])
-  useEffect(()=>{\n    if(section!=='plans')return\n    let active=true;setCatalogLoading(true);setCatalogError('')\n    fetch('/api/admin/plans',{credentials:'include',headers:{Accept:'application/json'},cache:'no-store'})\n      .then(async response=>{const payload=await response.json();if(!response.ok||payload.source!=='database'||!Array.isArray(payload.plans))throw new Error(payload.message||'Could not load database plan catalog.');if(active)setCatalogPlans(payload.plans)})\n      .catch(e=>{if(active)setCatalogError(e instanceof Error?e.message:'Could not load plan catalog.')})\n      .finally(()=>{if(active)setCatalogLoading(false)})\n    return()=>{active=false}\n  },[section])\n  async function saveSettings(event:FormEvent<HTMLFormElement>) {
+  useEffect(()=>{
+    if(section!=='plans')return
+    let active=true;setCatalogLoading(true);setCatalogError('')
+    fetch('/api/admin/plans',{credentials:'include',headers:{Accept:'application/json'},cache:'no-store'})
+      .then(async response=>{const payload=await response.json();if(!response.ok||payload.source!=='database'||!Array.isArray(payload.plans))throw new Error(payload.message||'Could not load database plan catalog.');if(active)setCatalogPlans(payload.plans)})
+      .catch(e=>{if(active)setCatalogError(e instanceof Error?e.message:'Could not load plan catalog.')})
+      .finally(()=>{if(active)setCatalogLoading(false)})
+    return()=>{active=false}
+  },[section])
+  async function saveSettings(event:FormEvent<HTMLFormElement>) {
     event.preventDefault();if(settingsSaving)return;setSettingsSaving(true);setSettingsError('')
     try {
       const apiKeys:Partial<Record<LlmProvider,string>>={}
