@@ -2787,3 +2787,9 @@ body { min-height: 100dvh; overflow-x: hidden; }
 .md-light .md-topup-price span,.md-light .md-topup-price small{color:#525252}
 @media(min-width:640px){.md-topup-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(min-width:1024px){.md-topup-grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+
+.md-billing-phone-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;align-items:end}
+.md-billing-phone-row .md-billing-phone-field{margin:14px 0 10px}
+.md-billing-otp-button{min-height:46px;white-space:nowrap;margin:0 0 10px}
+.md-billing-otp-field{margin-top:16px}
+@media(max-width:520px){.md-billing-phone-row{grid-template-columns:minmax(0,1fr)}.md-billing-otp-button{width:100%;margin:0}}
