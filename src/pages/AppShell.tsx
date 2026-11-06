@@ -41,7 +41,8 @@ export default function AppShell({ user, onSignOut }: Props) {
               : pathname.startsWith('/dashboard/settings') ? 'settings'
                 : pathname === '/dashboard/alerts' ? 'alerts' : 'home'
   const settingsSection = pathname === '/dashboard/settings/billing' ? 'billing' : pathname === '/dashboard/settings/api' ? 'api' : 'profile'
-  const integrationSection = pathname === '/dashboard/integrations/stores' ? 'stores' : pathname === '/dashboard/integrations/webhooks' ? 'webhooks' : 'couriers'
+  const oauthReturnStatus = new URLSearchParams(location.search).get('status')
+  const integrationSection = pathname === '/dashboard/integrations/stores' || ['connected', 'error'].includes(oauthReturnStatus || '') ? 'stores' : pathname === '/dashboard/integrations/webhooks' ? 'webhooks' : 'couriers'
   const validDashboardPaths = ['/dashboard', '/dashboard/orders', '/dashboard/calls', '/dashboard/box', '/dashboard/wallet', '/dashboard/alerts', '/dashboard/integrations', '/dashboard/integrations/couriers', '/dashboard/integrations/stores', '/dashboard/integrations/webhooks', '/dashboard/settings', '/dashboard/settings/profile', '/dashboard/settings/billing', '/dashboard/settings/api']
   useEffect(() => {
     if (!validDashboardPaths.includes(pathname)) navigate('/dashboard', { replace: true })
