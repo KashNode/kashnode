@@ -24,23 +24,23 @@ export function Faq({ items }: { items: FaqItem[] }) {
 
 export const PLANS = [
   {
-    id: 'free', name: 'Free Trial', tag: 'Try it first', price: '৳0', per: 'free', orders: '10 orders', minutes: '10 AI minutes',
+    id: 'free', name: 'Free Trial', tag: 'Try it first', price: '৳0', per: 'trial', usage: '10 free AI minutes',
     features: ['Order verification by SMS', 'AI confirmation calls', 'Payment code verification', 'Merchant dashboard'],
     cta: 'Start Free Trial',
   },
   {
-    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳2,000', per: '/month', orders: '300 orders', minutes: '300 AI minutes',
+    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳7.00', per: '/minute', usage: 'Pay only for voice time used',
     features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Merchant operations dashboard'],
     cta: 'Choose Basic',
   },
   {
-    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳5,500', per: '/month', orders: '1,000 orders', minutes: '1,000 AI minutes',
+    id: 'standard', name: 'Standard', tag: 'For growing businesses', price: '৳6.50', per: '/minute', usage: 'Pay only for voice time used',
     popular: true,
     features: ['Everything in Basic', 'Merchant voice rules', 'Conversation history & summaries', 'Priority support workflow'],
     cta: 'Choose Standard',
   },
   {
-    id: 'premium', name: 'Premium', tag: 'For high-volume stores', price: '৳14,000', per: '/month', orders: '3,000 orders', minutes: '3,000 AI minutes',
+    id: 'premium', name: 'Premium', tag: 'For advanced operations', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
     features: ['Everything in Standard', 'Priority support', 'Multi-box operations', 'Advanced reporting'],
     cta: 'Choose Premium',
   },
@@ -56,7 +56,7 @@ export function PricingTiers({ compact = false }: { compact?: boolean }) {
           <p className="site-plan-tag">{plan.tag}</p>
           <h3>{plan.name}</h3>
           <p className="site-plan-price">{plan.price} <span>{plan.per}</span></p>
-          <p className="site-plan-allowance">{plan.orders} · {plan.minutes}</p>
+          <p className="site-plan-allowance">{plan.usage}</p>
           <ul>
             {plan.features.map(feature => (
               <li key={feature}><Check size={15} /> {feature}</li>
@@ -72,7 +72,7 @@ export function PricingTiers({ compact = false }: { compact?: boolean }) {
 }
 
 export function OverageNote() {
-  return <p className="site-overage">Every plan includes its order and minute bundle. Extra AI minutes are a flat <strong>৳7 per minute</strong> with in-app recharge. The KashNode Box is a one-time hardware purchase — <Link to="/hardware">request availability</Link> for current pricing.</p>
+  return <p className="site-overage">AI voice usage is billed by actual call duration at your selected plan rate. There are no monthly subscriptions or per-order charges. The KashNode Box is a separate hardware purchase — <Link to="/hardware">request availability</Link> for current pricing.</p>
 }
 
 /** Avoid displaying unverified provider logos or names as live integrations. */
