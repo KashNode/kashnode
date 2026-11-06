@@ -1,16 +1,18 @@
 BEGIN;
 
--- Preserve existing merchant and wallet values. Only fill missing gateway
--- defaults; do not rewrite an explicitly selected gateway.
+-- Preserve merchant and wallet values. Normalize legacy gateway labels only
+-- where they do not satisfy the current enum.
 ALTER TABLE public.merchants
   ADD COLUMN IF NOT EXISTS gateway_mode TEXT,
   ADD COLUMN IF NOT EXISTS billing_phone TEXT,
   ADD COLUMN IF NOT EXISTS is_billing_phone_verified BOOLEAN DEFAULT FALSE;
 
 UPDATE public.merchants
-SET gateway_mode = CASE WHEN gateway_preference = 'box'
-                        THEN 'kashnode_box' ELSE 'android_app' END
-WHERE gateway_mode IS NULL;
+SET gateway_mode = CASE
+  WHEN gateway_mode = 'kashnode_box' OR gateway_preference = 'box' THEN 'kashnode_box'
+  ELSE 'android_app'
+END
+WHERE gateway_mode IS NULL OR gateway_mode NOT IN ('android_app', 'kashnode_box');
 
 UPDATE public.merchants
 SET is_billing_phone_verified = FALSE
@@ -38,9 +40,8 @@ END $$;
 ALTER TABLE public.merchants
   VALIDATE CONSTRAINT merchants_gateway_mode_repair_check;
 
--- This table pre-existed with a legacy plaintext OTP schema. Extend it in
--- place and retain all legacy columns/rows. Legacy OTPs are deliberately
--- invalidated (not reused) because they were stored in plaintext.
+-- Extend the legacy plaintext OTP table in place. Keep legacy data/columns,
+-- but invalidate old OTPs instead of trusting or reusing plaintext codes.
 ALTER TABLE public.phone_verifications
   ADD COLUMN IF NOT EXISTS phone TEXT,
   ADD COLUMN IF NOT EXISTS purpose TEXT DEFAULT 'billing_phone',
@@ -66,8 +67,8 @@ ALTER TABLE public.phone_verifications
 CREATE INDEX IF NOT EXISTS phone_verifications_latest_idx
   ON public.phone_verifications (merchant_id, purpose, verified_at, created_at DESC);
 
--- merchant_topups also pre-existed with a legacy schema. Add processor fields
--- without dropping/renaming legacy receiver_phone, sms_raw_id or matched_at.
+-- Extend the legacy top-up table without dropping receiver_phone, sms_raw_id,
+-- matched_at, or any existing row.
 ALTER TABLE public.merchant_topups
   ADD COLUMN IF NOT EXISTS matched_event_id UUID,
   ADD COLUMN IF NOT EXISTS credited_at TIMESTAMPTZ;
