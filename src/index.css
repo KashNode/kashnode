@@ -2185,8 +2185,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 /* Workflow — a connected horizontal timeline, not five card boxes */
 .site-flow{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(5,1fr);gap:28px;position:relative}
 .site-flow::before{content:"";position:absolute;top:17px;left:4%;right:4%;height:2px;background:linear-gradient(90deg,#fbcfe8,#e9d5ff,#a5f3fc)}
-.site-flow li{position:relative;padding-top:56px}
-.site-flow-num{position:absolute;top:0;left:0;display:flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:50%;background:#fff;border:2px solid #ec4899;color:#be185d;font-size:.78rem;font-weight:800;letter-spacing:.02em}
+.site-flow li{position:relative;padding-top:0}
 .site-flow-icon{display:flex;width:40px;height:40px;border-radius:12px;background:#f3efff;color:#7c3aed;align-items:center;justify-content:center;margin:0 0 12px}
 .site-flow strong{display:block;font-size:.98rem;color:#0a1230;margin-bottom:6px}
 .site-flow p{margin:0;font-size:.88rem;color:#475569}
