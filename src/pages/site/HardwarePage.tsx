@@ -1,14 +1,14 @@
 import { useState, type FormEvent } from 'react'
-import { ArrowRight, BatteryCharging, Check, Plug, Radio, Signal, Wifi } from 'lucide-react'
+import { Activity, ArrowRight, Check, Plug, Radio, Signal, Zap } from 'lucide-react'
 import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
 import { FinalCta } from '../../components/site/SiteSections'
 import { BoxRender } from '../../components/site/SiteVisuals'
 
 const BENEFITS = [
-  { icon: BatteryCharging, title: '24/7 continuous power', text: 'The Box runs on mains power, not a battery. There is no battery to swell, no phone to keep charged, and nothing to switch off overnight.' },
-  { icon: Signal, title: 'Industrial 4G/LTE stability', text: 'A dedicated cellular connection with strong, stable signal — built to stay online where a phone in a drawer drops out.' },
+  { icon: Zap, title: 'Always on, day and night', text: 'The Box stays connected to the platform around the clock, so verification and calls keep running — no phone to keep charged, nothing to switch off overnight.' },
+  { icon: Signal, title: 'Stable 4G LTE connection', text: 'A dedicated cellular connection with strong, stable signal — built to stay online where a phone in a drawer drops out.' },
   { icon: Radio, title: 'Instant SMS & voice routing', text: 'Verification SMS and Kash’s calls go through your business SIM in the Box, straight to the platform, with no human touch.' },
-  { icon: Wifi, title: 'Always connected', text: 'Signal, balance and sync status are visible in your dashboard, with an alert the moment the Box goes offline.' },
+  { icon: Activity, title: 'Always connected', text: 'Signal, balance and sync status are visible in your dashboard, with an alert the moment the Box goes offline.' },
 ]
 
 const SETUP = [
@@ -42,7 +42,7 @@ export default function HardwarePage() {
           <div>
             <Eyebrow>KashNode Box</Eyebrow>
             <h1>Your business SIM, <em>always on.</em></h1>
-            <p className="site-lede">A sleek, plug-and-play enterprise cellular gateway. The Box connects your business SIM to KashNode and keeps your verification and calls running — day and night.</p>
+            <p className="site-lede">A sleek, plug-and-play Kash Node device. The Box connects your business SIM to KashNode and keeps your verification and calls running — day and night.</p>
             <div className="site-dual-cta">
               <a href="#inquiry" className="site-btn site-btn-primary site-btn-lg">Request Availability <ArrowRight size={17} /></a>
               <a href="#setup" className="site-btn site-btn-outline-light site-btn-lg">How setup works</a>
@@ -60,8 +60,8 @@ export default function HardwarePage() {
             <table>
               <thead><tr><th></th><th>A regular smartphone</th><th>KashNode Box</th></tr></thead>
               <tbody>
-                <tr><td>Power</td><td>Runs on battery — needs charging, swells over time</td><td><strong>Continuous mains power, 24/7</strong></td></tr>
-                <tr><td>Connectivity</td><td>Signal drops, calls interrupt, apps get killed</td><td><strong>Industrial 4G/LTE, built to stay online</strong></td></tr>
+                <tr><td>Power</td><td>Runs on battery — needs charging, swells over time</td><td><strong>Always on, day and night</strong></td></tr>
+                <tr><td>Connectivity</td><td>Signal drops, calls interrupt, apps get killed</td><td><strong>4G LTE, built to stay online</strong></td></tr>
                 <tr><td>Reliability</td><td>Shared with personal use, notifications, updates</td><td><strong>Dedicated to your business SIM only</strong></td></tr>
                 <tr><td>Visibility</td><td>No easy way to see if it is working</td><td><strong>Signal, balance and sync in your dashboard</strong></td></tr>
               </tbody>

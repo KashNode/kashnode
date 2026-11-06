@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowRight, Box, Check, Clock, LayoutDashboard, Mic, PhoneCall, ShieldCheck, Truck, Wallet } from 'lucide-react'
+import { KASH_NODE_DEVICE_IMG } from './deviceImages'
 
 /** Product UI previews use clearly labelled sample data — they illustrate the interface, not real merchant figures. */
 export function PreviewTag() {
@@ -54,20 +55,13 @@ export function DashboardMock() {
   )
 }
 
+/** Kash Node device product render — generated product photography. The device face reads
+ * "Kash Node". It is proprietary KashNode hardware: never a "Pocket Router", "WiFi Router"
+ * or "Hotspot", and no other manufacturer's branding. */
 export function BoxRender({ compact = false }: { compact?: boolean }) {
   return (
-    <div className={`site-box ${compact ? 'compact' : ''}`} aria-label="KashNode Box device render">
-      <div className="site-box-antenna"><i /><i /></div>
-      <div className="site-box-body">
-        <div className="site-box-top">
-          <span className="site-box-mark">KN</span>
-          <span className="site-box-status"><i /> Online</span>
-        </div>
-        <p className="site-box-name">KashNode Box</p>
-        <div className="site-box-leds"><i /><i /><i /><i /></div>
-        <div className="site-box-signal"><span>Signal · 4G LTE</span><span className="site-box-signal-bars" aria-hidden="true"><i /><i /><i /><i /></span></div>
-      </div>
-      <div className="site-box-glow" aria-hidden="true" />
+    <div className={`site-box ${compact ? 'compact' : ''}`} aria-label="Kash Node device render">
+      <img className="site-box-img" src={KASH_NODE_DEVICE_IMG} alt="Kash Node — proprietary KashNode hardware device with two antennas, status LEDs and Kash Node branding" />
     </div>
   )
 }

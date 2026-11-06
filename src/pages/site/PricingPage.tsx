@@ -56,8 +56,8 @@ export default function PricingPage() {
               <p className="site-plan-price">One-time fee <span>· request availability</span></p>
               <p>Dedicated plug-and-play hardware for your business SIM, built for 24/7 reliability.</p>
               <ul className="site-check-list">
-                <li>Continuous power, no battery</li>
-                <li>Industrial 4G/LTE stability</li>
+                <li>Always on, day and night</li>
+                <li>Stable 4G LTE connection</li>
                 <li>Instant SMS &amp; voice routing</li>
               </ul>
               <Link to="/hardware" className="site-btn site-btn-dark">Explore KashNode Box <ArrowRight size={16} /></Link>

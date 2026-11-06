@@ -145,10 +145,10 @@ export default function HomePage() {
           <div>
             <Eyebrow>KashNode Box</Eyebrow>
             <h2 className="site-h2">Your business SIM, always on.</h2>
-            <p className="site-body">The KashNode Box holds your business SIM and keeps it connected to the platform day and night — continuous power, stable 4G/LTE, and instant SMS and voice routing. No battery to swell, no phone to keep charged.</p>
+            <p className="site-body">The KashNode Box holds your business SIM and keeps it connected to the platform day and night — stable 4G LTE and instant SMS and voice routing. No phone to keep charged.</p>
             <ul className="site-spec-chips">
-              <li>24/7 mains power</li>
-              <li>Industrial 4G/LTE</li>
+              <li>Always on, day and night</li>
+              <li>Stable 4G LTE</li>
               <li>Your business SIM</li>
               <li>Instant SMS &amp; voice</li>
             </ul>

@@ -2139,6 +2139,7 @@ body { min-height: 100dvh; overflow-x: hidden; }
 
 /* Box render */
 .site-box{position:relative;max-width:340px;margin:0 auto}
+.site-box-img{display:block;width:100%;height:auto;border-radius:18px;box-shadow:0 24px 60px rgba(3,6,24,.55)}
 .site-box-antenna{display:flex;justify-content:space-between;padding:0 26px;margin-bottom:-8px}
 .site-box-antenna i{width:5px;height:44px;border-radius:3px;background:linear-gradient(180deg,#64748b,#1e293b)}
 .site-box-body{position:relative;background:linear-gradient(180deg,#1e293b,#0b1120);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:20px 20px 16px;box-shadow:0 24px 50px rgba(3,6,24,.55)}
