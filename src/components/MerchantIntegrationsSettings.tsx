@@ -61,7 +61,12 @@ export default function MerchantIntegrationsSettings({ activePackage, onNotify }
     setError('');
     try {
       const payload = await callApi('/api/merchant/integrations');
-      setIntegrations(payload.integrations || []);
+      const saved = payload.integrations || [];
+      setIntegrations(saved);
+      setAutoBook({
+        steadfast: saved.find((item: Integration) => item.provider === 'steadfast')?.config?.autoBook === true,
+        pathao: saved.find((item: Integration) => item.provider === 'pathao')?.config?.autoBook === true,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not load integrations.');
     } finally {
