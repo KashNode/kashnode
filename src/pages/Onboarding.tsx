@@ -24,6 +24,8 @@ const emptyForm: FormValues = {
 
 export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
   const [form, setForm] = useState<FormValues>(emptyForm)
+  const [gatewayPreference, setGatewayPreference] = useState<'app' | 'box'>('box')
+  const [selectedPlan, setSelectedPlan] = useState('basic')
   const [loadingProfile, setLoadingProfile] = useState(true)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -40,6 +42,10 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
           websiteUrl: profile.websiteUrl || '',
           adminContactPhone: profile.adminContactPhone || '',
           boxSimPhone: profile.boxSimPhone || '',
+        })
+        setGatewayPreference(profile.gatewayPreference || 'box')
+        setSelectedPlan(profile.selectedPlan || 'basic')
+
         })
       })
       .catch((cause) => {
@@ -88,13 +94,12 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
           <p className="onboarding-kicker">ONE-TIME SETUP · STEP 1 OF 1</p>
           <h1>Let’s set up your business.</h1>
           <p className="onboarding-lede">
-            Add your store details and the phone number inside your KashNode Pocket Box.
-            We’ll use these details to connect the right business and device to your workspace.
+            Add your store details to activate your workspace. {gatewayPreference === 'box' ? 'You can provide your Box SIM number now or later.' : 'Your Kash AI App gateway works without a Box SIM, so you can start right away.'}
           </p>
           <div className="onboarding-points">
             <div><Building2 size={18} /><span><strong>Your business</strong><small>Identify the store connected to this workspace.</small></span></div>
             <div><Phone size={18} /><span><strong>Admin contact</strong><small>Where KashNode can reach your team.</small></span></div>
-            <div><Smartphone size={18} /><span><strong>Pocket Box SIM</strong><small>The separate SIM installed in your device.</small></span></div>
+            {gatewayPreference === 'box' && <div><Smartphone size={18} /><span><strong>Pocket Box SIM</strong><small>The separate SIM installed in your device.</small></span></div>}
           </div>
         </section>
 
@@ -102,7 +107,7 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
           <div className="onboarding-card-heading">
             <span className="onboarding-step">WORKSPACE DETAILS</span>
             <h2 id="onboarding-title">Business information</h2>
-            <p>Complete the required fields to unlock your dashboard.</p>
+            <p>Complete the required fields to unlock your dashboard. {selectedPlan[0].toUpperCase() + selectedPlan.slice(1)} plan · {gatewayPreference === 'app' ? 'Kash AI App gateway' : 'KashNode Box gateway'}.</p>
           </div>
 
           {setupLoadError && (
@@ -171,7 +176,7 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
             </label>
 
             <label>
-              <span>Pocket Box SIM phone <i>Required</i></span>
+              <span>Pocket Box SIM phone <i>{gatewayPreference === 'box' ? 'Optional for now' : 'Not required for App gateway'}</i></span>
               <span className="onboarding-input-wrap">
                 <Smartphone size={18} />
                 <input
@@ -185,11 +190,11 @@ export default function Onboarding({ onComplete, setupLoadError = '' }: Props) {
                   maxLength={24}
                   pattern="(?:\+?88)?01[3-9][0-9]{8}"
                   title="Enter the Bangladesh mobile number of the SIM installed in your Pocket Box."
-                  required
-                  disabled={saving || loadingProfile}
+                  required={false}
+                  disabled={saving || loadingProfile || gatewayPreference === 'app'}
                 />
               </span>
-              <small className="onboarding-hint">Enter the SIM number installed inside your KashNode Pocket Box device.</small>
+              <small className="onboarding-hint">{gatewayPreference === 'app' ? 'No hardware SIM is needed to start with the free Android gateway.' : 'You can add the SIM number now or later when your Box is ready.'}</small>
             </label>
 
             <button className="onboarding-submit" type="submit" disabled={saving || loadingProfile}>
