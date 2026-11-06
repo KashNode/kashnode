@@ -196,18 +196,25 @@ test('falls back from Admin webhook secret to app Client Secret when validating 
     admin_webhook_secret: 'shpss_admin_signing_secret',
     clientSecret: 'app-client-secret',
   }, encryptionEnv)
-  const { server, state } = await createTestServer(t, {
-    integrationCredentials: {
-      credentials_ciphertext: encrypted.ciphertext,
-      credentials_nonce: encrypted.nonce,
-      credentials_auth_tag: encrypted.authTag,
-      credentials_key_version: encrypted.keyVersion,
-    },
-  })
-  const raw = JSON.stringify(sampleOrder)
-  const response = await postWebhook(server, raw, { secret: 'app-client-secret' })
-  assert.equal(response.status, 200)
-  assert.equal(state.orders.size, 1)
+  const previousKey = process.env.INTEGRATION_ENCRYPTION_KEY
+  process.env.INTEGRATION_ENCRYPTION_KEY = encryptionEnv.INTEGRATION_ENCRYPTION_KEY
+  try {
+    const { server, state } = await createTestServer(t, {
+      integrationCredentials: {
+        credentials_ciphertext: encrypted.ciphertext,
+        credentials_nonce: encrypted.nonce,
+        credentials_auth_tag: encrypted.authTag,
+        credentials_key_version: encrypted.keyVersion,
+      },
+    })
+    const raw = JSON.stringify(sampleOrder)
+    const response = await postWebhook(server, raw, { secret: 'app-client-secret' })
+    assert.equal(response.status, 200)
+    assert.equal(state.orders.size, 1)
+  } finally {
+    if (previousKey === undefined) delete process.env.INTEGRATION_ENCRYPTION_KEY
+    else process.env.INTEGRATION_ENCRYPTION_KEY = previousKey
+  }
 })
 
 test('uses exact raw bytes for Shopify HMAC validation', async t => {
