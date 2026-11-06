@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ArrowRight, Check, ChevronDown } from 'lucide-react'
+import { ArrowRight, Check, ChevronDown, Smartphone, Box } from 'lucide-react'
 import { BoxRender } from './SiteVisuals'
 
 export type FaqItem = { q: string; a: string }
@@ -29,7 +29,7 @@ export const PLANS = [
     cta: 'Start Free Trial',
   },
   {
-    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳7.00', per: '/minute', usage: 'Pay only for voice time used',
+    id: 'basic', name: 'Basic', tag: 'For small stores', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
     features: ['Everything in Free Trial', 'COD confirmation workflows', 'Bangla AI voice calls', 'Merchant operations dashboard'],
     cta: 'Choose Basic',
   },
@@ -40,7 +40,7 @@ export const PLANS = [
     cta: 'Choose Standard',
   },
   {
-    id: 'premium', name: 'Premium', tag: 'For advanced operations', price: '৳6.00', per: '/minute', usage: 'Pay only for voice time used',
+    id: 'premium', name: 'Premium', tag: 'For advanced operations', price: '৳5.50', per: '/minute', usage: 'Pay only for voice time used',
     features: ['Everything in Standard', 'Priority support', 'Multi-box operations', 'Advanced reporting'],
     cta: 'Choose Premium',
   },
@@ -48,25 +48,42 @@ export const PLANS = [
 
 export function PricingTiers({ compact = false }: { compact?: boolean }) {
   const plans = compact ? PLANS.slice(1) : PLANS
+  const [gateways, setGateways] = useState<Record<string, 'app' | 'box'>>({})
   return (
     <div className="site-plans">
-      {plans.map(plan => (
-        <article key={plan.id} className={`site-plan ${plan.popular ? 'popular' : ''}`}>
-          {plan.popular && <span className="site-plan-badge">Most Popular</span>}
-          <p className="site-plan-tag">{plan.tag}</p>
-          <h3>{plan.name}</h3>
-          <p className="site-plan-price">{plan.price} <span>{plan.per}</span></p>
-          <p className="site-plan-allowance">{plan.usage}</p>
-          <ul>
-            {plan.features.map(feature => (
-              <li key={feature}><Check size={15} /> {feature}</li>
-            ))}
-          </ul>
-          <Link to={`/login?plan=${plan.id}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : `site-btn-plan-${plan.id}`} site-btn-block`}>
-            {plan.cta} <ArrowRight size={16} />
-          </Link>
-        </article>
-      ))}
+      {plans.map(plan => {
+        const gateway = gateways[plan.id] || 'app'
+        return (
+          <article key={plan.id} className={`site-plan ${plan.popular ? 'popular' : ''}`}>
+            {plan.popular && <span className="site-plan-badge">Most Popular</span>}
+            <p className="site-plan-tag">{plan.tag}</p>
+            <h3>{plan.name}</h3>
+            <p className="site-plan-price">{plan.price} <span>{plan.per}</span></p>
+            <p className="site-plan-allowance">{plan.usage}</p>
+            <ul>
+              {plan.features.map(feature => (
+                <li key={feature}><Check size={15} /> {feature}</li>
+              ))}
+            </ul>
+            <fieldset className="site-gateway-picker">
+              <legend>Choose your gateway</legend>
+              <label className={gateway === 'app' ? 'selected' : ''}>
+                <input type="radio" name={`gateway-${plan.id}`} value="app" checked={gateway === 'app'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'app' }))} />
+                <Smartphone size={18} />
+                <span><strong>Start with Kash AI App</strong><small>Free Android gateway · no hardware required</small></span>
+              </label>
+              <label className={gateway === 'box' ? 'selected' : ''}>
+                <input type="radio" name={`gateway-${plan.id}`} value="box" checked={gateway === 'box'} onChange={() => setGateways(current => ({ ...current, [plan.id]: 'box' }))} />
+                <Box size={18} />
+                <span><strong>Add KashNode Box</strong><small>Dedicated hardware · one-time fee / pre-order inquiry</small></span>
+              </label>
+            </fieldset>
+            <Link to={`/signup?plan=${plan.id}&gateway=${gateway}`} className={`site-btn ${plan.popular ? 'site-btn-primary' : `site-btn-plan-${plan.id}`} site-btn-block`}>
+              {plan.cta} <ArrowRight size={16} />
+            </Link>
+          </article>
+        )
+      })}
     </div>
   )
 }
