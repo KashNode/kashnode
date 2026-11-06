@@ -173,7 +173,7 @@ const adminSettingsHandlers = createAdminSettingsHandlers({ pool })
 const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaultDataQuotaMb: DATA_QUOTA_MB })
 const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
 const merchantIntegrationHandlers = createMerchantIntegrationHandlers({ pool })
-const stopCourierFulfillmentWorker = startCourierFulfillmentWorker({ pool })
+let stopCourierFulfillmentWorker = () => {}
 const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
 const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
 
@@ -346,6 +346,7 @@ async function shutdown(signal) {
 
   // voiceStreamingService.shutdown synchronously rejects new upgrades before
   // it starts closing active sockets and draining the durable billing queue.
+  stopCourierFulfillmentWorker()
   const voiceClose = voiceStreamingService.shutdown({ timeoutMs: 20000 })
   const httpClose = new Promise(resolve => {
     if (!httpServer.listening) return resolve()
@@ -390,6 +391,8 @@ async function start() {
     await pool.query('SELECT session_id FROM public.voice_session_billing_jobs LIMIT 0')
     await pool.query('SELECT box_device_id FROM public.merchants LIMIT 0')
     await pool.query('SELECT merchant_id FROM public.device_logs LIMIT 0')
+    await pool.query('SELECT provider FROM public.merchant_integrations LIMIT 0')
+    await pool.query('SELECT order_id FROM public.courier_fulfillment_outbox LIMIT 0')
     console.info('[KashNode] Database startup checks passed.')
     if (ADMIN_EMAIL && ADMIN_PASSWORD_HASH) {
       await pool.query(`INSERT INTO users (email, name, password_hash, role)
@@ -397,6 +400,7 @@ async function start() {
       [ADMIN_EMAIL, process.env.KASHNODE_ADMIN_NAME || 'Workspace Admin', ADMIN_PASSWORD_HASH])
     }
     await voiceStreamingService.start()
+    stopCourierFulfillmentWorker = startCourierFulfillmentWorker({ pool })
   }
   httpServer.listen(PORT, HOST, () => console.info(`KashNode API + voice WebSocket listening on http://${HOST}:${PORT} (${NODE_ENV})`))
 }
