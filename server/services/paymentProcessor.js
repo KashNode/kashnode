@@ -106,10 +106,6 @@ export class SmsMatchingPaymentProcessor {
         sender_phone: event.senderPhone,
       };
       const outcome = await this.applyMatch(client, normalized, eventId);
-      await client.query('UPDATE public.payment_sms_events SET status=$2 WHERE id=$1', [
-        eventId, outcome.outcome === 'matched_and_credited' || outcome.outcome === 'upgrade_approved_and_activated'
-          ? 'matched' : outcome.outcome === 'ambiguous' ? 'ambiguous' : 'unmatched',
-      ]);
       await client.query('COMMIT');
       return outcome;
     } catch (error) {
@@ -133,9 +129,6 @@ export class SmsMatchingPaymentProcessor {
       const event = result.rows[0];
       if (!event) { await client.query('COMMIT'); return { outcome: 'pending' }; }
       const outcome = await this.applyMatch(client, event, event.id, merchantId);
-      if (outcome.outcome === 'matched_and_credited' || outcome.outcome === 'upgrade_approved_and_activated') {
-        await client.query("UPDATE public.payment_sms_events SET status='matched' WHERE id=$1", [event.id]);
-      }
       await client.query('COMMIT');
       return outcome;
     } catch (error) {
