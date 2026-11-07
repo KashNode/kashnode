@@ -104,7 +104,7 @@ describe('POST /api/v1/edge/sms handler', () => {
       parsed: { amount: 1500, trxId: '9J82KL091', provider: 'bKash', customerPhone: '01712345678' },
     })
     assert.equal(requests.length, 6)
-    assert.match(requests[4].sql, /provider, customer_phone/)
+    assert.match(requests[4].sql, /provider,customer_phone/)
     assert.deepEqual(requests[4].params, [
       'merchant-uuid',
       'bKash',
