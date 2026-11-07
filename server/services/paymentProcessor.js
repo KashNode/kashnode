@@ -3,13 +3,14 @@ import { normalizeBdPhone } from '../utils/mfs.js';
 export { normalizeBdPhone };
 
 export class SmsMatchingPaymentProcessor {
-  constructor({ pool, legacyReceiverNumbers = {} }) { this.pool = pool; this.legacyReceiverNumbers = legacyReceiverNumbers; }
+  constructor({ pool, receiverNumbers = {}, legacyReceiverNumbers = {} }) { this.pool = pool; this.receiverNumbers = receiverNumbers; this.legacyReceiverNumbers = legacyReceiverNumbers; }
 
   async lockTransfer(client, gateway, trxId) {
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${gateway}:${trxId}`]);
   }
 
   async receiverIsConfigured(client, gateway, receiverPhone) {
+    if (this.receiverNumbers[gateway]) return normalizeBdPhone(this.receiverNumbers[gateway]) === receiverPhone;
     const result = await client.query(
       'SELECT phone_number FROM public.mfs_payment_destinations WHERE provider=$1 AND is_active=TRUE',
       [gateway],
@@ -29,7 +30,7 @@ export class SmsMatchingPaymentProcessor {
 
   async applyMatch(client, event, eventId, merchantId = null) {
     const topups = await client.query(
-      `SELECT id, merchant_id, amount FROM public.merchant_topups
+      `SELECT id, merchant_id FROM public.merchant_topups
         WHERE gateway=$1 AND trx_id=$2 AND amount=$3::numeric
           AND sender_phone=$4 AND status='pending'
           AND ($5::uuid IS NULL OR merchant_id=$5)
@@ -83,6 +84,9 @@ export class SmsMatchingPaymentProcessor {
   }
 
   async ingest(event) {
+    if (this.receiverNumbers[event.gateway] && normalizeBdPhone(this.receiverNumbers[event.gateway]) !== event.receiverPhone) {
+      return { outcome: 'ignored', reason: 'receiver_mismatch' };
+    }
     const client = await this.pool.connect();
     try {
       await client.query('BEGIN');
@@ -123,14 +127,14 @@ export class SmsMatchingPaymentProcessor {
       await client.query('BEGIN');
       await this.lockTransfer(client, gateway, trxId);
       const result = await client.query(
-        `SELECT id, gateway, trx_id, amount, sender_phone
+        `SELECT id, amount, sender_phone
            FROM public.payment_sms_events WHERE gateway=$1 AND trx_id=$2
           LIMIT 1 FOR UPDATE`,
         [gateway, trxId],
       );
       const event = result.rows[0];
       if (!event) { await client.query('COMMIT'); return { outcome: 'pending' }; }
-      const outcome = await this.applyMatch(client, event, event.id, merchantId);
+      const outcome = await this.applyMatch(client, { ...event, gateway, trx_id: trxId }, event.id, merchantId);
       await client.query('COMMIT');
       return outcome;
     } catch (error) {
