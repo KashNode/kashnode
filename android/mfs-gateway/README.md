@@ -4,14 +4,26 @@ Private, dedicated collection-device application. It does not initiate payments 
 
 ## Build setup
 
-Create an Android Studio project with minSdk 26, Kotlin, AndroidX WorkManager, and AndroidX Security Crypto. Add the Kotlin files in this directory to the app module (package `com.kashnode.mfsgateway`). Add WorkManager and AndroidX Security Crypto dependencies:
+Create an Android Studio project with minSdk 26, Kotlin, AndroidX WorkManager, and AndroidX Security Crypto. Add the Kotlin files in this directory to the app module (package `com.kashnode.mfsgateway`). Add:
 
 ```kotlin
 implementation("androidx.work:work-runtime-ktx:2.9.1")
 implementation("androidx.security:security-crypto:1.1.0-alpha06")
 ```
 
-Set `KASHNODE_MFS_ENDPOINT`, `KASHNODE_DEVICE_ID`, and the device bearer token/HMAC secret during a trusted device-enrollment flow. Store secrets in EncryptedSharedPreferences; do not hardcode them or commit them.
+Configure the app module:
+
+```kotlin
+android {
+  defaultConfig {
+    buildConfigField("String", "KASHNODE_MFS_ENDPOINT", "\"https://YOUR_KASHNODE_HOST/api/admin/device/payment-sms\"")
+    buildConfigField("String", "KASHNODE_DEVICE_ID", "\"kashnode-mfs-01\"")
+  }
+  buildFeatures { buildConfig = true }
+}
+```
+
+Set a unique device bearer token and HMAC secret during a trusted enrollment flow. Store them in `DeviceSecrets.prefs` (EncryptedSharedPreferences); never hardcode or commit secrets. The endpoint and device ID above are build-time configuration, not secrets.
 
 Enable Notification Access for KashNode MFS Gateway in Android Settings. Grant SMS permission only on the privately managed collection device. Android/OEM background restrictions may affect delivery; test on the exact production handset and SIMs.
 
@@ -21,22 +33,6 @@ The sample worker posts to `POST /api/admin/device/payment-sms` with:
 - `X-KashNode-Nonce`
 - `X-KashNode-Signature`
 
-Signature canonical string is exactly `timestamp.nonce.rawBody`, HMAC-SHA256 hex. Server requires the same 32+ byte device signing secret and checks timestamp freshness and nonce uniqueness.
+The signature is HMAC-SHA256 over the exact UTF-8 string `timestamp.nonce.rawBody`. The server checks a 5-minute timestamp window and persists nonces to reject replay.
 
-Provider message formats vary. The parser deliberately refuses to guess missing sender numbers or receiver numbers. Validate patterns against redacted, real collection-SIM messages before enabling unattended crediting.
-
-## Module configuration
-
-Example app module Gradle configuration:
-
-```kotlin
-android {
-  defaultConfig {
-    buildConfigField("String", "KASHNODE_MFS_ENDPOINT", "\\\"https://YOUR_KASHNODE_HOST/api/admin/device/payment-sms\\\"")
-    buildConfigField("String", "KASHNODE_DEVICE_ID", "\\\"kashnode-mfs-01\\\"")
-  }
-  buildFeatures { buildConfig = true }
-}
-```
-
-The enrollment screen/service must write `bearer_token` and `hmac_secret` using `DeviceSecrets.prefs` (or an equivalent secure provisioning API). The worker uses encrypted preferences, exact-body HMAC, and WorkManager exponential backoff. Missing sender/receiver data fails closed; add a supervised review workflow for provider messages that do not expose those fields.
+Provider message formats vary. The parser deliberately refuses to guess missing sender numbers or receiver numbers. Validate patterns against redacted, real collection-SIM messages before enabling unattended crediting. Notifications and SMS may both report one transaction; the backend TrxID unique constraint deduplicates them.
