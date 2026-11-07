@@ -589,3 +589,28 @@ END;
 $function$;
 UPDATE public.merchants SET overage_rate_per_min = CASE lower(COALESCE(subscription_plan, 'free'))
   WHEN 'basic' THEN 6.50 WHEN 'standard' THEN 6.00 WHEN 'premium' THEN 5.50 ELSE 6.50 END;
+
+
+-- Native Android outbound-call dispatch queue (also created by the versioned
+-- migration in db/migrations for existing production databases).
+CREATE TABLE IF NOT EXISTS public.edge_voice_calls (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  call_id UUID NOT NULL UNIQUE DEFAULT gen_random_uuid(),
+  session_id UUID NOT NULL UNIQUE,
+  merchant_id UUID NOT NULL REFERENCES public.merchants(id) ON DELETE CASCADE,
+  order_id UUID NOT NULL REFERENCES public.orders(id) ON DELETE CASCADE,
+  customer_phone TEXT NOT NULL DEFAULT '',
+  customer_name TEXT,
+  total_amount NUMERIC(12,2),
+  status TEXT NOT NULL DEFAULT 'dispatching'
+    CHECK (status IN ('dispatching','dialing','completed','no_answer','busy','failed')),
+  sim_slot INTEGER CHECK (sim_slot IS NULL OR sim_slot BETWEEN 1 AND 2),
+  duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds BETWEEN 0 AND 86400),
+  lease_expires_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  completed_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS edge_voice_calls_lease_idx
+  ON public.edge_voice_calls(status, lease_expires_at)
+  WHERE status IN ('dispatching','dialing');
