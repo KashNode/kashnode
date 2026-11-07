@@ -15,7 +15,7 @@ function createClient({ duplicateEvent = false, walletRowCount = 1 } = {}) {
       if (normalized.startsWith('INSERT INTO public.payment_sms_events')) {
         return { rows: duplicateEvent ? [] : [{ id: 'event-1' }], rowCount: duplicateEvent ? 0 : 1 };
       }
-      if (normalized.startsWith('SELECT id, merchant_id, requested_plan_slug FROM public.merchant_plan_upgrade_requests')) {
+      if (normalized.startsWith('SELECT id, merchant_id, requested_plan_slug, expected_amount FROM public.merchant_plan_upgrade_requests')) {
         return { rows: [], rowCount: 0 };
       }
       if (normalized.startsWith('SELECT id, merchant_id FROM public.merchant_topups')) {
