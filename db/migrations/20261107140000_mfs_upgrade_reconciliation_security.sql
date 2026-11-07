@@ -7,9 +7,12 @@ ALTER TABLE public.merchant_plan_upgrade_requests
 
 -- Historical requests remain pending_review and are not auto-approved because
 -- they have no trusted amount snapshot. New requests must have a positive amount.
-ALTER TABLE public.merchant_plan_upgrade_requests
-  ADD CONSTRAINT merchant_plan_upgrade_expected_amount_positive
-  CHECK (expected_amount IS NULL OR expected_amount > 0);
+DO $ BEGIN
+  ALTER TABLE public.merchant_plan_upgrade_requests
+    ADD CONSTRAINT merchant_plan_upgrade_expected_amount_positive
+    CHECK (expected_amount IS NULL OR expected_amount > 0);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $;
 
 CREATE UNIQUE INDEX IF NOT EXISTS merchant_plan_upgrade_payment_event_unique
   ON public.merchant_plan_upgrade_requests(payment_event_id)
