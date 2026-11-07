@@ -28,7 +28,8 @@ class SmsIngestWorker(c: Context, p: WorkerParameters) : CoroutineWorker(c, p) {
   val deviceId = Settings.Secure.getString(applicationContext.contentResolver, Settings.Secure.ANDROID_ID) ?: "android-device"
   val payloadObject = JSONObject().put("sender", sender).put("message", message).put("device_id", deviceId)
   if (session.deviceRole == DeviceRole.ADMIN_GATEWAY) {
-    val parsed = MfsRegexParser.parse(sender,message)\n    val trx = parsed.trxId
+    val parsed = MfsRegexParser.parse(sender,message)
+    val trx = parsed.trxId
     val amountText = parsed.amount?.toString()
     val phones = listOfNotNull(parsed.senderPhone)
     val gateway = parsed.provider
