@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Bell, Loader2, LogOut, Smartphone } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { getMerchantCredentials, getMerchantOnboarding, type AuthUser, type MerchantOnboardingProfile } from '../lib/auth'
 import { getCallHistory, getCourierOrders, getMerchantOrders, getMerchantPackage, getSimStatus, syncShopifyOrders, type CallHistoryEntry, type MerchantCourierOrder, type MerchantOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
@@ -411,6 +412,7 @@ export default function AppShell({ user, onSignOut }: Props) {
                     <button className="md-secondary" type="button" onClick={() => void generateAndroidPairing()}>Generate pairing QR payload</button>
                     {pairingError && <p className="md-error" role="alert">{pairingError}</p>}
                     {pairingPayload && <>
+                      <QRCodeSVG value={pairingPayload} size={220} level="M" includeMargin />
                       <pre className="md-code-block">{pairingPayload}</pre>
                       <button className="md-secondary" type="button" onClick={() => { void navigator.clipboard.writeText(pairingPayload); notify('Pairing payload copied.') }}>Copy QR payload</button>
                       <p className="md-muted">Expires: {pairingExpiresAt ? new Date(pairingExpiresAt).toLocaleString() : 'in five minutes'}</p>
