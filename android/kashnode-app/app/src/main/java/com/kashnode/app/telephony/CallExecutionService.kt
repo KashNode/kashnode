@@ -11,6 +11,8 @@ import com.kashnode.app.BuildConfig
 import com.kashnode.app.data.local.AuthPreferences
 import kotlinx.coroutines.*
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Request
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
@@ -22,6 +24,7 @@ class CallExecutionService:Service(){
  private var answeredAt:Long?=null
  private var sawCallActivity=false
  private var callListener:Any?=null
+ private var callTelephony:TelephonyManager?=null
  private var pollJob:Job?=null
  override fun onBind(intent:Intent?)=null
  override fun onCreate(){super.onCreate();createChannel();startForeground(71,notification("Call automation is ready"));pollJob=scope.launch{while(isActive){if(current==null)pollPending();delay(12000)}}}
@@ -65,6 +68,7 @@ class CallExecutionService:Service(){
  private fun registerCallState(subscriptionId:Int){
   val baseTelephony=getSystemService(TELEPHONY_SERVICE) as TelephonyManager
   val telephony=baseTelephony.createForSubscriptionId(subscriptionId)
+  callTelephony=telephony
   if(Build.VERSION.SDK_INT>=31){
    val callback=object:TelephonyCallback(),TelephonyCallback.CallStateListener{
     override fun onCallStateChanged(state:Int){onState(state)}
@@ -89,11 +93,11 @@ class CallExecutionService:Service(){
   val call=current?:return;current=null;unregisterCallState()
   val slot=AuthPreferences(this).primaryCallSimSlot()+1
   val payload=JSONObject().put("duration_seconds",seconds).put("call_status",status).put("sim_slot",slot)
-  try{http.newCall(request("api/v1/edge/calls/${call.getString("call_id")}/complete").post(okhttp3.RequestBody.create(okhttp3.MediaType.parse("application/json"),payload.toString())).build()).execute().close()}catch(_:Exception){}
+  try{http.newCall(request("api/v1/edge/calls/${call.getString("call_id")}/complete").post(payload.toString().toRequestBody("application/json".toMediaType())).build()).execute().close()}catch(_:Exception){}
   updateNotification(if(status=="completed")"Call finished: $seconds seconds" else "Call ended: $status")
  }
  private fun unregisterCallState(){
-  val telephony=getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+  val telephony=callTelephony ?: (getSystemService(TELEPHONY_SERVICE) as TelephonyManager)
   when(val l=callListener){is TelephonyCallback->if(Build.VERSION.SDK_INT>=31)telephony.unregisterTelephonyCallback(l);is PhoneStateListener->{@Suppress("DEPRECATION") telephony.listen(l,PhoneStateListener.LISTEN_NONE)}}
   callListener=null
  }
