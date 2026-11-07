@@ -11,7 +11,7 @@ function parseNumber(value, field, { integer = false, min = 0 } = {}) {
   if (!Number.isFinite(parsed)) return { error: `${field} must be a finite number.` }
   if (parsed < min) return { error: `${field} must be at least ${min}.` }
   if (integer && !Number.isSafeInteger(parsed)) return { error: `${field} must be a whole number.` }
-  if (!integer && Math.round(parsed * 100) !== parsed * 100) {
+  if (!integer && Number(parsed.toFixed(2)) !== parsed) {
     return { error: `${field} may have at most 2 decimal places.` }
   }
   return { value: parsed }
