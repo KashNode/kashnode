@@ -31,7 +31,7 @@ export default function PlanUpgrade({ currentPlan }: Props) {
       const response=await fetch('/api/merchant/plan-upgrade',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json',Accept:'application/json'},body:JSON.stringify({plan_slug:selected.slug,sender_phone:sender,gateway,trx_id:trxId.trim()})})
       const payload=await response.json().catch(()=>({}))
       if(!response.ok)throw new Error(payload.message||'Could not submit upgrade request.')
-      setNotice(`Upgrade request to ${selected.name} submitted and pending verification.`)
+      setNotice(payload.status === 'approved' ? `Payment matched. ${selected.name} is now active.` : `Upgrade request to ${selected.name} submitted. KashNode will activate it automatically when the payment SMS matches.`)
       setSelected(null);setSender('');setTrxId('')
     }catch(e){setError(e instanceof Error?e.message:'Could not submit upgrade request.')}
     finally{setBusy(false)}
@@ -54,8 +54,8 @@ export default function PlanUpgrade({ currentPlan }: Props) {
           <button className="md-primary" type="button" disabled={currentPlan?.toLowerCase()===plan.slug.toLowerCase()} onClick={()=>setSelected(plan)}>Select plan</button>
         </article>)}</div>}
         {selected&&<form className="md-card md-upgrade-payment" onSubmit={submit}>
-          <strong>Manual payment for {selected.name}</strong>
-          <p className="md-muted">Send Money to one of the official KashNode accounts below. Your plan changes only after admin verification.</p>
+          <strong>Send Money payment for {selected.name}</strong>
+          <p className="md-muted">Send Money to one of the official KashNode accounts below. KashNode matches the incoming payment notification and activates your plan automatically.</p>
           {destinations.length?destinations.map((d,i)=><p key={i}><strong>{d.provider} · {d.account_label}:</strong> {d.phone_number}</p>):<p className="md-warn">No payment destination is configured. Please contact KashNode support; do not send payment to an unverified number.</p>}
           <div className="md-topup-grid">
             <label className="md-topup-field"><span>Sender mobile number</span><input required type="tel" value={sender} onChange={e=>setSender(e.target.value)} placeholder="01XXXXXXXXX"/></label>

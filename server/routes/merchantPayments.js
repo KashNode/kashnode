@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { normalizeBdPhone } from '../utils/mfs.js';
 
 const GATEWAYS = new Set(['bKash', 'Nagad', 'Rocket', 'Upay']);
 function normalizePhone(value) {
@@ -171,22 +172,35 @@ export function createMerchantPaymentHandlers({ pool, sendSms, otpSecret, proces
       || !['bKash','Nagad','Rocket'].includes(gateway) || !/^[A-Z0-9-]{5,40}$/.test(trxId)) {
       return res.status(400).json({ message: 'Provide a valid plan, sender mobile, MFS gateway and TrxID.' });
     }
-    const plan = await pool.query(
-      'SELECT slug FROM public.subscription_plans WHERE lower(slug)=lower($1) AND is_active=TRUE',
-      [planSlug],
-    );
-    if (!plan.rows[0]) return res.status(400).json({ message: 'Selected plan is no longer available.' });
-    const destination = await pool.query('SELECT 1 FROM public.mfs_payment_destinations WHERE provider=$1 AND is_active=TRUE LIMIT 1', [gateway]);
+    const [planResult, merchantResult, destination] = await Promise.all([
+      pool.query('SELECT slug, monthly_fee FROM public.subscription_plans WHERE lower(slug)=lower($1) AND is_active=TRUE', [planSlug]),
+      pool.query('SELECT billing_phone, is_billing_phone_verified FROM public.merchants WHERE id=$1 AND owner_user_id=$2', [who.merchantId, who.userId]),
+      pool.query('SELECT phone_number FROM public.mfs_payment_destinations WHERE provider=$1 AND is_active=TRUE LIMIT 1', [gateway]),
+    ]);
+    const plan = planResult.rows[0];
+    const merchant = merchantResult.rows[0];
+    if (!plan) return res.status(400).json({ message: 'Selected plan is no longer available.' });
+    if (!merchant?.is_billing_phone_verified || !merchant.billing_phone || merchant.billing_phone !== senderPhone) {
+      return res.status(403).json({ message: 'Sender phone must match your verified billing number.' });
+    }
+    const expectedAmount = Number(plan.monthly_fee);
+    if (!Number.isFinite(expectedAmount) || expectedAmount <= 0) {
+      return res.status(409).json({ message: 'The selected plan has no valid payment amount configured.' });
+    }
     if (!destination.rows[0]) return res.status(409).json({ message: 'This payment gateway has no official KashNode destination configured. Contact support.' });
     try {
       const result = await pool.query(
         `INSERT INTO public.merchant_plan_upgrade_requests
-          (merchant_id,requested_plan_slug,sender_phone,gateway,trx_id,status)
-         VALUES ($1,$2,$3,$4,$5,'pending_review')
-         RETURNING id,requested_plan_slug,status,created_at`,
-        [who.merchantId, plan.rows[0].slug, senderPhone, gateway, trxId],
+          (merchant_id,requested_plan_slug,sender_phone,gateway,trx_id,expected_amount,status)
+         VALUES ($1,$2,$3,$4,$5,$6::numeric,'pending_review')
+         RETURNING id,requested_plan_slug,expected_amount,status,created_at`,
+        [who.merchantId, plan.slug, senderPhone, gateway, trxId, expectedAmount.toFixed(2)],
       );
-      return res.status(201).json({ status: 'pending_review', request: result.rows[0] });
+      let match = { outcome: 'pending' };
+      try { match = await processor.matchExistingTopup({ merchantId: who.merchantId, gateway, trxId }); }
+      catch (error) { console.error('[KashNode] Deferred plan-upgrade SMS reconciliation:', error); }
+      const status = match.outcome === 'upgrade_approved_and_activated' ? 'approved' : 'pending_review';
+      return res.status(201).json({ status, request: { ...result.rows[0], status }, verification: match.outcome });
     } catch (error) {
       if (error.code === '23505') return res.status(409).json({ message: 'This TrxID has already been submitted.' });
       throw error;
