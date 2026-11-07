@@ -1,103 +1,188 @@
 import { Link } from 'react-router-dom'
-import { ArrowRight, BarChart3, Box, Check, CreditCard, PhoneCall, ShieldCheck, Truck, Wallet } from 'lucide-react'
-import { Eyebrow, SiteLayout } from '../../components/site/SiteChrome'
-import { Faq, FinalCta, OverageNote, PricingTiers } from '../../components/site/SiteSections'
-import { BoxRender, CallInterface, DashboardMock, WorkflowSteps } from '../../components/site/SiteVisuals'
+import {
+  Box, Clock, CreditCard, FileText, HelpCircle, Layers,
+  Lock, MessageSquare, PhoneCall, RefreshCw, ShieldAlert, ShieldCheck,
+  Smartphone, Truck,
+} from 'lucide-react'
+import { SiteLayout } from '../../components/site/SiteChrome'
+import { BoxRender, WorkspaceDiagram } from '../../components/site/SiteVisuals'
 
-const HERO_STRIP = [
-  { icon: ShieldCheck, title: 'Order Verification', text: 'Confirm real customers' },
-  { icon: CreditCard, title: 'Payment Matching', text: 'Match configured payment messages' },
-  { icon: PhoneCall, title: 'Kash AI Calls', text: 'Talk to customers automatically' },
-  { icon: Truck, title: 'Fulfilment Handoff', text: 'Prepare verified orders for dispatch' },
-  { icon: BarChart3, title: 'Higher Efficiency', text: 'Save time, reduce cost' },
+const BRANDS = ['WooCommerce', 'Shopify', 'bKash', 'Nagad', 'Rocket', 'Upay', 'Steadfast', 'Pathao']
+
+const FEATURES = [
+  { icon: ShieldCheck, title: 'Order verification', text: 'Confirm real customers with an SMS from your own business SIM — before anything ships.' },
+  { icon: CreditCard, title: 'Payment matching', text: 'Configured payment messages checked against order references, with TrxID matching.' },
+  { icon: PhoneCall, title: 'Kash AI voice', text: 'Natural Bangla calls for confirmations, follow-ups and delivery updates — male or female voice.' },
+  { icon: Box, title: 'KashNode Box', text: 'Your business SIM, always on. ৳8,000 one-time hardware purchase.' },
+  { icon: Clock, title: 'Call history', text: 'Every call logged with status and duration — 7 days on Basic, 30 days on Standard.' },
+  { icon: Layers, title: 'Multi-device failover', text: 'Up to 2 devices and SIMs on Standard, unlimited on Premium — if one drops, the other takes over.' },
+  { icon: ShieldAlert, title: 'Fraud detection', text: 'Advanced fake-order detection and an automatic blocklist on Premium.' },
+  { icon: Truck, title: 'Courier booking', text: 'Verified orders ready for Steadfast or Pathao — booked from the same workspace.' },
 ]
 
-const PILLARS = [
-  { icon: PhoneCall, title: 'AI Voice Order Verification', text: 'Kash calls your customers in a natural Bangla voice to confirm orders — no human touch, no missed calls, no manual follow-ups.' },
-  { icon: Wallet, title: 'Payment Message Matching', text: 'Configured payment messages can be checked against order references. Supported message formats and provider availability are confirmed during onboarding.' },
-  { icon: Truck, title: 'Courier & Fulfilment Handoff', text: 'Keep verified order details ready for fulfilment. Live courier booking and tracking are not generally available until a provider adapter and credentials are configured.' },
-]
-
-const OUTCOMES = [
-  { title: 'Fewer fake orders', text: 'Every COD order is verified by SMS from your own business SIM before it ships, so fake and fraud orders are stopped at the door.' },
-  { title: 'No more manual calling', text: 'Routine confirmation calls run on their own. Your team spends its time growing the business instead of chasing customers on the phone.' },
-  { title: 'Faster dispatch', text: 'Keep verified orders and fulfilment details together. Live courier booking and tracking depend on a configured provider integration.' },
-  { title: 'One place to see it all', text: 'Orders, verifications, calls, minutes and your Box — the merchant dashboard shows whether the system is actually working.' },
-]
-
-const FAQS = [
-  { q: 'How does KashNode verify a COD order?', a: 'When a customer places an order, KashNode sends a verification SMS from your business SIM in the KashNode Box. The customer confirms with the code, proving the order comes from a real person with a real phone number.' },
-  { q: 'Do I need the KashNode Box to start?', a: 'No. You can start with the KashNode Platform — your merchant web dashboard — and explore it first. The Box is a dedicated device for merchants who want 24/7 reliability with their business SIM always connected.' },
-  { q: 'Which stores and payments does KashNode work with?', a: 'Available store, payment and courier connections depend on the current production setup. Payment SMS ingestion and device requirements are confirmed during onboarding. Contact the team before relying on a specific provider integration.' },
-  { q: 'How does pricing work?', a: 'KashNode uses pay-as-you-go voice billing. Current package rates and included features are shown in the live pricing cards. The Free Trial includes 10 complimentary AI minutes.' },
-  { q: 'Does Kash speak Bangla?', a: 'Yes. Kash talks with customers in Bangla on confirmation calls. The website and dashboard are in English.' },
+const SECURITY = [
+  { icon: Smartphone, title: 'Your business SIM', text: 'Messages and calls go out from your own number — customers always know it is you.' },
+  { icon: MessageSquare, title: 'SMS code verification', text: 'A code proves the customer is real — before an order is ever packed.' },
+  { icon: FileText, title: 'TrxID matching', text: 'Every payment message matched to its order by transaction ID.' },
+  { icon: RefreshCw, title: 'Failover, built in', text: 'Two SIMs on Standard, unlimited devices on Premium — a dropped connection never stops verification.' },
+  { icon: Lock, title: 'Your data stays yours', text: 'Orders, customers and call history live in your workspace — nothing shared, nothing sold.' },
+  { icon: HelpCircle, title: 'Human support', text: 'Email and ticket support on Basic, priority chat on Standard, VIP phone support on Premium.' },
 ]
 
 export default function HomePage() {
   return (
-    <SiteLayout title="AI Verification & Automation for Online Stores">
-      <section className="site-hero">
-        <div className="site-hero-glow" aria-hidden="true" />
-        <div className="site-hero-inner">
-          <div className="site-hero-copy">
-            <span className="site-pill">All-in-One E-commerce Automation</span>
-            <h1>Run your store operations without the daily <em>manual work.</em></h1>
-            <p className="site-lede">Verify customers, match payment messages, automate routine calls with Kash AI, and move confirmed orders toward fulfilment — all from one connected platform.</p>
-            <ul className="site-hero-checks">
-              <li><Check size={16} /> Fewer fake orders</li>
-              <li><Check size={16} /> Faster confirmation</li>
-              <li><Check size={16} /> 24/7 automation</li>
-            </ul>
-            <div className="site-hero-actions">
-              <Link to="/login" className="site-btn site-btn-primary site-btn-lg">Create Your Workspace <ArrowRight size={17} /></Link>
-              <Link to="/features" className="site-btn site-btn-outline-light site-btn-lg">Explore Features</Link>
-            </div>
-            <p className="site-hero-signin">Already have an account? <Link to="/login">Sign in</Link></p>
-          </div>
-          <div className="site-hero-visual">
-            <div className="site-hero-visual-frame">
-              <DashboardMock />
-            </div>
-            <div className="site-hero-visual-caption">
-              <span className="site-hero-caption-dot" />
-              <span><strong>One connected workspace</strong><small>Orders, payments and customer activity in one view</small></span>
+    <SiteLayout
+      title="AI Verification & Automation for Online Stores"
+      variant="light"
+      announcement={(
+        <div className="r2-announce">
+          Free Trial — 10 complimentary AI minutes, no card required.
+          <Link to="/pricing">Learn more →</Link>
+        </div>
+      )}
+    >
+      <section className="r2-hero">
+        <div className="r2-wrap">
+          <h1 className="r2-h1">Your fastest path to verified orders.</h1>
+          <div className="r2-hero-row">
+            <p className="r2-sub r2-hero-sub">Intuitive automation to verify every order, match every payment, and call every customer — from your first order to your millionth.</p>
+            <div className="r2-hero-actions">
+              <Link to="/login" className="r2-btn r2-btn-black">Start for free →</Link>
+              <Link to="/contact" className="r2-btn r2-btn-outline">Talk to sales</Link>
             </div>
           </div>
+          <WorkspaceDiagram />
         </div>
       </section>
 
-      <section className="site-hero-strip" aria-label="What KashNode does">
-        <div className="site-wrap site-hero-strip-inner">
-          {HERO_STRIP.map(item => {
-            const Icon = item.icon
-            return (
-              <div key={item.title} className="site-hero-strip-item">
-                <span className="site-hero-strip-icon"><Icon size={20} /></span>
-                <div><strong>{item.title}</strong><span>{item.text}</span></div>
+      <section className="r2-trusted">
+        <div className="r2-wrap">
+          <div className="r2-trusted-top">
+            <span className="r2-eyebrow">Works with your existing tools</span>
+            <Link to="/integrations" className="r2-vlink">See integrations →</Link>
+          </div>
+          <div className="r2-brands">
+            {BRANDS.map(brand => <span key={brand}>{brand}</span>)}
+          </div>
+          <div className="r2-divider" />
+        </div>
+      </section>
+
+      <section className="r2-section">
+        <div className="r2-wrap">
+          <h2 className="r2-h2">Three steps. Zero manual work.</h2>
+          <p className="r2-sub">From a new order to a verified, ready-to-ship parcel — without a single phone call from your team.</p>
+          <div className="r2-steps">
+            <div className="r2-step">
+              <span className="r2-badge">1</span>
+              <h3>Connect your store</h3>
+              <p>Plug in WooCommerce, Shopify or a custom store. Your orders flow into one workspace — no retyping, no spreadsheets.</p>
+              <div className="r2-mock">
+                <div className="r2-mock-row"><span className="r2-dot" /><div>WooCommerce<div><small>Connected · 128 orders synced</small></div></div><span className="r2-ok">✓ Live</span></div>
+                <div className="r2-mock-row"><span className="r2-dot" /><div>Shopify<div><small>Connected · 46 orders synced</small></div></div><span className="r2-ok">✓ Live</span></div>
+                <div className="r2-mock-row"><span className="r2-dot" /><div>Custom store · API<div><small>Webhook active</small></div></div><span className="r2-ok">✓ Live</span></div>
               </div>
-            )
-          })}
+            </div>
+            <div className="r2-step">
+              <span className="r2-badge">2</span>
+              <h3>Kash verifies every order</h3>
+              <p>COD orders get an SMS from your business SIM. Payments are checked by code and TrxID. Fake orders stop at the door.</p>
+              <div className="r2-mock">
+                <div className="r2-mono"><span className="r2-g">✓</span> Order #2481 · SMS code verified<br /><span className="r2-g">✓</span> Order #2480 · bKash TrxID matched<br /><span className="r2-g">✓</span> Order #2479 · Kash AI confirmed<br /><span className="r2-wait-text">…</span> Order #2478 · waiting for code</div>
+              </div>
+            </div>
+            <div className="r2-step">
+              <span className="r2-badge">3</span>
+              <h3>Fulfil with confidence</h3>
+              <p>Only verified orders move to dispatch — booked with Steadfast or Pathao, with the customer already informed.</p>
+              <div className="r2-mock">
+                <div className="r2-mock-row"><span className="r2-dot" /><div>Order #2481 · Steadfast<div><small>Booked · On the way</small></div></div><span className="r2-ok">Shipped</span></div>
+                <div className="r2-mock-row"><span className="r2-dot" /><div>Order #2480 · Pathao<div><small>Booked · On the way</small></div></div><span className="r2-ok">Shipped</span></div>
+                <div className="r2-mock-row"><span className="r2-dot" /><div>Order #2479 · Steadfast<div><small>Ready to book</small></div></div><span className="r2-ok">Verified</span></div>
+              </div>
+            </div>
+          </div>
+          <p className="r2-note">Order numbers and figures in the previews on this page are sample data.</p>
         </div>
       </section>
 
-      <section className="site-section">
-        <div className="site-wrap site-split">
+      <section className="r2-band">
+        <div className="r2-wrap r2-band-grid">
           <div>
-            <Eyebrow>What KashNode does</Eyebrow>
-            <h2 className="site-h2">Three capabilities, one connected platform.</h2>
-            <p className="site-body">Verification, configured payment checks and fulfilment handoff are connected parts of one workflow. Order details stay together so your team can reduce retyping, rechecking and manual follow-up.</p>
-            <Link to="/features" className="site-btn site-btn-outline-dark">Explore all features <ArrowRight size={16} /></Link>
+            <h2 className="r2-h2">Whatever you sell,<br />KashNode handles it.</h2>
+            <Link to="/features" className="r2-btn r2-btn-black">View features →</Link>
           </div>
-          <div className="site-ledger">
-            {PILLARS.map(item => {
-              const Icon = item.icon
+          <div className="r2-tiles">
+            {BRANDS.map(brand => <div key={brand} className="r2-tile">{brand}</div>)}
+          </div>
+        </div>
+      </section>
+
+      <section className="r2-section r2-alt-section">
+        <div className="r2-wrap">
+          <h2 className="r2-h2">Automate orders with zero manual work.</h2>
+          <p className="r2-sub">Verification, payments, calls and fulfilment — connected in one workspace.</p>
+          <div className="r2-alt-row">
+            <div className="r2-alt-text">
+              <h3>COD verification that stops fake orders</h3>
+              <p>Every cash-on-delivery order gets an SMS from your own business SIM. Only real customers confirm — fake and fraud orders never reach dispatch.</p>
+              <Link to="/features" className="r2-vlink">Learn more →</Link>
+            </div>
+            <div className="r2-visual">
+              <div className="r2-sms"><span className="r2-sms-from">KashNode SMS <span>· now</span></span><p>Your verification code is <b>482913</b>. Share it only to confirm your order #2481.</p></div>
+              <div style={{ height: 12 }} />
+              <div className="r2-mock-row"><span className="r2-dot" /><div>Order #2481 · Code verified<div><small>Real customer confirmed</small></div></div><span className="r2-ok">✓ Verified</span></div>
+            </div>
+          </div>
+          <div className="r2-alt-row">
+            <div className="r2-alt-text">
+              <h3>Payment matching, automatic</h3>
+              <p>bKash, Nagad, Rocket and Upay messages are checked against order references, with TrxID matching — no more manual checking in your inbox.</p>
+              <Link to="/features" className="r2-vlink">Learn more →</Link>
+            </div>
+            <div className="r2-visual">
+              <div className="r2-mock-row"><span className="r2-dot" /><div>Order #2480 · bKash<div><small>TrxID 9KX4M2P7 · ৳1,450</small></div></div><span className="r2-ok">✓ Matched</span></div>
+              <div className="r2-mock-row"><span className="r2-dot" /><div>Order #2479 · Nagad<div><small>TrxID 7QW8N1R3 · ৳890</small></div></div><span className="r2-ok">✓ Matched</span></div>
+              <div className="r2-mock-row"><span className="r2-dot" /><div>Order #2478 · Rocket<div><small>TrxID pending · ৳2,100</small></div></div><span className="r2-wait">Waiting</span></div>
+            </div>
+          </div>
+          <div className="r2-alt-row">
+            <div className="r2-alt-text">
+              <h3>Kash AI calls your customers</h3>
+              <p>Kash confirms orders, follows up on payments and shares delivery updates in natural Bangla — around the clock, without a human on the line.</p>
+              <Link to="/kash-ai" className="r2-vlink">Meet Kash AI →</Link>
+            </div>
+            <div className="r2-term">
+              <div className="r2-term-head"><span>Kash AI · Order #2481</span><span><span className="r2-sample">Sample call</span> <span className="r2-g">✓ Live</span></span></div>
+              <div><span className="r2-g">Kash:</span> আসসালামু আলাইকুম, আমি Kash — অর্ডার #2481 কনফার্ম করতে কল করেছি।</div>
+              <div><span className="r2-g">Customer:</span> জি, কনফার্ম করেন।</div>
+              <div><span className="r2-g">Kash:</span> ধন্যবাদ। আপনার অর্ডারটি কনফার্ম হয়েছে।</div>
+              <div className="r2-w">Call logged · 1m 12s · Male voice</div>
+            </div>
+          </div>
+          <div className="r2-alt-row">
+            <div className="r2-alt-text">
+              <h3>Your business SIM, always on</h3>
+              <p>The KashNode Box (৳8,000 one-time) holds your business SIM and keeps it connected to the platform day and night — stable connectivity and instant SMS and voice routing. No phone to keep charged.</p>
+              <Link to="/hardware" className="r2-vlink">See the Box →</Link>
+            </div>
+            <div className="r2-visual"><BoxRender /></div>
+          </div>
+        </div>
+      </section>
+
+      <section className="r2-section">
+        <div className="r2-wrap">
+          <h2 className="r2-h2">Everything you need, built in.</h2>
+          <p className="r2-sub">Verification, payments, calls and fulfilment — primitives that just work.</p>
+          <div className="r2-feat-grid">
+            {FEATURES.map(feature => {
+              const Icon = feature.icon
               return (
-                <div key={item.title} className="site-ledger-row">
-                  <div>
-                    <span className="site-card-icon"><Icon size={20} /></span>
-                    <h3>{item.title}</h3>
-                    <p>{item.text}</p>
-                  </div>
+                <div key={feature.title} className="r2-feat">
+                  <span className="r2-feat-ic"><Icon size={26} /></span>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.text}</p>
                 </div>
               )
             })}
@@ -105,102 +190,32 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="site-section">
-        <div className="site-wrap">
-          <Eyebrow>How it works</Eyebrow>
-          <h2 className="site-h2">A simple flow from order to delivery.</h2>
-          <WorkflowSteps />
-        </div>
-      </section>
-
-      <section className="site-section site-section-dark">
-        <div className="site-wrap site-split">
-          <div>
-            <Eyebrow>Kash AI</Eyebrow>
-            <h2 className="site-h2 light">Meet Kash — the voice of your store.</h2>
-            <p className="site-body light">Kash is the AI voice assistant inside KashNode. It calls customers, confirms orders, follows up on payments, and handles routine conversations — in natural Bangla, around the clock, without a human on the line.</p>
-            <ul className="site-check-list light">
-              <li>Order confirmations, in Bangla</li>
-              <li>Payment follow-ups when an order is unpaid</li>
-              <li>Delivery updates, without a phone call from your team</li>
-            </ul>
-            <p><Link to="/kash-ai" className="site-btn site-btn-outline-light">Meet Kash AI <ArrowRight size={16} /></Link></p>
-          </div>
-          <CallInterface />
-        </div>
-      </section>
-
-      <section className="site-section site-box-band">
-        <div className="site-wrap site-split">
-          <div className="site-box-large"><BoxRender /></div>
-          <div>
-            <Eyebrow>KashNode Box</Eyebrow>
-            <h2 className="site-h2">Your business SIM, always on.</h2>
-            <p className="site-body">The KashNode Box holds your business SIM and keeps it connected to the platform day and night — stable 4G LTE and instant SMS and voice routing. No phone to keep charged.</p>
-            <ul className="site-spec-chips">
-              <li>Always on, day and night</li>
-              <li>Stable 4G LTE</li>
-              <li>Your business SIM</li>
-              <li>Instant SMS &amp; voice</li>
-            </ul>
-            <p style={{ marginTop: 24 }}><Link to="/hardware" className="site-btn site-btn-outline-light">See the Box <ArrowRight size={16} /></Link></p>
-          </div>
-        </div>
-      </section>
-
-      <section className="site-section site-section-light">
-        <div className="site-wrap site-split">
-          <div>
-            <Eyebrow>The business impact</Eyebrow>
-            <h2 className="site-h2">Turn daily operations into automated growth.</h2>
-            <p className="site-body">Spend less time on manual calls, SMS checks and order follow-ups — and more time growing your business.</p>
-          </div>
-          <div className="site-ledger">
-            {OUTCOMES.map(item => (
-              <div key={item.title} className="site-ledger-row">
-                <div>
-                  <h3>{item.title}</h3>
-                  <p>{item.text}</p>
+      <section className="r2-section" style={{ paddingTop: 0 }}>
+        <div className="r2-wrap">
+          <h2 className="r2-h2">Secure and reliable by default.</h2>
+          <p className="r2-sub">Built for real stores, not demos.</p>
+          <div className="r2-feat-grid r2-feat-three">
+            {SECURITY.map(feature => {
+              const Icon = feature.icon
+              return (
+                <div key={feature.title} className="r2-feat">
+                  <span className="r2-feat-ic"><Icon size={26} /></span>
+                  <h3>{feature.title}</h3>
+                  <p>{feature.text}</p>
                 </div>
-              </div>
-            ))}
+              )
+            })}
           </div>
         </div>
       </section>
 
-      <section className="site-section">
-        <div className="site-wrap">
-          <Eyebrow>Trust &amp; security</Eyebrow>
-          <h2 className="site-h2">Built to protect your store and your customers.</h2>
-          <div className="site-trust-row">
-            <div><span className="site-card-icon"><ShieldCheck size={20} /></span><h3>Verified customers only</h3><p>Orders are confirmed against a real phone number before dispatch, reducing fake and fraud orders.</p></div>
-            <div><span className="site-card-icon"><Check size={20} /></span><h3>Your SIM, your number</h3><p>Verification messages come from your own business SIM, so customers always hear from your store.</p></div>
-            <div><span className="site-card-icon"><Box size={20} /></span><h3>Secure by design</h3><p>Sign-in is protected by email and password with OTP verification, and admin actions are role-checked server-side.</p></div>
-          </div>
-          <p className="site-note">KashNode is a young product. We publish what the platform actually does today and mark everything else as planned — no inflated claims.</p>
+      <section className="r2-final">
+        <div className="r2-wrap">
+          <h2 className="r2-h2">Start automating your store</h2>
+          <p className="r2-sub">Zero manual work, zero surprises.</p>
+          <Link to="/login" className="r2-btn r2-btn-black">Start for free →</Link>
         </div>
       </section>
-
-      <section className="site-section site-section-tint">
-        <div className="site-wrap">
-          <Eyebrow>Simple &amp; predictable pricing</Eyebrow>
-          <h2 className="site-h2">Packages for every stage of your business.</h2>
-          <p className="site-body">Choose a feature package; AI voice calls are charged per minute at that package’s rate.</p>
-          <PricingTiers compact />
-          <OverageNote />
-          <p className="site-center"><Link to="/pricing" className="site-btn site-btn-outline-dark">Compare all plans <ArrowRight size={16} /></Link></p>
-        </div>
-      </section>
-
-      <section className="site-section">
-        <div className="site-wrap site-faq-wrap">
-          <Eyebrow>Frequently asked questions</Eyebrow>
-          <h2 className="site-h2">Questions, answered.</h2>
-          <Faq items={FAQS} />
-        </div>
-      </section>
-
-      <FinalCta />
     </SiteLayout>
   )
 }

@@ -33,10 +33,13 @@ function LanguageSelector() {
   )
 }
 
-export function SiteNav() {
+export type SiteVariant = 'dark' | 'light'
+
+export function SiteNav({ variant = 'dark' }: { variant?: SiteVariant }) {
   const [open, setOpen] = useState(false)
+  const light = variant === 'light'
   return (
-    <header className="site-nav">
+    <header className={`site-nav${light ? ' site-nav-light' : ''}`}>
       <div className="site-nav-inner">
         <Link to="/" className="site-nav-brand" aria-label="KashNode home" onClick={() => setOpen(false)}>
           <KashNodeLogo />
@@ -48,8 +51,8 @@ export function SiteNav() {
         </nav>
         <div className="site-nav-actions">
           <LanguageSelector />
-          <Link to="/login" className="site-btn site-btn-ghost">Sign In</Link>
-          <Link to="/login" className="site-btn site-btn-primary">Start Free</Link>
+          <Link to="/login" className={`site-btn ${light ? 'site-btn-outline-dark' : 'site-btn-ghost'}`}>Sign In</Link>
+          <Link to="/login" className={`site-btn ${light ? 'site-btn-dark' : 'site-btn-primary'}`}>{light ? 'Start for free →' : 'Start Free'}</Link>
           <button type="button" className="site-nav-toggle" aria-label={open ? 'Close menu' : 'Open menu'} aria-expanded={open} onClick={() => setOpen(value => !value)}>
             {open ? <X size={22} /> : <Menu size={22} />}
           </button>
@@ -61,8 +64,8 @@ export function SiteNav() {
             <NavLink key={item.to} to={item.to} onClick={() => setOpen(false)}>{item.label}</NavLink>
           ))}
           <div className="site-nav-mobile-actions">
-            <Link to="/login" className="site-btn site-btn-ghost" onClick={() => setOpen(false)}>Sign In</Link>
-            <Link to="/login" className="site-btn site-btn-primary" onClick={() => setOpen(false)}>Start Free</Link>
+            <Link to="/login" className={`site-btn ${light ? 'site-btn-outline-dark' : 'site-btn-ghost'}`} onClick={() => setOpen(false)}>Sign In</Link>
+            <Link to="/login" className={`site-btn ${light ? 'site-btn-dark' : 'site-btn-primary'}`} onClick={() => setOpen(false)}>{light ? 'Start for free →' : 'Start Free'}</Link>
           </div>
         </nav>
       )}
@@ -103,15 +106,23 @@ const FOOTER_COLS: { title: string; links: { to: string; label: string }[] }[] =
   },
 ]
 
-export function SiteFooter() {
+export function SiteFooter({ variant = 'dark' }: { variant?: SiteVariant }) {
+  const light = variant === 'light'
+  const cols = light
+    ? [...FOOTER_COLS, { title: 'Legal', links: [
+      { to: '/privacy', label: 'Privacy Policy' },
+      { to: '/terms', label: 'Terms of Service' },
+      { to: '/security', label: 'Security' },
+    ] }]
+    : FOOTER_COLS
   return (
-    <footer className="site-footer">
+    <footer className={`site-footer${light ? ' site-footer-light' : ''}`}>
       <div className="site-footer-inner">
         <div className="site-footer-brand">
           <KashNodeLogo showTagline />
           <p>AI verification and automation for online stores. Verify customers, match payments, and move confirmed orders to fulfilment — without the daily manual work.</p>
         </div>
-        {FOOTER_COLS.map(col => (
+        {cols.map(col => (
           <nav key={col.title} aria-label={col.title}>
             <h3>{col.title}</h3>
             <ul>
@@ -123,27 +134,37 @@ export function SiteFooter() {
         ))}
       </div>
       <div className="site-footer-bottom">
-        <span>© {new Date().getFullYear()} KashNode. All rights reserved.</span>
-        <span className="site-footer-legal">
-          <Link to="/privacy">Privacy</Link>
-          <Link to="/terms">Terms</Link>
-          <Link to="/security">Security</Link>
-        </span>
+        {light ? (
+          <>
+            <span className="site-footer-status"><i /> All systems operational</span>
+            <span>© {new Date().getFullYear()} KashNode. All rights reserved.</span>
+          </>
+        ) : (
+          <>
+            <span>© {new Date().getFullYear()} KashNode. All rights reserved.</span>
+            <span className="site-footer-legal">
+              <Link to="/privacy">Privacy</Link>
+              <Link to="/terms">Terms</Link>
+              <Link to="/security">Security</Link>
+            </span>
+          </>
+        )}
       </div>
     </footer>
   )
 }
 
-export function SiteLayout({ title, children }: { title: string; children: ReactNode }) {
+export function SiteLayout({ title, children, variant = 'dark', announcement }: { title: string; children: ReactNode; variant?: SiteVariant; announcement?: ReactNode }) {
   useEffect(() => {
     document.title = `${title} — KashNode`
     window.scrollTo(0, 0)
   }, [title])
   return (
     <div className="site-page">
-      <SiteNav />
+      {announcement}
+      <SiteNav variant={variant} />
       <main>{children}</main>
-      <SiteFooter />
+      <SiteFooter variant={variant} />
     </div>
   )
 }
