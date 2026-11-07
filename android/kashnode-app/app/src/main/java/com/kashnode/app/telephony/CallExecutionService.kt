@@ -5,6 +5,13 @@ import android.content.*
 import android.net.Uri
 import android.os.*
 import android.telecom.TelecomManager
+import android.media.AudioManager
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.speech.SpeechRecognizer
+import android.speech.RecognizerIntent
+import android.content.pm.PackageManager
+import java.util.Locale
 import android.telephony.*
 import androidx.core.app.NotificationCompat
 import com.kashnode.app.BuildConfig
@@ -27,6 +34,10 @@ class CallExecutionService:Service(){
  private var callListener:Any?=null
  private var callTelephony:TelephonyManager?=null
  private var pollJob:Job?=null
+ private var tts:TextToSpeech?=null
+ private var recognizer:SpeechRecognizer?=null
+ private var confirmationResponse:String?=null
+ private var audioStarted=false
  override fun onBind(intent:Intent?)=null
  override fun onCreate(){super.onCreate();createChannel();startForeground(71,notification("Call automation is ready"));pollJob=scope.launch{while(isActive){if(current==null)pollPending();delay(12000)}}}
  override fun onStartCommand(intent:Intent?,flags:Int,startId:Int):Int{
@@ -49,7 +60,7 @@ class CallExecutionService:Service(){
  }
  private suspend fun dial(call:JSONObject){
   if(current!=null)return
-  current=call;answeredAt=null;sawCallActivity=false
+  current=call;answeredAt=null;sawCallActivity=false;confirmationResponse=null;audioStarted=false
   val phone=call.optString("customer_phone").filter{it.isDigit()||it=='+'}
   if(phone.length<8){finish("no_answer",0);return}
   try{
@@ -86,7 +97,7 @@ class CallExecutionService:Service(){
  }
  private fun onState(state:Int){
   when(state){
-   TelephonyManager.CALL_STATE_OFFHOOK->{sawCallActivity=true;if(answeredAt==null)answeredAt=System.currentTimeMillis();updateNotification("Call connected")}
+   TelephonyManager.CALL_STATE_OFFHOOK->{sawCallActivity=true;if(answeredAt==null)answeredAt=System.currentTimeMillis();updateNotification("Call connected");if(!audioStarted){audioStarted=true;Handler(Looper.getMainLooper()).post{startInCallAudioBridge()}}}
    TelephonyManager.CALL_STATE_IDLE->{if(current!=null&&sawCallActivity){val start=answeredAt;val seconds=if(start==null)0 else ((System.currentTimeMillis()-start)/1000L).coerceAtLeast(0).toInt();scope.launch{finish(if(start==null)"no_answer" else "completed",seconds)}}}
    TelephonyManager.CALL_STATE_RINGING->{sawCallActivity=true;updateNotification("Ringing")}
   }
@@ -94,7 +105,8 @@ class CallExecutionService:Service(){
  private suspend fun finish(status:String,seconds:Int){
   val call=current?:return;current=null;unregisterCallState()
   val slot=activeSimSlot+1
-  val payload=JSONObject().put("duration_seconds",seconds).put("call_status",status).put("sim_slot",slot)
+  stopInCallAudioBridge()
+  val payload=JSONObject().put("duration_seconds",seconds).put("call_status",status).put("sim_slot",slot).put("confirmation_response",confirmationResponse ?: JSONObject.NULL)
   try{http.newCall(request("api/v1/edge/calls/${call.getString("call_id")}/complete").post(payload.toString().toRequestBody("application/json".toMediaType())).build()).execute().close()}catch(_:Exception){}
   updateNotification(if(status=="completed")"Call finished: $seconds seconds" else "Call ended: $status")
  }
@@ -106,6 +118,64 @@ class CallExecutionService:Service(){
  private fun createChannel(){if(Build.VERSION.SDK_INT>=26)(getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(NotificationChannel(CHANNEL,"KashNode calls",NotificationManager.IMPORTANCE_HIGH))}
  private fun notification(text:String)=NotificationCompat.Builder(this,CHANNEL).setSmallIcon(android.R.drawable.sym_action_call).setContentTitle("KashNode Auto Dial").setContentText(text).setOngoing(true).build()
  private fun updateNotification(text:String){(getSystemService(NOTIFICATION_SERVICE) as NotificationManager).notify(71,notification(text))}
- override fun onDestroy(){pollJob?.cancel();unregisterCallState();scope.cancel();super.onDestroy()}
+
+ private fun startInCallAudioBridge(){
+  if(ContextCompat.checkSelfPermission(this,android.Manifest.permission.RECORD_AUDIO)!=PackageManager.PERMISSION_GRANTED){
+   updateNotification("Call connected; microphone permission needed");return
+  }
+  val audio=getSystemService(AUDIO_SERVICE) as AudioManager
+  audio.mode=AudioManager.MODE_IN_CALL
+  @Suppress("DEPRECATION") audio.isSpeakerphoneOn=true
+  val message="আসসালামু আলাইকুম। আপনার অর্ডারটি নিশ্চিত করার জন্য KashNode থেকে ফোন করা হয়েছে। আপনি কি অর্ডারটি কনফার্ম করছেন? হ্যাঁ অথবা না বলুন।"
+  tts=TextToSpeech(this){result->
+   if(result==TextToSpeech.SUCCESS){
+    tts?.language=Locale("bn","BD")
+    tts?.setSpeechRate(0.9f)
+    tts?.setOnUtteranceProgressListener(object:UtteranceProgressListener(){
+     override fun onStart(id:String?){}
+     override fun onDone(id:String?){Handler(Looper.getMainLooper()).postDelayed({startConfirmationRecognition()},350)}
+     @Deprecated("Deprecated") override fun onError(id:String?){}
+    })
+    tts?.speak(message,TextToSpeech.QUEUE_FLUSH,null,"kashnode_order_confirmation")
+   }else updateNotification("AI voice engine unavailable")
+  }
+ }
+ private fun startConfirmationRecognition(){
+  if(current==null||!SpeechRecognizer.isRecognitionAvailable(this))return
+  recognizer=SpeechRecognizer.createSpeechRecognizer(this)
+  recognizer?.setRecognitionListener(object:android.speech.RecognitionListener{
+   override fun onReadyForSpeech(params:Bundle?){}
+   override fun onBeginningOfSpeech(){}
+   override fun onRmsChanged(rmsdB:Float){}
+   override fun onBufferReceived(buffer:ByteArray?){}
+   override fun onEndOfSpeech(){}
+   override fun onError(error:Int){if(current!=null)Handler(Looper.getMainLooper()).postDelayed({startConfirmationRecognition()},1200)}
+   override fun onResults(results:Bundle?){
+    val said=results?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull().orEmpty().lowercase(Locale.ROOT)
+    confirmationResponse=when{
+     listOf("হ্যাঁ","হ্যা","yes","হবে","কনফার্ম","confirm").any{said.contains(it)}->"yes"
+     listOf("না","no","নয়","নাই","cancel").any{said.contains(it)}->"no"
+     else->"unrecognized:"+said
+    }
+    updateNotification("Customer response: "+confirmationResponse)
+   }
+   override fun onPartialResults(partialResults:Bundle?){}
+   override fun onEvent(eventType:Int,params:Bundle?){}
+  })
+  val intent=Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH).apply{
+   putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL,RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+   putExtra(RecognizerIntent.EXTRA_LANGUAGE,"bn-BD")
+   putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS,true)
+   putExtra(RecognizerIntent.EXTRA_MAX_RESULTS,3)
+  }
+  recognizer?.startListening(intent)
+ }
+ private fun stopInCallAudioBridge(){
+  runCatching{tts?.stop();tts?.shutdown();tts=null}
+  runCatching{recognizer?.cancel();recognizer?.destroy();recognizer=null}
+  runCatching{val audio=getSystemService(AUDIO_SERVICE) as AudioManager;@Suppress("DEPRECATION") audio.isSpeakerphoneOn=false;audio.mode=AudioManager.MODE_NORMAL}
+ }
+
+ override fun onDestroy(){pollJob?.cancel();stopInCallAudioBridge();unregisterCallState();scope.cancel();super.onDestroy()}
  companion object{const val CHANNEL="kashnode_calls";const val ACTION_APPROVE="com.kashnode.app.APPROVE_CALL"}
 }
