@@ -21,8 +21,7 @@ class MfsNotificationListener : NotificationListenerService() {
         val extras = sbn.notification.extras
         val title = extras.getCharSequence("android.title")?.toString().orEmpty()
         val body = extras.getCharSequence("android.text")?.toString().orEmpty()
-        val text = listOf(title, body).filter { it.isNotBlank() }.joinToString("
-")
+        val text = listOf(title, body).filter { it.isNotBlank() }.joinToString(System.lineSeparator())
         val parsed = MfsParser.parse(providerSource, text) ?: return
         val input = Data.Builder()
             .putString("gateway", parsed.gateway)
