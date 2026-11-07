@@ -13,7 +13,7 @@ export function createEdgeCallHandlers({pool,leaseSeconds=90}={}){
      FROM public.orders o
      WHERE o.merchant_id=$1 AND o.ai_call_status='pending'
        AND COALESCE(o.customer_phone,'')<>''
-       AND NOT EXISTS(SELECT 1 FROM public.edge_voice_calls v WHERE v.order_id=o.id AND v.status IN ('dispatching','dialing','completed'))
+       AND NOT EXISTS(SELECT 1 FROM public.edge_voice_calls v WHERE v.order_id=o.id AND (v.status IN ('completed','busy','no_answer') OR (v.status IN ('dispatching','dialing') AND v.lease_expires_at>NOW())))
      ORDER BY o.created_at ASC
      FOR UPDATE OF o SKIP LOCKED LIMIT 1`,[who.merchantId]);
    const order=picked.rows[0];

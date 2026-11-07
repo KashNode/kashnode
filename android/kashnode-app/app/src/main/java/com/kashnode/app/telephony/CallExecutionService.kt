@@ -20,6 +20,7 @@ class CallExecutionService:Service(){
  private val http=OkHttpClient.Builder().callTimeout(20,TimeUnit.SECONDS).build()
  private var current:JSONObject?=null
  private var answeredAt:Long?=null
+ private var sawCallActivity=false
  private var callListener:Any?=null
  private var pollJob:Job?=null
  override fun onBind(intent:Intent?)=null
@@ -44,7 +45,7 @@ class CallExecutionService:Service(){
  }
  private suspend fun dial(call:JSONObject){
   if(current!=null)return
-  current=call;answeredAt=null
+  current=call;answeredAt=null;sawCallActivity=false
   val phone=call.optString("customer_phone").filter{it.isDigit()||it=='+'}
   if(phone.length<8){finish("no_answer",0);return}
   try{
@@ -79,9 +80,9 @@ class CallExecutionService:Service(){
  }
  private fun onState(state:Int){
   when(state){
-   TelephonyManager.CALL_STATE_OFFHOOK->{if(answeredAt==null)answeredAt=System.currentTimeMillis();updateNotification("Call connected")}
-   TelephonyManager.CALL_STATE_IDLE->{if(current!=null){val start=answeredAt;val seconds=if(start==null)0 else ((System.currentTimeMillis()-start)/1000L).coerceAtLeast(0).toInt();scope.launch{finish(if(start==null)"no_answer" else "completed",seconds)}}}
-   TelephonyManager.CALL_STATE_RINGING->updateNotification("Ringing")
+   TelephonyManager.CALL_STATE_OFFHOOK->{sawCallActivity=true;if(answeredAt==null)answeredAt=System.currentTimeMillis();updateNotification("Call connected")}
+   TelephonyManager.CALL_STATE_IDLE->{if(current!=null&&sawCallActivity){val start=answeredAt;val seconds=if(start==null)0 else ((System.currentTimeMillis()-start)/1000L).coerceAtLeast(0).toInt();scope.launch{finish(if(start==null)"no_answer" else "completed",seconds)}}}
+   TelephonyManager.CALL_STATE_RINGING->{sawCallActivity=true;updateNotification("Ringing")}
   }
  }
  private suspend fun finish(status:String,seconds:Int){
