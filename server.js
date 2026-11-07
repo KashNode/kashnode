@@ -266,20 +266,57 @@ app.get('/api/admin/plans', requireAdmin, asyncRoute(async (_req, res) => {
   res.json({ source: 'database', plans: result.rows })
 }))
 app.put('/api/admin/plans/:slug', requireOrigin, requireAdmin, asyncRoute(async (req, res) => {
-  const { name, monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, is_active } = req.body || {}
-  const monthlyFee = Number(monthly_fee), includedMinutes = Number(included_minutes)
-  const rate = Number(price_per_minute), minimum = Number(minimum_topup_minutes)
-  if (typeof name !== 'string' || !name.trim() || ![monthlyFee,rate].every(Number.isFinite)
-    || monthlyFee < 0 || rate < 0 || !Number.isSafeInteger(includedMinutes) || includedMinutes < 0
-    || !Number.isSafeInteger(minimum) || minimum < 1 || typeof is_active !== 'boolean') {
-    return res.status(400).json({ message: 'Provide valid plan name, fees, minutes, rate, minimum and active status.' })
+  const { monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, is_active } = req.body || {}
+  const monthlyFee=Number(monthly_fee), includedMinutes=Number(included_minutes), rate=Number(price_per_minute), minimum=Number(minimum_topup_minutes)
+  if (![monthlyFee,rate].every(Number.isFinite) || monthlyFee<0 || rate<0
+    || !Number.isSafeInteger(includedMinutes) || includedMinutes<0
+    || !Number.isSafeInteger(minimum) || minimum<1 || typeof is_active!=='boolean') {
+    return res.status(400).json({message:'Provide valid monthly fee, included minutes, voice rate, minimum top-up and active status.'})
   }
-  const result = await pool.query(`UPDATE public.subscription_plans SET name=$2,monthly_fee=$3,
-    included_minutes=$4,price_per_minute=$5,minimum_topup_minutes=$6,is_active=$7,updated_at=NOW()
-    WHERE lower(slug)=lower($1) RETURNING slug,name,monthly_fee,included_minutes,price_per_minute,minimum_topup_minutes,is_active`,
-  [req.params.slug, name.trim(), monthlyFee, includedMinutes, rate, minimum, is_active])
-  if (!result.rows[0]) return res.status(404).json({ message: 'Plan not found.' })
-  res.json({ source: 'database', plan: result.rows[0] })
+  const result=await pool.query(`UPDATE public.subscription_plans SET monthly_fee=$2,included_minutes=$3,
+    price_per_minute=$4,minimum_topup_minutes=$5,is_active=$6,updated_at=NOW()
+    WHERE lower(slug)=lower($1) RETURNING slug,name,monthly_fee,included_minutes,price_per_minute,minimum_topup_minutes,is_active,updated_at`,
+  [req.params.slug,monthlyFee,includedMinutes,rate,minimum,is_active])
+  if(!result.rows[0]) return res.status(404).json({message:'Plan not found.'})
+  res.json({source:'database',plan:result.rows[0]})
+}))
+app.get('/api/admin/plan-upgrades', requireAdmin, asyncRoute(async (_req,res) => {
+  const result=await pool.query(`SELECT r.id,r.merchant_id,r.requested_plan_slug,r.trx_id,r.gateway,r.sender_phone,
+      r.expected_amount,r.status,r.created_at,COALESCE(NULLIF(m.business_name,''),m.name,'Unnamed merchant') AS merchant_name,
+      p.name AS target_plan_name
+    FROM public.merchant_plan_upgrade_requests r
+    JOIN public.merchants m ON m.id=r.merchant_id
+    JOIN public.subscription_plans p ON lower(p.slug)=lower(r.requested_plan_slug)
+    WHERE r.status='pending_review' ORDER BY r.created_at ASC`)
+  res.json({source:'database',requests:result.rows})
+}))
+app.post('/api/admin/plan-upgrades/:id/review', requireOrigin, requireAdmin, asyncRoute(async (req,res) => {
+  const action=req.body?.action
+  if(!['approve','reject'].includes(action)) return res.status(400).json({message:'Action must be approve or reject.'})
+  const client=await pool.connect()
+  try {
+    await client.query('BEGIN')
+    const found=await client.query(`SELECT r.id,r.merchant_id,r.requested_plan_slug,r.status,p.included_minutes,p.is_active
+      FROM public.merchant_plan_upgrade_requests r JOIN public.subscription_plans p
+      ON lower(p.slug)=lower(r.requested_plan_slug) WHERE r.id=$1::uuid FOR UPDATE OF r`,[req.params.id])
+    const request=found.rows[0]
+    if(!request){await client.query('ROLLBACK');return res.status(404).json({message:'Upgrade request not found.'})}
+    if(request.status!=='pending_review'){await client.query('ROLLBACK');return res.status(409).json({message:'Upgrade request has already been reviewed.'})}
+    if(action==='approve'&&!request.is_active){await client.query('ROLLBACK');return res.status(409).json({message:'Target plan is inactive.'})}
+    if(action==='approve'){
+      const activated=await client.query(`UPDATE public.merchants SET subscription_plan=$2,
+        available_voice_minutes=GREATEST(0,COALESCE(available_voice_minutes,0))+$3
+        WHERE id=$1 RETURNING id`,[request.merchant_id,request.requested_plan_slug,Number(request.included_minutes||0)])
+      if(activated.rowCount!==1) throw new Error('Merchant plan activation failed.')
+    }
+    const reviewed=await client.query(`UPDATE public.merchant_plan_upgrade_requests
+      SET status=$2,reviewed_at=NOW(),reviewed_by=$3 WHERE id=$1 AND status='pending_review' RETURNING id,status`,
+      [request.id,action==='approve'?'approved':'rejected',req.session.user.id])
+    if(reviewed.rowCount!==1) throw new Error('Upgrade review state changed concurrently.')
+    await client.query('COMMIT')
+    res.json({source:'database',request:reviewed.rows[0]})
+  } catch(error){await client.query('ROLLBACK').catch(()=>{});throw error}
+  finally{client.release()}
 }))
 app.get('/api/admin/mfs-destinations', requireAdmin, asyncRoute(async (_req,res) => {
   const result = await pool.query('SELECT id,provider,account_label,phone_number,is_active,display_order FROM public.mfs_payment_destinations ORDER BY display_order,provider')
