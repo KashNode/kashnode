@@ -33,6 +33,7 @@ import { createMerchantPaymentHandlers } from './server/routes/merchantPayments.
 import { createPaymentProcessor } from './server/services/paymentProcessor.js'
 import { createDeviceSignatureVerifier } from './server/middleware/deviceSignature.js'
 import { sendPlatformSms } from './server/services/platformSmsService.js'
+import { createPlanCatalogHandlers } from './server/routes/adminPlans.js'
 
 const { Pool } = pg
 const app = express()
@@ -79,7 +80,7 @@ app.use(cors({
     return callback(new Error('Origin is not allowed by CORS.'))
   },
   credentials: true,
-  methods: ['GET', 'POST', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-kashnode-webhook-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic', 'x-kashnode-timestamp', 'x-kashnode-nonce', 'x-kashnode-signature'],
   maxAge: 600,
 }))
@@ -250,36 +251,11 @@ app.delete('/api/merchant/integrations/:provider', requireOrigin, requireMerchan
 app.get('/api/admin/settings', requireAdmin, asyncRoute(adminSettingsHandlers.getSettings))
 app.post('/api/admin/settings', requireOrigin, requireAdmin, asyncRoute(adminSettingsHandlers.postSettings))
 
-// Public package catalog is read from PostgreSQL so marketing and admin views share one source.
-app.get('/api/plans', asyncRoute(async (_req, res) => {
-  if (!pool) return res.status(503).json({ status: 'error', message: 'Package catalog is temporarily unavailable.' })
-  const result = await pool.query(`SELECT slug, name, tagline, monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, currency, billing_unit,
-    short_features, details, feature_groups, display_order
-    FROM public.subscription_plans WHERE is_active = true ORDER BY display_order ASC`)
-  res.json({ source: 'database', plans: result.rows })
-}))
-app.get('/api/admin/plans', requireAdmin, asyncRoute(async (_req, res) => {
-  if (!pool) return res.status(503).json({ status: 'error', message: 'Database unavailable.' })
-  const result = await pool.query(`SELECT slug, name, tagline, monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, currency, billing_unit,
-    short_features, details, feature_groups, display_order, is_active, updated_at
-    FROM public.subscription_plans ORDER BY display_order ASC`)
-  res.json({ source: 'database', plans: result.rows })
-}))
-app.put('/api/admin/plans/:slug', requireOrigin, requireAdmin, asyncRoute(async (req, res) => {
-  const { monthly_fee, included_minutes, price_per_minute, minimum_topup_minutes, is_active } = req.body || {}
-  const monthlyFee=Number(monthly_fee), includedMinutes=Number(included_minutes), rate=Number(price_per_minute), minimum=Number(minimum_topup_minutes)
-  if (![monthlyFee,rate].every(Number.isFinite) || monthlyFee<0 || rate<0
-    || !Number.isSafeInteger(includedMinutes) || includedMinutes<0
-    || !Number.isSafeInteger(minimum) || minimum<1 || typeof is_active!=='boolean') {
-    return res.status(400).json({message:'Provide valid monthly fee, included minutes, voice rate, minimum top-up and active status.'})
-  }
-  const result=await pool.query(`UPDATE public.subscription_plans SET monthly_fee=$2,included_minutes=$3,
-    price_per_minute=$4,minimum_topup_minutes=$5,is_active=$6,updated_at=NOW()
-    WHERE lower(slug)=lower($1) RETURNING slug,name,monthly_fee,included_minutes,price_per_minute,minimum_topup_minutes,is_active,updated_at`,
-  [req.params.slug,monthlyFee,includedMinutes,rate,minimum,is_active])
-  if(!result.rows[0]) return res.status(404).json({message:'Plan not found.'})
-  res.json({source:'database',plan:result.rows[0]})
-}))
+// Public and Super Admin plan catalog endpoints share the same database-backed handlers.
+const planCatalogHandlers = createPlanCatalogHandlers({ pool })
+app.get('/api/plans', asyncRoute(planCatalogHandlers.getPublicPlans))
+app.get('/api/admin/plans', requireAdmin, asyncRoute(planCatalogHandlers.getAdminPlans))
+app.put('/api/admin/plans/:slug', requireOrigin, requireAdmin, asyncRoute(planCatalogHandlers.updatePlan))
 app.get('/api/admin/plan-upgrades', requireAdmin, asyncRoute(async (_req,res) => {
   const result=await pool.query(`SELECT r.id,r.merchant_id,r.requested_plan_slug,r.trx_id,r.gateway,r.sender_phone,
       r.expected_amount,r.status,r.created_at,COALESCE(NULLIF(m.business_name,''),m.name,'Unnamed merchant') AS merchant_name,
