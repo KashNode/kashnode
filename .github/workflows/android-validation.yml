@@ -1,10 +1,10 @@
 name: Android validation
 on:
  pull_request:
-  paths: ['android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server.js','db/migrations/*android_native*']
+  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server.js','db/migrations/*android_native*']
  push:
   branches: [main]
-  paths: ['android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server.js','db/migrations/*android_native*']
+  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server.js','db/migrations/*android_native*']
 jobs:
  android:
   runs-on: ubuntu-latest
@@ -23,5 +23,9 @@ jobs:
      run: gradle wrapper --gradle-version 8.9 && ./gradlew :app:assembleDebug
    - name: Bundle Android project
      run: python scripts/bundle_android_app.py
-   - uses: actions/upload-artifact@v4
+   - name: Upload Android APK
+     uses: actions/upload-artifact@v4
+     with: {name: kashnode-android-apk, path: android/kashnode-app/app/build/outputs/apk/debug/app-debug.apk}
+   - name: Upload Android source bundle
+     uses: actions/upload-artifact@v4
      with: {name: kashnode-android-source, path: kashnode-android.zip}
