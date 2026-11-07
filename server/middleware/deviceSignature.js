@@ -17,7 +17,7 @@ export function createDeviceSignatureVerifier({ pool, secret, toleranceSeconds =
     const nonce = req.get('x-kashnode-nonce') || '';
     const signature = req.get('x-kashnode-signature') || '';
     const seconds = Number(timestamp);
-    if (!/^\\d{10}$/.test(timestamp) || !Number.isSafeInteger(seconds)
+    if (!/^\d{10}$/.test(timestamp) || !Number.isSafeInteger(seconds)
       || Math.abs(Math.floor(now() / 1000) - seconds) > toleranceSeconds
       || !/^[A-Za-z0-9_-]{20,128}$/.test(nonce)
       || !Buffer.isBuffer(req.rawBody)) {
