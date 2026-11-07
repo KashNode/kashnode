@@ -1,4 +1,4 @@
-import { ArrowDown, ArrowRight, Box, Check, Clock, LayoutDashboard, Mic, PhoneCall, ShieldCheck, Truck, Wallet } from 'lucide-react'
+import { ArrowDown, ArrowRight, Box, Check, Clock, CreditCard, LayoutDashboard, Mic, PhoneCall, ShieldCheck, Store, Truck, Wallet } from 'lucide-react'
 import { KASH_NODE_DEVICE_IMG } from './deviceImages'
 
 /** Product UI previews use clearly labelled sample data — they illustrate the interface, not real merchant figures. */
@@ -180,6 +180,53 @@ export function EcosystemVisual() {
         <div className="site-eco-node"><span className="site-card-icon"><PhoneCall size={20} /></span><div><strong>Kash AI</strong><span>The voice — Bangla confirmation calls, around the clock.</span></div></div>
         <span className="site-eco-arrow"><ArrowDown size={18} /></span>
         <div className="site-eco-node"><span className="site-card-icon"><Box size={20} /></span><div><strong>KashNode Box</strong><span>The hardware — your business SIM, always connected.</span></div></div>
+      </div>
+    </div>
+  )
+}
+
+const DIAGRAM_SERVICES = [
+  { icon: Store, name: 'Storefront', type: 'WooCommerce', highlight: false },
+  { icon: ShieldCheck, name: 'Orders', type: 'SMS verification', highlight: false },
+  { icon: CreditCard, name: 'Payments', type: 'bKash · Nagad', highlight: false },
+  { icon: PhoneCall, name: 'Kash AI', type: 'Voice calls', highlight: true },
+  { icon: Truck, name: 'Courier', type: 'Steadfast · Pathao', highlight: false },
+  { icon: Box, name: 'Kash Node', type: 'Business SIM', highlight: false },
+]
+
+/** Render-style hero diagram for the homepage: the workspace's connected
+ * services on one flow, next to a live verification log. Order numbers are
+ * sample data, labelled in the diagram head. */
+export function WorkspaceDiagram() {
+  return (
+    <div className="r2-diagram" aria-label="A KashNode workspace — one connected flow">
+      <div className="r2-diagram-head">
+        <span className="r2-crumb">My Store <span>&gt; Production</span></span>
+        <span className="r2-sample">Sample data</span>
+        <span className="r2-live-pill">✓ All systems live</span>
+      </div>
+      <div className="r2-diagram-grid">
+        <div className="r2-svc-grid">
+          {DIAGRAM_SERVICES.map(service => {
+            const Icon = service.icon
+            return (
+              <div key={service.name} className={`r2-svc${service.highlight ? ' r2-svc-hl' : ''}`}>
+                <span className="r2-svc-ic"><Icon size={15} /></span>
+                <b>{service.name}</b>
+                <span>{service.type}</span>
+                <span className="r2-st">✓ Live</span>
+              </div>
+            )
+          })}
+        </div>
+        <div className="r2-term">
+          <div className="r2-term-head"><span>Order #2481 · verify</span><span className="r2-g">✓ Live</span></div>
+          <div><span className="r2-g">==&gt;</span> SMS sent to customer</div>
+          <div><span className="r2-g">==&gt;</span> Code verified — real customer</div>
+          <div><span className="r2-g">==&gt;</span> Kash AI confirmed the order</div>
+          <div><span className="r2-g">==&gt;</span> Courier booked — Steadfast</div>
+          <div className="r2-w">Order #2481 is verified and ready.</div>
+        </div>
       </div>
     </div>
   )
