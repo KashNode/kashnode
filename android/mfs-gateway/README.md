@@ -11,7 +11,7 @@ implementation("androidx.work:work-runtime-ktx:2.9.1")
 implementation("androidx.security:security-crypto:1.1.0-alpha06")
 ```
 
-Set `KASHNODE_API_URL`, `KASHNODE_DEVICE_ID`, and the device bearer token/HMAC secret during a trusted device-enrollment flow. Store secrets in EncryptedSharedPreferences; do not hardcode them or commit them.
+Set `KASHNODE_MFS_ENDPOINT`, `KASHNODE_DEVICE_ID`, and the device bearer token/HMAC secret during a trusted device-enrollment flow. Store secrets in EncryptedSharedPreferences; do not hardcode them or commit them.
 
 Enable Notification Access for KashNode MFS Gateway in Android Settings. Grant SMS permission only on the privately managed collection device. Android/OEM background restrictions may affect delivery; test on the exact production handset and SIMs.
 
