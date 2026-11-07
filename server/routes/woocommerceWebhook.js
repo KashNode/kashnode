@@ -207,6 +207,7 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
     const client = await pool.connect();
     let transactionOpen = false;
     let order;
+    let isNewOrder = false;
 
     try {
       await client.query('BEGIN');
@@ -271,6 +272,7 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
           });
         }
 
+        isNewOrder = true;
         const inserted = await client.query(INSERT_ORDER_SQL, [
           merchantId,
           platformOrderId,
@@ -303,6 +305,20 @@ export function createWooCommerceWebhookHandler({ pool, onOrderPersist = async (
       throw error;
     } finally {
       client.release();
+    }
+
+    if (isNewOrder && paymentMethod === 'cod') {
+      try {
+        await pool.query(
+          `INSERT INTO public.edge_voice_calls
+            (call_id, session_id, merchant_id, order_id, customer_phone, customer_name, total_amount, status)
+           VALUES (gen_random_uuid(), gen_random_uuid(), $1, $2, $3, $4, $5::numeric, 'pending')
+           ON CONFLICT (order_id) DO NOTHING`,
+          [merchantId, order.id, customerPhone, customerName, totalAmount],
+        );
+      } catch (error) {
+        console.error('[KashNode] COD voice call enqueue deferred:', error);
+      }
     }
 
     try {
