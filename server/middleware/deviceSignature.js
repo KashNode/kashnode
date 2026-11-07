@@ -25,7 +25,7 @@ export function createDeviceSignatureVerifier({ pool, secret, toleranceSeconds =
     }
     const body = req.rawBody.toString('utf8');
     const expected = crypto.createHmac('sha256', secret)
-      .update(`${timestamp}. ${nonce}. ${body}`.replaceAll('. ', '.'))
+      .update(`${timestamp}.${nonce}.${body}`)
       .digest('hex');
     if (!safeEqualHex(signature, expected)) {
       return res.status(401).json({ message: 'Invalid or expired device signature.' });
