@@ -30,7 +30,7 @@ test('pending call queue returns 204 when there are no eligible orders', async (
   const handlers = createEdgeCallHandlers({ pool: { connect: async () => client } })
   const res = response()
   await handlers.pending(request(), res)
-  assert.equal(res.statusCode, 200)
+  assert.equal(res.statusCode, 204)
   assert.equal(res.ended, true)
   assert.ok(queries.includes('COMMIT'))
   assert.equal(client.released, true)
