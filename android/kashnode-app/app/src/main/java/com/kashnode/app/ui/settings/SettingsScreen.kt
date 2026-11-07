@@ -10,8 +10,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.windowInsetsPadding
 
 @Composable
 fun SettingsScreen(
@@ -27,7 +25,7 @@ fun SettingsScreen(
  var autoDial by remember(refresh) { mutableStateOf(viewModel.autoDialEnabled()) }
 
  Column(
-  modifier=Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing).verticalScroll(rememberScrollState()).padding(20.dp),
+  modifier=Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
   verticalArrangement=Arrangement.spacedBy(12.dp)
  ) {
   TextButton(onClick=onBack) { Text("Back") }
