@@ -19,12 +19,12 @@ export function createEdgeCallHandlers({pool,leaseSeconds=90}={}){
    const order=picked.rows[0];
    if(!order){await c.query('COMMIT');return res.status(204).end()}
    const callId=randomUUID(),sessionId=randomUUID();
-   await c.query(`INSERT INTO public.edge_voice_calls(call_id,session_id,merchant_id,order_id,status,lease_expires_at)
-     VALUES($1,$2,$3,$4,'dispatching',NOW()+($5::int*INTERVAL '1 second'))`,[callId,sessionId,who.merchantId,order.order_id,leaseSeconds]);
+   await c.query(`INSERT INTO public.edge_voice_calls(call_id,session_id,merchant_id,order_id,customer_phone,customer_name,total_amount,status,lease_expires_at)
+     VALUES($1,$2,$3,$4,$5,$6,$7,'dispatching',NOW()+($8::int*INTERVAL '1 second'))`,[callId,sessionId,who.merchantId,order.order_id,order.customer_phone,order.customer_name,order.total_amount,leaseSeconds]);
    await c.query("UPDATE public.orders SET ai_call_status='dispatching' WHERE id=$1 AND merchant_id=$2",[order.order_id,who.merchantId]);
    await c.query('COMMIT');
    return res.json({call_id:callId,order_id:String(order.order_id),customer_phone:order.customer_phone,customer_name:order.customer_name,total_amount:String(order.total_amount),session_id:sessionId});
-  }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
+  }catch(e){await c.query('ROLLBACK').catch(()=>{});if(e?.code==='42P01')return res.status(503).json({error:'Call queue migration is not applied.'});throw e}finally{c.release()}
  }
  async function complete(req,res){
   const who=identity(req);if(!who)return res.status(401).json({error:'Native merchant session required.'});
@@ -48,7 +48,7 @@ export function createEdgeCallHandlers({pool,leaseSeconds=90}={}){
    await c.query('UPDATE public.orders SET ai_call_status=$2 WHERE id=$1 AND merchant_id=$3',[call.order_id,status==='completed'?'completed':status==='busy'?'busy':'no_answer',who.merchantId]);
    await c.query('COMMIT');
    return res.json({success:true,billing:billing?{ledger_id:billing.id,billed_amount:billing.billed_amount,billing_source:billing.billing_source}:null});
-  }catch(e){await c.query('ROLLBACK').catch(()=>{});throw e}finally{c.release()}
+  }catch(e){await c.query('ROLLBACK').catch(()=>{});if(e?.code==='42P01')return res.status(503).json({error:'Call queue migration is not applied.'});throw e}finally{c.release()}
  }
  return{pending,complete}
 }
