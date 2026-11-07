@@ -19,6 +19,7 @@ interface KashNodeApi{
  @POST("api/auth/device-login") suspend fun login(@Body body:LoginRequest):AuthResponse
  @POST("api/devices/pair/claim") suspend fun claim(@Body body:PairRequest):AuthResponse
  @POST("api/auth/device-web-session") suspend fun webSession():retrofit2.Response<WebSessionResponse>
+ @retrofit2.http.GET("api/auth/device-hmac-secret") suspend fun deviceHmacSecret():retrofit2.Response<Map<String,String>>
  @POST("api/auth/device-logout") suspend fun logout():retrofit2.Response<Unit>
 }
 object ApiClient{

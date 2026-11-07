@@ -72,7 +72,8 @@ describe('POST /api/v1/edge/sms handler', () => {
   const pool = { query, async connect() { return { query, release() {} } } }
 
   const app = express()
-  app.use(express.json())\n  app.use((req,_res,next)=>{if(req.get('authorization')==='Bearer native-token'){req.nativeUser={id:'user-uuid',merchantId:'merchant-uuid',role:'user'}};next()})
+  app.use(express.json())
+  app.use((req,_res,next)=>{if(req.get('authorization')==='Bearer native-token'){req.nativeUser={id:'user-uuid',merchantId:'merchant-uuid',role:'user'}};next()})
   app.post('/api/v1/edge/sms', createEdgeSmsHandler({
     pool,
     onPersist: async smsId => reconciledSmsIds.push(smsId),
