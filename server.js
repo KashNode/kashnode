@@ -12,7 +12,7 @@ import pg from 'pg'
 import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
 import { existsSync } from 'node:fs'
-import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
+import { createEdgeSmsHandler } from './server/routes/edgeSms.js'\nimport { createEdgeCallHandlers } from './server/routes/edgeCalls.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
 import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
@@ -203,7 +203,7 @@ const nativeDeviceHandlers = createNativeDeviceHandlers({
 app.use('/api', asyncRoute(nativeDeviceHandlers.attach))
 
 let stopCourierFulfillmentWorker = () => {}
-const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
+const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard' })
 const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
 
 // Native Android authentication and one-time dashboard pairing.
@@ -225,7 +225,7 @@ app.post('/api/merchant/topup', requireOrigin, requireMerchantSession, asyncRout
 app.get('/api/merchant/billing-config', requireMerchantSession, asyncRoute(merchantPaymentHandlers.getMerchantBillingConfig))
 app.post('/api/merchant/plan-upgrade', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createPlanUpgradeRequest))
 app.post('/api/admin/device/payment-sms', requireDevice, verifyDeviceSignature, asyncRoute((req, res) => {
-  if (DEVICE_ID && req.body?.device_id !== DEVICE_ID) return res.status(403).json({ message: 'Unrecognized payment collection device.' })
+  if (DEVICE_ID && req.body?.device_id !== DEVICE_ID && req.nativeUser?.deviceRole !== 'admin_gateway') return res.status(403).json({ message: 'Unrecognized payment collection device.' })
   return merchantPaymentHandlers.ingestAdminPaymentSms(req, res)
 }))
 // Package status is read from the database so the dashboard always reflects the active tier.
@@ -429,7 +429,7 @@ app.get('/api/admin/overview', requireAdmin, asyncRoute(async (_req, res) => {
   })
 }))
 
-app.post('/api/v1/edge/sms', requireStandardPackage, asyncRoute(createEdgeSmsHandler({
+const edgeCallHandlers = createEdgeCallHandlers({ pool });\napp.get('/api/v1/edge/calls/pending', asyncRoute(edgeCallHandlers.pending));\napp.post('/api/v1/edge/calls/:call_id/complete', asyncRoute(edgeCallHandlers.complete));\napp.post('/api/v1/edge/sms', requireStandardPackage, asyncRoute(createEdgeSmsHandler({
   pool,
   onPersist: smsId => reconcileSms({ pool, smsId }),
 })))
