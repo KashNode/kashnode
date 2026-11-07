@@ -1,11 +1,19 @@
 name: Android validation
 on:
  pull_request:
-  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server.js','db/migrations/*android_native*']
+  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server/routes/edgeSms.js','server/middleware/packageAccess.js','server.js','tests/edgeSms.test.js','db/migrations/*android_native*']
  push:
   branches: [main]
-  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server.js','db/migrations/*android_native*']
+  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server/routes/edgeSms.js','server/middleware/packageAccess.js','server.js','tests/edgeSms.test.js','db/migrations/*android_native*']
 jobs:
+ backend:
+  runs-on: ubuntu-latest
+  steps:
+   - uses: actions/checkout@v4
+   - uses: actions/setup-node@v4
+     with: {node-version: '22', cache: 'npm'}
+   - run: npm ci
+   - run: npm test
  android:
   runs-on: ubuntu-latest
   steps:
