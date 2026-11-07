@@ -61,16 +61,18 @@ describe('MFS SMS parser', () => {
 describe('POST /api/v1/edge/sms handler', () => {
   const requests = []
   const reconciledSmsIds = []
-  const pool = {
-    async query(sql, params) {
-      requests.push({ sql, params })
-      if (sql.includes('SELECT id FROM merchants')) return { rows: [{ id: 'merchant-uuid' }] }
-      return { rows: [{ id: 'sms-uuid' }] }
-    },
+  const query = async (sql, params) => {
+    requests.push({ sql, params })
+    if (sql.includes('SELECT id FROM merchants')) return { rows: [{ id: 'merchant-uuid' }] }
+    if (sql.includes('SELECT pg_advisory_xact_lock')) return { rows: [] }
+    if (sql.includes('SELECT id FROM raw_sms_inbox')) return { rows: [] }
+    if (sql.includes('INSERT INTO raw_sms_inbox')) return { rows: [{ id: 'sms-uuid' }] }
+    return { rows: [] }
   }
+  const pool = { query, async connect() { return { query, release() {} } } }
 
   const app = express()
-  app.use(express.json())
+  app.use(express.json())\n  app.use((req,_res,next)=>{if(req.get('authorization')==='Bearer native-token'){req.nativeUser={id:'user-uuid',merchantId:'merchant-uuid',role:'user'}};next()})
   app.post('/api/v1/edge/sms', createEdgeSmsHandler({
     pool,
     onPersist: async smsId => reconciledSmsIds.push(smsId),
@@ -84,7 +86,7 @@ describe('POST /api/v1/edge/sms handler', () => {
     reconciledSmsIds.length = 0
     const response = await fetch((await baseUrl) + '/api/v1/edge/sms', {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-merchant-secret': 'merchant-secret' },
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer native-token', 'x-merchant-id': 'merchant-uuid' },
       body: JSON.stringify({
         sender: 'bKash',
         message: 'You have received Tk 1,500.00 from 01712345678. TrxID 9J82KL091',
@@ -99,9 +101,9 @@ describe('POST /api/v1/edge/sms handler', () => {
       id: 'sms-uuid',
       parsed: { amount: 1500, trxId: '9J82KL091', provider: 'bKash', customerPhone: '01712345678' },
     })
-    assert.equal(requests.length, 2)
-    assert.match(requests[1].sql, /provider, customer_phone/)
-    assert.deepEqual(requests[1].params, [
+    assert.equal(requests.length, 4)
+    assert.match(requests[3].sql, /provider, customer_phone/)
+    assert.deepEqual(requests[3].params, [
       'merchant-uuid',
       'bKash',
       'You have received Tk 1,500.00 from 01712345678. TrxID 9J82KL091',
