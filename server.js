@@ -12,7 +12,7 @@ import pg from 'pg'
 import connectPgSimple from 'connect-pg-simple'
 import path from 'node:path'
 import { existsSync } from 'node:fs'
-import { createEdgeSmsHandler } from './server/routes/edgeSms.js'
+import { createEdgeSmsHandler } from './server/routes/edgeSms.js'\nimport { createEdgeCallHandlers } from './server/routes/edgeCalls.js'
 import { createWooCommerceWebhookHandler } from './server/routes/woocommerceWebhook.js'
 import { createShopifyWebhookHandler } from './server/routes/shopifyWebhook.js'
 import { createMerchantOnboardingHandlers } from './server/routes/merchant.js'
@@ -429,7 +429,7 @@ app.get('/api/admin/overview', requireAdmin, asyncRoute(async (_req, res) => {
   })
 }))
 
-app.post('/api/v1/edge/sms', requireStandardPackage, asyncRoute(createEdgeSmsHandler({
+const edgeCallHandlers = createEdgeCallHandlers({ pool });\napp.get('/api/v1/edge/calls/pending', asyncRoute(edgeCallHandlers.pending));\napp.post('/api/v1/edge/calls/:call_id/complete', asyncRoute(edgeCallHandlers.complete));\napp.post('/api/v1/edge/sms', requireStandardPackage, asyncRoute(createEdgeSmsHandler({
   pool,
   onPersist: smsId => reconcileSms({ pool, smsId }),
 })))
