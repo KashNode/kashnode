@@ -65,7 +65,8 @@ describe('POST /api/v1/edge/sms handler', () => {
     requests.push({ sql, params })
     if (sql.includes('SELECT id FROM merchants')) return { rows: [{ id: 'merchant-uuid' }] }
     if (sql.includes('SELECT pg_advisory_xact_lock')) return { rows: [] }
-    if (sql.includes('SELECT id FROM raw_sms_inbox')) return { rows: [] }
+    if (sql.includes('SELECT id FROM public.raw_sms_inbox')) return { rows: [] }
+    if (sql.includes('SELECT id FROM public.merchant_topups')) return { rows: [] }
     if (sql.includes('INSERT INTO raw_sms_inbox')) return { rows: [{ id: 'sms-uuid' }] }
     return { rows: [] }
   }
@@ -102,9 +103,9 @@ describe('POST /api/v1/edge/sms handler', () => {
       id: 'sms-uuid',
       parsed: { amount: 1500, trxId: '9J82KL091', provider: 'bKash', customerPhone: '01712345678' },
     })
-    assert.equal(requests.length, 6)
-    assert.match(requests[4].sql, /provider, customer_phone/)
-    assert.deepEqual(requests[4].params, [
+    assert.equal(requests.length, 5)
+    assert.match(requests[3].sql, /provider, customer_phone/)
+    assert.deepEqual(requests[3].params, [
       'merchant-uuid',
       'bKash',
       'You have received Tk 1,500.00 from 01712345678. TrxID 9J82KL091',

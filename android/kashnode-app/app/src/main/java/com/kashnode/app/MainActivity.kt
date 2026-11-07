@@ -2,6 +2,10 @@ package com.kashnode.app
 import android.content.Intent
 import android.os.Bundle
 import android.os.Build
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,10 +18,11 @@ import androidx.compose.ui.Modifier
 import com.kashnode.app.data.local.AuthPreferences
 import com.kashnode.app.data.remote.*
 import com.kashnode.app.telephony.KeepAliveService
+import com.kashnode.app.telephony.CallExecutionService
 import com.kashnode.app.ui.*
 import kotlinx.coroutines.launch
 class MainActivity:ComponentActivity(){
- override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);val auth=AuthPreferences(this);val prefs=getSharedPreferences("server_config",MODE_PRIVATE);setContent{MaterialTheme(colorScheme=darkColorScheme()){
+ override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);val needed=arrayOf(Manifest.permission.CALL_PHONE,Manifest.permission.READ_PHONE_STATE);val missing=needed.filter{ContextCompat.checkSelfPermission(this,it)!=PackageManager.PERMISSION_GRANTED};if(missing.isNotEmpty())ActivityCompat.requestPermissions(this,missing.toTypedArray(),4201);val auth=AuthPreferences(this);val prefs=getSharedPreferences("server_config",MODE_PRIVATE);setContent{MaterialTheme(colorScheme=darkColorScheme()){
  var url by remember{mutableStateOf(prefs.getString("base_url",BuildConfig.DEFAULT_API_BASE_URL)?:BuildConfig.DEFAULT_API_BASE_URL)}
  var logged by remember{mutableStateOf(auth.session()!=null)};var scan by remember{mutableStateOf(false)};var settings by remember{mutableStateOf(false)};var autoDial by remember{mutableStateOf(auth.autoDialEnabled())};var simSlot by remember{mutableIntStateOf(auth.primaryCallSimSlot())};val scope= rememberCoroutineScope()
  val effectiveUrl=if(url.startsWith("https://")||url.startsWith("http://10.0.2.2/"))url else BuildConfig.DEFAULT_API_BASE_URL
@@ -28,5 +33,5 @@ class MainActivity:ComponentActivity(){
  scan->QrScanner({token->scan=false;scope.launch{runCatching{repo.pair(token);logged=true}}},{scan=false})
  else->LoginScreen(url,{url=it;prefs.edit().putString("base_url",it).apply()},{logged=true},repo){scan=true}}
  }}}
- override fun onStart(){super.onStart();if(AuthPreferences(this).session()!=null){if(Build.VERSION.SDK_INT>=26)startForegroundService(Intent(this,KeepAliveService::class.java))else startService(Intent(this,KeepAliveService::class.java))}}
+ override fun onStart(){super.onStart();if(AuthPreferences(this).session()!=null){if(Build.VERSION.SDK_INT>=26){startForegroundService(Intent(this,KeepAliveService::class.java));startForegroundService(Intent(this,CallExecutionService::class.java))}else{startService(Intent(this,KeepAliveService::class.java));startService(Intent(this,CallExecutionService::class.java))}}}
 }
