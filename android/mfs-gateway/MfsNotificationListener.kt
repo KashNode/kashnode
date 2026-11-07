@@ -2,10 +2,10 @@ package com.kashnode.mfsgateway
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import androidx.work.Data
+import androidx.work.BackoffPolicy\nimport androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import java.time.Instant
+import java.time.Instant\nimport java.util.concurrent.TimeUnit
 
 class MfsNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -30,6 +30,6 @@ class MfsNotificationListener : NotificationListenerService() {
             .putString("received_at", Instant.ofEpochMilli(sbn.postTime).toString())
             .putString("message", parsed.rawMessage)
             .build()
-        WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<MfsUploadWorker>().setInputData(input).build())
+        WorkManager.getInstance(this).enqueue(OneTimeWorkRequestBuilder<MfsUploadWorker>().setInputData(input).setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
     }
 }
