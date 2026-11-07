@@ -31,6 +31,7 @@ import { verifyGoogleIdToken } from './server/services/googleIdToken.js'
 import { createVoiceStreamingService } from './server/services/voiceStreamingService.js'
 import { createMerchantPaymentHandlers } from './server/routes/merchantPayments.js'
 import { createPaymentProcessor } from './server/services/paymentProcessor.js'
+import { createDeviceSignatureVerifier } from './server/middleware/deviceSignature.js'
 import { sendPlatformSms } from './server/services/platformSmsService.js'
 
 const { Pool } = pg
@@ -45,6 +46,7 @@ const ADMIN_EMAIL = (process.env.KASHNODE_ADMIN_EMAIL || '').trim().toLowerCase(
 const ADMIN_PASSWORD_HASH = process.env.KASHNODE_ADMIN_PASSWORD_HASH || ''
 const DEVICE_TOKEN = process.env.KASHNODE_DEVICE_TOKEN || ''
 const DEVICE_ID = process.env.KASHNODE_DEVICE_ID || ''
+const DEVICE_HMAC_SECRET = process.env.KASHNODE_DEVICE_HMAC_SECRET || ''
 const DATA_QUOTA_MB = Number(process.env.SIM_DATA_QUOTA_MB || 10240)
 const COOKIE_NAME = IS_PRODUCTION ? '__Host-kashnode.sid' : 'kashnode.sid'
 
@@ -54,6 +56,7 @@ if (IS_PRODUCTION) {
   if (!SESSION_SECRET || Buffer.byteLength(SESSION_SECRET) < 32) throw new Error('Production requires a SESSION_SECRET of at least 32 bytes.')
   if (!ADMIN_EMAIL || !ADMIN_PASSWORD_HASH) throw new Error('Production requires KASHNODE_ADMIN_EMAIL and KASHNODE_ADMIN_PASSWORD_HASH.')
   if (!DEVICE_TOKEN || Buffer.byteLength(DEVICE_TOKEN) < 32) throw new Error('Production requires a KASHNODE_DEVICE_TOKEN of at least 32 bytes.')
+  if (!DEVICE_HMAC_SECRET || Buffer.byteLength(DEVICE_HMAC_SECRET) < 32) throw new Error('Production requires a KASHNODE_DEVICE_HMAC_SECRET of at least 32 bytes.')
   if (!process.env.DATABASE_URL) throw new Error('Production requires DATABASE_URL for persistent sessions and application data.')
 } else if (!SESSION_SECRET) {
   console.warn('[KashNode] SESSION_SECRET is missing; login is disabled until configured.')
@@ -77,7 +80,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-kashnode-webhook-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-kashnode-webhook-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic', 'x-kashnode-timestamp', 'x-kashnode-nonce', 'x-kashnode-signature'],
   maxAge: 600,
 }))
 // Shopify must receive the exact request bytes for HMAC verification. Mount
@@ -181,6 +184,7 @@ const merchantDashboardHandlers = createMerchantDashboardHandlers({ pool, defaul
 const postDeviceStatus = createDeviceStatusHandler({ pool, deviceId: DEVICE_ID, dataQuotaMb: DATA_QUOTA_MB })
 const merchantIntegrationHandlers = createMerchantIntegrationHandlers({ pool })
 const paymentProcessor = pool ? createPaymentProcessor({ pool }) : null
+const verifyDeviceSignature = createDeviceSignatureVerifier({ pool, secret: DEVICE_HMAC_SECRET })
 const merchantPaymentHandlers = createMerchantPaymentHandlers({
   pool,
   sendSms: sendPlatformSms,
@@ -202,7 +206,7 @@ app.post('/api/merchant/wallet/topup', requireOrigin, requireMerchantSession, as
 app.post('/api/merchant/topup', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createTopup))
 app.get('/api/merchant/billing-config', requireMerchantSession, asyncRoute(merchantPaymentHandlers.getMerchantBillingConfig))
 app.post('/api/merchant/plan-upgrade', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createPlanUpgradeRequest))
-app.post('/api/admin/device/payment-sms', requireDevice, asyncRoute((req, res) => {
+app.post('/api/admin/device/payment-sms', requireDevice, verifyDeviceSignature, asyncRoute((req, res) => {
   if (DEVICE_ID && req.body?.device_id !== DEVICE_ID) return res.status(403).json({ message: 'Unrecognized payment collection device.' })
   return merchantPaymentHandlers.ingestAdminPaymentSms(req, res)
 }))
