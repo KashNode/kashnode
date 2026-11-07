@@ -4,6 +4,7 @@ name: Reconciliation checks
 on:
   push:
     branches:
+      - main
       - feature/order-reconciliation
   pull_request:
     branches:
