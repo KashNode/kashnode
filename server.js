@@ -225,7 +225,7 @@ app.post('/api/merchant/topup', requireOrigin, requireMerchantSession, asyncRout
 app.get('/api/merchant/billing-config', requireMerchantSession, asyncRoute(merchantPaymentHandlers.getMerchantBillingConfig))
 app.post('/api/merchant/plan-upgrade', requireOrigin, requireMerchantSession, asyncRoute(merchantPaymentHandlers.createPlanUpgradeRequest))
 app.post('/api/admin/device/payment-sms', requireDevice, verifyDeviceSignature, asyncRoute((req, res) => {
-  if (DEVICE_ID && req.body?.device_id !== DEVICE_ID) return res.status(403).json({ message: 'Unrecognized payment collection device.' })
+  if (DEVICE_ID && req.body?.device_id !== DEVICE_ID && req.nativeUser?.deviceRole !== 'admin_gateway') return res.status(403).json({ message: 'Unrecognized payment collection device.' })
   return merchantPaymentHandlers.ingestAdminPaymentSms(req, res)
 }))
 // Package status is read from the database so the dashboard always reflects the active tier.
