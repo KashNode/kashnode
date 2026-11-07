@@ -2,10 +2,12 @@ package com.kashnode.mfsgateway
 
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import androidx.work.BackoffPolicy\nimport androidx.work.Data
+import androidx.work.BackoffPolicy
+import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import java.time.Instant\nimport java.util.concurrent.TimeUnit
+import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 class MfsNotificationListener : NotificationListenerService() {
     override fun onNotificationPosted(sbn: StatusBarNotification) {
@@ -19,7 +21,8 @@ class MfsNotificationListener : NotificationListenerService() {
         val extras = sbn.notification.extras
         val title = extras.getCharSequence("android.title")?.toString().orEmpty()
         val body = extras.getCharSequence("android.text")?.toString().orEmpty()
-        val text = listOf(title, body).filter { it.isNotBlank() }.joinToString("\n")
+        val text = listOf(title, body).filter { it.isNotBlank() }.joinToString("
+")
         val parsed = MfsParser.parse(providerSource, text) ?: return
         val input = Data.Builder()
             .putString("gateway", parsed.gateway)
