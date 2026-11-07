@@ -11,7 +11,6 @@ import androidx.core.content.ContextCompat
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kashnode.app.data.local.AuthPreferences
@@ -19,6 +18,8 @@ import com.kashnode.app.data.remote.*
 import com.kashnode.app.telephony.CallExecutionService
 import com.kashnode.app.telephony.KeepAliveService
 import com.kashnode.app.ui.*
+import com.kashnode.app.ui.settings.SettingsScreen
+import com.kashnode.app.ui.settings.SettingsViewModel
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -36,42 +37,32 @@ class MainActivity : ComponentActivity() {
     var logged by remember { mutableStateOf(auth.session() != null) }
     var scan by remember { mutableStateOf(false) }
     var settings by remember { mutableStateOf(false) }
-    var autoDial by remember { mutableStateOf(auth.autoDialEnabled()) }
-    var simSlot by remember { mutableIntStateOf(auth.primaryCallSimSlot()) }
     val scope = rememberCoroutineScope()
     val effectiveUrl = if (url.startsWith("https://") || url.startsWith("http://10.0.2.2/")) url else BuildConfig.DEFAULT_API_BASE_URL
     val api = remember(effectiveUrl) { ApiClient.create(this, effectiveUrl, auth) }
     val repo = remember(api) { SessionRepository(this, auth, api) }
-    when {
-     logged && settings -> Column(Modifier.fillMaxSize().padding(24.dp)) {
-      TextButton(onClick = { settings = false }) { Text("Back") }
-      Text("Device Settings", style = MaterialTheme.typography.headlineSmall)
-      Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-       Text("Auto-Dial Mode")
-       Switch(checked = autoDial, onCheckedChange = { autoDial = it; auth.setAutoDialEnabled(it) })
+    val settingsViewModel = remember { SettingsViewModel(this) }
+    Box(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
+     when {
+      logged && settings -> SettingsScreen(
+       viewModel=settingsViewModel,
+       onBack={settings=false}
+      )
+      logged && !scan -> Box(Modifier.fillMaxSize()) {
+       DashboardWebView(effectiveUrl, api, Modifier.fillMaxSize()) { logged = false; auth.clear() }
+       TextButton(onClick = { settings = true }, modifier = Modifier.align(androidx.compose.ui.Alignment.TopEnd).padding(8.dp)) { Text("Settings") }
       }
-      Text(if (autoDial) "Pending order calls dial automatically." else "Manual confirmation mode is selected.")
-      Text("Primary Call SIM", modifier = Modifier.padding(top = 16.dp))
-      Row {
-       FilterChip(selected = simSlot == 0, onClick = { simSlot = 0; auth.setPrimaryCallSimSlot(0) }, label = { Text("SIM 1") })
-       Spacer(Modifier.width(8.dp))
-       FilterChip(selected = simSlot == 1, onClick = { simSlot = 1; auth.setPrimaryCallSimSlot(1) }, label = { Text("SIM 2") })
-      }
+      scan -> QrScanner(
+       { token -> scan = false; scope.launch { runCatching { repo.pair(token); logged = true; startBackgroundServices() } } },
+       { scan = false }
+      )
+      else -> LoginScreen(
+       url,
+       { url = it; prefs.edit().putString("base_url", it).apply() },
+       { logged = true; startBackgroundServices() },
+       repo
+      ) { scan = true }
      }
-     logged && !scan -> Box(Modifier.fillMaxSize()) {
-      DashboardWebView(effectiveUrl, api, Modifier.fillMaxSize()) { logged = false; auth.clear() }
-      TextButton(onClick = { settings = true }, modifier = Modifier.align(Alignment.TopEnd)) { Text("Settings") }
-     }
-     scan -> QrScanner(
-      { token -> scan = false; scope.launch { runCatching { repo.pair(token); logged = true; startBackgroundServices() } } },
-      { scan = false }
-     )
-     else -> LoginScreen(
-      url,
-      { url = it; prefs.edit().putString("base_url", it).apply() },
-      { logged = true; startBackgroundServices() },
-      repo
-     ) { scan = true }
     }
    }
   }

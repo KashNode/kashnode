@@ -1,9 +1,9 @@
 name: Android validation
 on:
  pull_request:
-  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server/routes/edgeSms.js','server/routes/edgeCalls.js','server/middleware/packageAccess.js','server.js','tests/edgeSms.test.js','db/migrations/*android_native*','db/migrations/*edge_voice_call*','db/migrations/*voice_billing_source*']
+  paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server/routes/edgeSms.js','server/routes/edgeCalls.js','server/middleware/packageAccess.js','server.js','tests/edgeSms.test.js','tests/edgeCalls.test.js','db/migrations/*android_native*','db/migrations/*edge_voice_call*','db/migrations/*voice_billing_source*']
  push:
-  branches: [main, feat/android-live-sms-dual-sim-calls]
+  branches: [main, feat/android-live-sms-dual-sim-calls, feat/android-sim-settings-insets-edge-call-migration]
   paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server/routes/edgeSms.js','server/routes/edgeCalls.js','server/middleware/packageAccess.js','server.js','tests/edgeSms.test.js','db/migrations/*android_native*','db/migrations/*edge_voice_call*','db/migrations/*voice_billing_source*']
 jobs:
  backend:
@@ -28,7 +28,7 @@ jobs:
      with: {gradle-version: '8.9'}
    - name: Build Android app
      working-directory: android/kashnode-app
-     run: gradle wrapper --gradle-version 8.9 && ./gradlew :app:assembleDebug
+     run: gradle wrapper --gradle-version 8.9 && ./gradlew assembleDebug
    - name: Bundle Android project
      run: python scripts/bundle_android_app.py
    - name: Upload Android APK
