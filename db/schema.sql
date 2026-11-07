@@ -611,7 +611,8 @@ CREATE TABLE IF NOT EXISTS public.edge_voice_calls (
   lease_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  confirmation_response TEXT
 );
 CREATE INDEX IF NOT EXISTS edge_voice_calls_lease_idx
   ON public.edge_voice_calls(status, lease_expires_at)
