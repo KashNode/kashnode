@@ -1,5 +1,8 @@
 package com.kashnode.app.ui.settings
 
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -14,11 +17,12 @@ import androidx.compose.foundation.layout.WindowInsets
 @Composable
 fun SettingsScreen(
  viewModel:SettingsViewModel,
- onBack:()->Unit,
- onRequestPhoneStatePermission:()->Unit
+ onBack:()->Unit
 ) {
  var refresh by remember { mutableIntStateOf(0) }
- val hasPermission=viewModel.hasPhoneStatePermission()
+ var permissionGranted by remember { mutableStateOf(viewModel.hasPhoneStatePermission()) }
+ val permissionLauncher=rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted -> permissionGranted=granted;refresh++ }
+ val hasPermission=permissionGranted || viewModel.hasPhoneStatePermission()
  val sims=remember(refresh,hasPermission) { viewModel.availableSims() }
  var selectedCallSim by remember(refresh) { mutableIntStateOf(viewModel.selectedCallSimSlot()) }
  var smsSelection by remember(refresh) { mutableIntStateOf(viewModel.smsMonitoringSelection()) }
@@ -34,7 +38,7 @@ fun SettingsScreen(
   Text("Primary Outbound Call SIM",style=MaterialTheme.typography.titleMedium)
   if(!hasPermission) {
    Text("Phone permission is required to discover SIM cards and choose the outbound line.")
-   Button(onClick=onRequestPhoneStatePermission) { Text("Grant phone permission") }
+   Button(onClick={permissionLauncher.launch(Manifest.permission.READ_PHONE_STATE)}) { Text("Grant phone permission") }
   } else if(sims.isEmpty()) {
    Text("No active SIM subscriptions were found. Insert a SIM and refresh.")
    TextButton(onClick={refresh++}) { Text("Refresh SIM list") }
