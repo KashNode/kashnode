@@ -4,10 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
-import androidx.work.BackoffPolicy\nimport androidx.work.Data
+import androidx.work.BackoffPolicy
+import androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import java.time.Instant\nimport java.util.concurrent.TimeUnit
+import java.time.Instant
+import java.util.concurrent.TimeUnit
 
 class MfsSmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
