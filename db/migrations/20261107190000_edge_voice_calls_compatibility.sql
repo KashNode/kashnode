@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS public.edge_voice_calls (
   duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds BETWEEN 0 AND 86400),
   lease_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   completed_at TIMESTAMPTZ
 );
 
@@ -32,6 +33,7 @@ ALTER TABLE public.edge_voice_calls
   ADD COLUMN IF NOT EXISTS duration_seconds INTEGER,
   ADD COLUMN IF NOT EXISTS sim_slot INTEGER,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
 
 UPDATE public.edge_voice_calls SET id = gen_random_uuid() WHERE id IS NULL;
