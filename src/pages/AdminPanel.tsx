@@ -48,6 +48,7 @@ export default function AdminPanel({user,onSignOut}:Props) {
   const [catalogLoading,setCatalogLoading]=useState(false)
   const [catalogError,setCatalogError]=useState('')
   const [planSaving,setPlanSaving]=useState('')
+  const [planSaveErrors,setPlanSaveErrors]=useState<Record<string,string>>({})
   const [planDrafts,setPlanDrafts]=useState<Record<string,{monthly_fee:string;included_minutes:string;price_per_minute:string;minimum_topup_minutes:string;is_active:boolean}>>({})
   const [upgradeRequests,setUpgradeRequests]=useState<Array<Record<string,any>>>([])
   const [upgradeLoading,setUpgradeLoading]=useState(false)
@@ -100,14 +101,39 @@ export default function AdminPanel({user,onSignOut}:Props) {
     catch(e){setUpgradeError(e instanceof Error?e.message:'Could not load upgrade requests.')} finally{setUpgradeLoading(false)}
   }
   async function savePlan(plan:CatalogPlan) {
-    const draft=planDrafts[plan.slug];if(!draft)return
-    setPlanSaving(plan.slug);setCatalogError('')
+    const draft=planDrafts[plan.slug]
+    if(!draft||planSaving)return
+    setPlanSaving(plan.slug)
+    setPlanSaveErrors(current=>({...current,[plan.slug]:''}))
+    setNotice('')
     try {
-      const response=await fetch('/api/admin/plans/'+encodeURIComponent(plan.slug),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({...draft,monthly_fee:Number(draft.monthly_fee),included_minutes:Number(draft.included_minutes),price_per_minute:Number(draft.price_per_minute),minimum_topup_minutes:Number(draft.minimum_topup_minutes)})})
-      const payload=await response.json();if(!response.ok)throw new Error(payload.message||'Could not save plan.')
+      const response=await fetch('/api/admin/plans/'+encodeURIComponent(plan.slug),{
+        method:'PUT',credentials:'include',
+        headers:{'Content-Type':'application/json',Accept:'application/json'},
+        body:JSON.stringify({
+          monthly_fee:draft.monthly_fee,
+          included_minutes:draft.included_minutes,
+          price_per_minute:draft.price_per_minute,
+          minimum_topup_minutes:draft.minimum_topup_minutes,
+          is_active:draft.is_active,
+        }),
+      })
+      const payload=await response.json().catch(()=>({message:'The server returned an unreadable response.'}))
+      if(!response.ok)throw new Error(payload.message||'Could not save plan (HTTP '+response.status+').')
+      if(payload.source!=='database'||!payload.plan)throw new Error('The server did not confirm the saved database record.')
       setCatalogPlans(current=>current.map(item=>item.slug===plan.slug?{...item,...payload.plan}:item))
-      setNotice('Plan '+plan.name+' saved.')
-    } catch(e){setCatalogError(e instanceof Error?e.message:'Could not save plan.')} finally{setPlanSaving('')}
+      setPlanDrafts(current=>({...current,[plan.slug]:{
+        monthly_fee:String(payload.plan.monthly_fee??0),
+        included_minutes:String(payload.plan.included_minutes??0),
+        price_per_minute:String(payload.plan.price_per_minute??0),
+        minimum_topup_minutes:String(payload.plan.minimum_topup_minutes??1),
+        is_active:Boolean(payload.plan.is_active),
+      }}))
+      setNotice('Plan '+(payload.plan.name||plan.name)+' updated successfully.')
+    } catch(e) {
+      const message=e instanceof Error?e.message:'Could not save plan. Please try again.'
+      setPlanSaveErrors(current=>({...current,[plan.slug]:message}))
+    } finally {setPlanSaving('')}
   }
   async function reviewUpgrade(id:string,action:'approve'|'reject') {
     if(!window.confirm((action==='approve'?'Approve':'Reject')+' this plan upgrade request?'))return
@@ -183,7 +209,10 @@ export default function AdminPanel({user,onSignOut}:Props) {
                   <label className="cd-settings-field"><span>Voice rate (BDT/min)</span><input type="number" min="0" step="0.01" value={draft.price_per_minute} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,price_per_minute:e.target.value}}))}/></label>
                   <label className="cd-settings-field"><span>Minimum top-up minutes</span><input type="number" min="1" step="1" value={draft.minimum_topup_minutes} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,minimum_topup_minutes:e.target.value}}))}/></label>
                   <label className="cd-settings-field"><span><input type="checkbox" checked={draft.is_active} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,is_active:e.target.checked}}))}/> Active plan</span></label>
-                  <button type="submit" disabled={planSaving===plan.slug}>{planSaving===plan.slug?'Saving…':'Save plan'}</button></form>})}</div>
+                  {planSaveErrors[plan.slug]&&<p className="cd-settings-error" role="alert">{planSaveErrors[plan.slug]}</p>}
+                  <button type="submit" className="cd-plan-save" disabled={Boolean(planSaving)} aria-busy={planSaving===plan.slug}>
+                    {planSaving===plan.slug?<><RefreshCw size={15} className="cd-spin"/> Saving changes…</>: 'Save plan'}
+                  </button></form>})}</div>
                 {upgradeError&&<div className="cd-notice" role="alert">{upgradeError}</div>}
                 <div className="cd-panel"><div className="cd-card-heading"><div><h2>Pending Plan Upgrades</h2><p>Review unmatched MFS payments and approve or reject requests.</p></div><button type="button" className="cd-action" onClick={()=>void loadUpgradeRequests()} disabled={upgradeLoading}>Refresh queue</button></div>
                   {upgradeLoading?<p>Loading pending requests…</p>:<Table headers={['Merchant','Target plan','TrxID','Gateway','Sender phone','Expected amount','Actions']} empty="No pending plan upgrades." rows={upgradeRequests.map(request=><tr key={request.id}><td>{cell(request.merchant_name)}</td><td>{cell(request.target_plan_name||request.requested_plan_slug)}</td><td>{cell(request.trx_id)}</td><td>{cell(request.gateway)}</td><td>{cell(request.sender_phone)}</td><td>{money(request.expected_amount)}</td><td><button type="button" disabled={Boolean(upgradeAction)} onClick={()=>void reviewUpgrade(request.id,'approve')}>{upgradeAction===request.id?'Working…':'Approve'}</button> <button type="button" disabled={Boolean(upgradeAction)} onClick={()=>void reviewUpgrade(request.id,'reject')}>Reject</button></td></tr>)}/>}
