@@ -11,8 +11,10 @@ CREATE TABLE IF NOT EXISTS public.edge_voice_calls (
   customer_phone TEXT NOT NULL DEFAULT '',
   customer_name TEXT,
   total_amount NUMERIC(12,2),
-  status TEXT NOT NULL DEFAULT 'dispatching'
-    CHECK (status IN ('dispatching','dialing','completed','no_answer','busy','failed')),
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','dispatching','dialing','completed','no_answer','busy','failed')),
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  max_attempts INTEGER NOT NULL DEFAULT 3 CHECK (max_attempts > 0),
   sim_slot INTEGER CHECK (sim_slot IS NULL OR sim_slot BETWEEN 1 AND 2),
   duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds BETWEEN 0 AND 86400),
   lease_expires_at TIMESTAMPTZ,
@@ -34,11 +36,18 @@ ALTER TABLE public.edge_voice_calls
   ADD COLUMN IF NOT EXISTS sim_slot INTEGER,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ;
+  ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 3;
 
 UPDATE public.edge_voice_calls SET id = gen_random_uuid() WHERE id IS NULL;
 ALTER TABLE public.edge_voice_calls ALTER COLUMN id SET DEFAULT gen_random_uuid();
 ALTER TABLE public.edge_voice_calls ALTER COLUMN id SET NOT NULL;
+
+ALTER TABLE public.edge_voice_calls ALTER COLUMN status SET DEFAULT 'pending';
+ALTER TABLE public.edge_voice_calls DROP CONSTRAINT IF EXISTS edge_voice_calls_status_check;
+ALTER TABLE public.edge_voice_calls ADD CONSTRAINT edge_voice_calls_status_check
+  CHECK (status IN ('pending','dispatching','dialing','completed','no_answer','busy','failed'));
 
 CREATE UNIQUE INDEX IF NOT EXISTS edge_voice_calls_id_uidx ON public.edge_voice_calls(id);
 CREATE UNIQUE INDEX IF NOT EXISTS edge_voice_calls_call_id_uidx ON public.edge_voice_calls(call_id);
