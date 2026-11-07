@@ -20,7 +20,8 @@ CREATE TABLE IF NOT EXISTS public.edge_voice_calls (
   lease_expires_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  completed_at TIMESTAMPTZ
+  completed_at TIMESTAMPTZ,
+  confirmation_response TEXT
 );
 
 -- Upgrade databases where the earlier dispatch migration created the table
@@ -38,7 +39,8 @@ ALTER TABLE public.edge_voice_calls
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0,
-  ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 3;
+  ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 3,
+  ADD COLUMN IF NOT EXISTS confirmation_response TEXT;
 
 UPDATE public.edge_voice_calls SET id = gen_random_uuid() WHERE id IS NULL;
 ALTER TABLE public.edge_voice_calls ALTER COLUMN id SET DEFAULT gen_random_uuid();
