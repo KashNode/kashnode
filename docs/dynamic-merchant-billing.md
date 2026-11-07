@@ -28,3 +28,23 @@ These endpoints require a Super Admin session and same-origin write requests. Po
 - `POST /api/merchant/plan-upgrade` — submit `plan_slug`, `sender_phone`, `gateway`, and `trx_id`. The request is stored as `pending_review`; it does not activate the new plan.
 
 Plan activation remains an explicit admin verification action. The manual request endpoint does not imply that payment has been received or verified.
+
+
+## Automated MFS reconciliation and device security
+
+Apply `20261107140000_mfs_upgrade_reconciliation_security.sql` after the two billing migrations. It adds the upgrade amount snapshot, payment-event link, and replay nonce registry. Historical upgrade requests retain a NULL amount snapshot and are intentionally not eligible for automatic approval.
+
+New plan-upgrade requests snapshot `subscription_plans.monthly_fee` as `expected_amount`. The shared SMS processor matches wallet top-ups and plan upgrades using gateway, TrxID, exact amount, and normalized sender phone. A matched upgrade is approved and `merchants.subscription_plan` is updated in the same database transaction. Wallet top-up reconciliation remains on its existing transactional credit path.
+
+Receiver validation now uses the active `mfs_payment_destinations` rows as the canonical destination registry. Both stored destinations and device-supplied receiver numbers are normalized to Bangladesh local format before comparison.
+
+### Device request signing
+
+Production must set:
+- `KASHNODE_DEVICE_TOKEN` (existing bearer credential, at least 32 bytes)
+- `KASHNODE_DEVICE_HMAC_SECRET` (new signing secret, at least 32 bytes)
+- `KASHNODE_DEVICE_ID` (expected device ID)
+
+The device signs the exact UTF-8 request body with HMAC-SHA256 over `timestamp.nonce.rawBody`. It sends `X-KashNode-Timestamp`, `X-KashNode-Nonce`, and `X-KashNode-Signature`. The API enforces a five-minute timestamp window and stores each nonce in `mfs_device_nonces`; duplicate nonces are rejected. Configure the Android app from `android/mfs-gateway/README.md`.
+
+**Deployment order:** apply the new SQL migration, configure the HMAC secret in the server environment, rebuild/restart the API, provision the dedicated Android device with the matching token and secret, then test with redacted real SMS examples. The device endpoint fails closed when signing is not configured.
