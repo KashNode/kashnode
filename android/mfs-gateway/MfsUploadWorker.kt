@@ -69,5 +69,13 @@ class MfsUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
 /** Device credentials are encrypted at rest. Provision only through trusted enrollment. */
 object DeviceSecrets {
-    internal fun prefs(context: Context) = androidx.security.crypto.EncryptedSharedPreferences.create(\n        context, "device-enrollment",\n        androidx.security.crypto.MasterKey.Builder(context)\n            .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM).build(),\n        androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,\n        androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM\n    )\n    fun bearerToken(context: Context): String? = prefs(context).getString("bearer_token", null)\n    fun hmacSecret(context: Context): String? = prefs(context).getString("hmac_secret", null)
+    internal fun prefs(context: Context) = androidx.security.crypto.EncryptedSharedPreferences.create(
+        context, "device-enrollment",
+        androidx.security.crypto.MasterKey.Builder(context)
+            .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM).build(),
+        androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+    fun bearerToken(context: Context): String? = prefs(context).getString("bearer_token", null)
+    fun hmacSecret(context: Context): String? = prefs(context).getString("hmac_secret", null)
 }
