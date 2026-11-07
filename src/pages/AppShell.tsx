@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { Bell, Loader2, LogOut, Smartphone } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { getMerchantCredentials, getMerchantOnboarding, type AuthUser, type MerchantOnboardingProfile } from '../lib/auth'
 import { getCallHistory, getCourierOrders, getMerchantOrders, getMerchantPackage, getSimStatus, syncShopifyOrders, type CallHistoryEntry, type MerchantCourierOrder, type MerchantOrder, type SimStatus } from '../lib/kashApi'
 import KashNodeLogo from '../components/KashNodeLogo'
@@ -69,6 +70,9 @@ export default function AppShell({ user, onSignOut }: Props) {
   const [merchantSecretKey, setMerchantSecretKey] = useState('')
   const [secretLoading, setSecretLoading] = useState(true)
   const [secretError, setSecretError] = useState('')
+  const [pairingPayload, setPairingPayload] = useState('')
+  const [pairingExpiresAt, setPairingExpiresAt] = useState('')
+  const [pairingError, setPairingError] = useState('')
 
   const firstName = user.name?.split(' ')[0] || user.email.split('@')[0]
   const systemIsLight = typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: light)').matches
@@ -140,6 +144,21 @@ export default function AppShell({ user, onSignOut }: Props) {
 
 
   const visibleOrders = orderFilter === 'review' ? orders.filter(order => ['unpaid', 'manual_review', 'pending'].includes(String(order.payment_status).toLowerCase())) : orders
+
+  async function generateAndroidPairing() {
+    setPairingError('')
+    try {
+      const response = await fetch('/api/merchant/devices/pairing', {
+        method: 'POST', credentials: 'include', headers: { Accept: 'application/json' },
+      })
+      const payload = await response.json().catch(() => ({}))
+      if (!response.ok || !payload.pairing) throw new Error(payload.message || 'Could not generate a device pairing code.')
+      setPairingPayload(JSON.stringify(payload.pairing))
+      setPairingExpiresAt(payload.expires_at || '')
+    } catch (error) {
+      setPairingError(error instanceof Error ? error.message : 'Could not generate a device pairing code.')
+    }
+  }
 
   async function handleShopifySync() {
     setOrdersSyncing(true)
@@ -387,6 +406,18 @@ export default function AppShell({ user, onSignOut }: Props) {
                   <h1 className="md-title">Security &amp; API keys</h1>
                   <p className="md-sub">Manage your merchant device credentials and connected webhook/API integrations.</p>
                   <MerchantDeviceCredentialsCard merchantId={merchantId} secret={merchantSecretKey} loading={secretLoading} error={secretError} onNotify={notify} />
+                  <div className="md-card">
+                    <strong>Pair an Android device</strong>
+                    <p className="md-muted">Generate a one-time pairing payload, then encode this exact JSON as a QR code for the KashNode Android scanner. It expires after five minutes and can be used once.</p>
+                    <button className="md-secondary" type="button" onClick={() => void generateAndroidPairing()}>Generate pairing QR payload</button>
+                    {pairingError && <p className="md-error" role="alert">{pairingError}</p>}
+                    {pairingPayload && <>
+                      <QRCodeSVG value={pairingPayload} size={220} level="M" includeMargin />
+                      <pre className="md-code-block">{pairingPayload}</pre>
+                      <button className="md-secondary" type="button" onClick={() => { void navigator.clipboard.writeText(pairingPayload); notify('Pairing payload copied.') }}>Copy QR payload</button>
+                      <p className="md-muted">Expires: {pairingExpiresAt ? new Date(pairingExpiresAt).toLocaleString() : 'in five minutes'}</p>
+                    </>}
+                  </div>
                   <div className="md-card">
                     <strong>Integration configuration</strong>
                     <p className="md-muted">Store and courier credentials, connection tests, and webhook setup are managed from the Integrations page.</p>

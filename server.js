@@ -34,6 +34,7 @@ import { createPaymentProcessor } from './server/services/paymentProcessor.js'
 import { createDeviceSignatureVerifier } from './server/middleware/deviceSignature.js'
 import { sendPlatformSms } from './server/services/platformSmsService.js'
 import { createPlanCatalogHandlers } from './server/routes/adminPlans.js'
+import { createNativeDeviceHandlers } from './server/routes/nativeDevices.js'
 
 const { Pool } = pg
 const app = express()
@@ -81,7 +82,7 @@ app.use(cors({
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-kashnode-webhook-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic', 'x-kashnode-timestamp', 'x-kashnode-nonce', 'x-kashnode-signature'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Accept', 'x-merchant-secret', 'x-kashnode-webhook-secret', 'x-wc-webhook-signature', 'x-shopify-hmac-sha256', 'x-shopify-shop-domain', 'x-shopify-topic', 'x-kashnode-timestamp', 'x-kashnode-nonce', 'x-kashnode-signature', 'X-Merchant-Id'],
   maxAge: 600,
 }))
 // Shopify must receive the exact request bytes for HMAC verification. Mount
@@ -192,9 +193,25 @@ const merchantPaymentHandlers = createMerchantPaymentHandlers({
   otpSecret: process.env.BILLING_PHONE_OTP_SECRET || process.env.AUTH_OTP_SECRET || '',
   processor: paymentProcessor,
 })
+const nativeDeviceHandlers = createNativeDeviceHandlers({
+  pool,
+  createUserSession,
+  publicBaseUrl: process.env.PUBLIC_APP_URL || 'https://kashnode.com',
+})
+// Native bearer sessions are resolved before the existing merchant routes. Their
+// handlers continue to use the same owner-scoped req.session.user identity shape.
+app.use('/api', asyncRoute(nativeDeviceHandlers.attach))
+
 let stopCourierFulfillmentWorker = () => {}
 const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
 const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
+
+// Native Android authentication and one-time dashboard pairing.
+app.post('/api/auth/device-login', loginLimiter, asyncRoute(nativeDeviceHandlers.login))
+app.post('/api/auth/device-web-session', asyncRoute(nativeDeviceHandlers.webSession))
+app.post('/api/auth/device-logout', asyncRoute(nativeDeviceHandlers.logout))
+app.post('/api/devices/pair/claim', loginLimiter, asyncRoute(nativeDeviceHandlers.claimPairing))
+app.post('/api/merchant/devices/pairing', requireOrigin, integrationLimiter, asyncRoute((req,res) => req.session?.user ? nativeDeviceHandlers.createPairing(req,res) : res.status(401).json({message:'Web dashboard authentication required.'})))
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
