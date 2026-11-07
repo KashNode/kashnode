@@ -17,7 +17,10 @@ Configure the app module:
 android {
   defaultConfig {
     buildConfigField("String", "KASHNODE_MFS_ENDPOINT", "\"https://YOUR_KASHNODE_HOST/api/admin/device/payment-sms\"")
-    buildConfigField("String", "KASHNODE_DEVICE_ID", "\"kashnode-mfs-01\"")\n    buildConfigField("String", "KASHNODE_BKASH_RECEIVER", "\"01XXXXXXXXX\"")\n    buildConfigField("String", "KASHNODE_NAGAD_RECEIVER", "\"01XXXXXXXXX\"")\n    buildConfigField("String", "KASHNODE_ROCKET_RECEIVER", "\"01XXXXXXXXX\"")
+    buildConfigField("String", "KASHNODE_DEVICE_ID", "\"kashnode-mfs-01\"")
+    buildConfigField("String", "KASHNODE_BKASH_RECEIVER", "\"01XXXXXXXXX\"")
+    buildConfigField("String", "KASHNODE_NAGAD_RECEIVER", "\"01XXXXXXXXX\"")
+    buildConfigField("String", "KASHNODE_ROCKET_RECEIVER", "\"01XXXXXXXXX\"")
   }
   buildFeatures { buildConfig = true }
 }
