@@ -29,7 +29,7 @@ export function createEdgeCallHandlers({pool,leaseSeconds=90}={}){
  async function complete(req,res){
   const who=identity(req);if(!who)return res.status(401).json({error:'Native merchant session required.'});
   const callId=String(req.params.call_id||'');if(!UUID_RE.test(callId))return res.status(400).json({error:'Invalid call ID.'});
-  const {duration_seconds:duration,call_status:status,sim_slot:slot}=req.body||{};
+  const {duration_seconds:duration,call_status:status,sim_slot:slot,confirmation_response:response}=req.body||{};
   if(!Number.isInteger(duration)||duration<0||duration>86400||!['completed','no_answer','busy'].includes(status)||!Number.isInteger(slot)||slot<1||slot>2)return res.status(400).json({error:'Invalid call completion payload.'});
   const c=await pool.connect();
   try{
@@ -43,8 +43,8 @@ export function createEdgeCallHandlers({pool,leaseSeconds=90}={}){
     const charged=await c.query('SELECT * FROM public.finalize_voice_call_billing($1::uuid,$2::uuid,$3::uuid,$4::numeric)',[who.merchantId,call.order_id,call.session_id,duration]);
     billing=charged.rows[0]||null;
    }
-   await c.query(`UPDATE public.edge_voice_calls SET status=$2,duration_seconds=$3,sim_slot=$4,completed_at=NOW(),updated_at=NOW(),lease_expires_at=NULL
-     WHERE call_id=$1`,[callId,status,duration,slot]);
+   await c.query(`UPDATE public.edge_voice_calls SET status=$2,duration_seconds=$3,sim_slot=$4,confirmation_response=$5,completed_at=NOW(),updated_at=NOW(),lease_expires_at=NULL
+     WHERE call_id=$1`,[callId,status,duration,slot,typeof response==='string'?response.slice(0,255):null]);
    await c.query('UPDATE public.orders SET ai_call_status=$2 WHERE id=$1 AND merchant_id=$3',[call.order_id,status==='completed'?'completed':status==='busy'?'busy':'no_answer',who.merchantId]);
    await c.query('COMMIT');
    return res.json({success:true,billing:billing?{ledger_id:billing.id,billed_amount:billing.billed_amount,billing_source:billing.billing_source}:null});
