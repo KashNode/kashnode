@@ -4,10 +4,10 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.provider.Telephony
-import androidx.work.Data
+import androidx.work.BackoffPolicy\nimport androidx.work.Data
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import java.time.Instant
+import java.time.Instant\nimport java.util.concurrent.TimeUnit
 
 class MfsSmsReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -25,7 +25,7 @@ class MfsSmsReceiver : BroadcastReceiver() {
                 .putString("received_at", Instant.ofEpochMilli(sms.timestampMillis).toString())
                 .putString("message", parsed.rawMessage)
                 .build()
-            WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<MfsUploadWorker>().setInputData(input).build())
+            WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<MfsUploadWorker>().setInputData(input).setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS).build())
         }
     }
 }
