@@ -87,7 +87,8 @@ test('reports prepaid voice-minute coverage and idempotent replays', async () =>
       async query() {
         return {
           rows: [ledgerRow({
-            billing_source: 'voice_minutes',
+            billing_source: 'included_minutes',
+            billed_amount: '0.00',
             voice_minutes_debited: 2,
             idempotent_replay: true,
           })],
@@ -100,7 +101,7 @@ test('reports prepaid voice-minute coverage and idempotent replays', async () =>
     durationSeconds: 90.125,
   });
 
-  assert.equal(result.billingSource, 'voice_minutes');
+  assert.equal(result.billingSource, 'included_minutes');
   assert.equal(result.walletDebited, false);
   assert.equal(result.voiceMinutesDebited, 2);
   assert.equal(result.idempotentReplay, true);

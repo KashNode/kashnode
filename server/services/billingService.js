@@ -15,8 +15,8 @@ export class VoiceBillingError extends Error {
  *
  * The database function performs the merchant-row lock, credit deduction,
  * ledger insert, and idempotency check in one PostgreSQL transaction.
- * The merchant's overage_rate_per_min is authoritative (currently default
- * ৳7/min); durations are billed pro-rata to the second and currency is BDT.
+ * The database function consumes available included voice minutes first, then
+ * charges only overage seconds at the active plan's price_per_minute. Currency is BDT.
  *
  * Calls under one second are retained to millisecond precision. A zero-second
  * session is deliberately skipped and never makes a database request.
@@ -109,7 +109,7 @@ export async function finalizeVoiceCallBilling({
     currency: ledger.currency,
     ratePerMinute: Number(ledger.rate_per_minute),
     billingSource,
-    walletDebited: billingSource === 'wallet',
+    walletDebited: Number(ledger.billed_amount) > 0,
     voiceMinutesDebited: Number(ledger.voice_minutes_debited || 0),
     idempotentReplay: Boolean(ledger.idempotent_replay),
     createdAt: ledger.created_at,
