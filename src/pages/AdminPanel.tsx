@@ -101,8 +101,8 @@ export default function AdminPanel({user,onSignOut}:Props) {
     catch(e){setUpgradeError(e instanceof Error?e.message:'Could not load upgrade requests.')} finally{setUpgradeLoading(false)}
   }
   async function savePlan(plan:CatalogPlan) {
-    const draft=planDrafts[plan.slug]
-    if(!draft||planSaving)return
+    const draft=planDrafts[plan.slug]||{monthly_fee:String(plan.monthly_fee??0),included_minutes:String(plan.included_minutes??0),price_per_minute:String(plan.price_per_minute??0),minimum_topup_minutes:String(plan.minimum_topup_minutes??100),is_active:Boolean(plan.is_active)}
+    if(planSaving)return
     setPlanSaving(plan.slug)
     setPlanSaveErrors(current=>({...current,[plan.slug]:''}))
     setNotice('')
