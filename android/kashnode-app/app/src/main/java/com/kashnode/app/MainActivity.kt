@@ -33,5 +33,6 @@ class MainActivity:ComponentActivity(){
  scan->QrScanner({token->scan=false;scope.launch{runCatching{repo.pair(token);logged=true;startBackgroundServices()}}},{scan=false})
  else->LoginScreen(url,{url=it;prefs.edit().putString("base_url",it).apply()},{logged=true;startBackgroundServices()},repo){scan=true}}
  }}}
- private fun startBackgroundServices(){if(AuthPreferences(this).session()!=null){if(Build.VERSION.SDK_INT>=26){startForegroundService(Intent(this,KeepAliveService::class.java));startForegroundService(Intent(this,CallExecutionService::class.java))}else{startService(Intent(this,KeepAliveService::class.java));startService(Intent(this,CallExecutionService::class.java))}}}\n override fun onStart(){super.onStart();if(AuthPreferences(this).session()!=null){startBackgroundServices()}}
+ private fun startBackgroundServices(){if(AuthPreferences(this).session()!=null){if(Build.VERSION.SDK_INT>=26){startForegroundService(Intent(this,KeepAliveService::class.java));startForegroundService(Intent(this,CallExecutionService::class.java))}else{startService(Intent(this,KeepAliveService::class.java));startService(Intent(this,CallExecutionService::class.java))}}}
+ override fun onStart(){super.onStart();if(AuthPreferences(this).session()!=null){startBackgroundServices()}}
 }
