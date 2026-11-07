@@ -2,7 +2,11 @@ package com.kashnode.app.data.local
 import android.content.Context
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
-enum class DeviceRole { MERCHANT,ADMIN_GATEWAY; companion object { fun parse(s:String?)=entries.firstOrNull{it.name.equals(s,true)}?:MERCHANT } }
+
+enum class DeviceRole {
+ MERCHANT, ADMIN_GATEWAY;
+ companion object { fun parse(s:String?)=entries.firstOrNull{it.name.equals(s,true)}?:MERCHANT }
+}
 data class AuthSession(val merchantId:String?,val authToken:String,val storeName:String,val activePlan:String,val deviceRole:DeviceRole,val expiresAt:String?)
 class AuthPreferences(context:Context){
  private val prefs=EncryptedSharedPreferences.create(context,"kashnode_auth",MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(),EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
@@ -14,5 +18,8 @@ class AuthPreferences(context:Context){
  fun setAutoDialEnabled(enabled:Boolean){prefs.edit().putBoolean("auto_dial_mode",enabled).apply()}
  fun primaryCallSimSlot()=prefs.getInt("primary_call_sim_slot",0)
  fun setPrimaryCallSimSlot(slot:Int){require(slot in 0..1);prefs.edit().putInt("primary_call_sim_slot",slot).apply()}
+ /** 0 = SIM 1, 1 = SIM 2, 2 = monitor both SIMs. */
+ fun smsMonitoringSimSelection()=prefs.getInt("sms_monitoring_sim_selection",2)
+ fun setSmsMonitoringSimSelection(selection:Int){require(selection in 0..2);prefs.edit().putInt("sms_monitoring_sim_selection",selection).apply()}
  fun clear()=prefs.edit().clear().apply()
 }
