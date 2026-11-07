@@ -3,7 +3,7 @@ import { normalizeBdPhone } from '../utils/mfs.js';
 export { normalizeBdPhone };
 
 export class SmsMatchingPaymentProcessor {
-  constructor({ pool }) { this.pool = pool; }
+  constructor({ pool, legacyReceiverNumbers = {} }) { this.pool = pool; this.legacyReceiverNumbers = legacyReceiverNumbers; }
 
   async lockTransfer(client, gateway, trxId) {
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [`${gateway}:${trxId}`]);
@@ -14,7 +14,9 @@ export class SmsMatchingPaymentProcessor {
       'SELECT phone_number FROM public.mfs_payment_destinations WHERE provider=$1 AND is_active=TRUE',
       [gateway],
     );
-    return result.rows.some(row => normalizeBdPhone(row.phone_number) === receiverPhone);
+    if (result.rows.length) return result.rows.some(row => normalizeBdPhone(row.phone_number) === receiverPhone);
+    // Compatibility for deployments that still have receiver numbers only in env.
+    return normalizeBdPhone(this.legacyReceiverNumbers[gateway]) === receiverPhone;
   }
 
   async creditWallet(client, merchantId, amount) {
@@ -138,6 +140,14 @@ export class SmsMatchingPaymentProcessor {
   }
 }
 
-export function createPaymentProcessor({ pool }) {
-  return new SmsMatchingPaymentProcessor({ pool });
+export function createPaymentProcessor({ pool, env = process.env }) {
+  return new SmsMatchingPaymentProcessor({
+    pool,
+    legacyReceiverNumbers: {
+      bKash: env.KASHNODE_MFS_RECEIVER_BKASH || '',
+      Nagad: env.KASHNODE_MFS_RECEIVER_NAGAD || '',
+      Rocket: env.KASHNODE_MFS_RECEIVER_ROCKET || '',
+      Upay: env.KASHNODE_MFS_RECEIVER_UPAY || '',
+    },
+  });
 }
