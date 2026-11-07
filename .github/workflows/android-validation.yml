@@ -3,7 +3,7 @@ on:
  pull_request:
   paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server/routes/edgeSms.js','server/middleware/packageAccess.js','server.js','tests/edgeSms.test.js','db/migrations/*android_native*']
  push:
-  branches: [main]
+  branches: [main, feat/android-live-sms-dual-sim-calls]
   paths: ['.github/workflows/android-validation.yml','android/kashnode-app/**','scripts/bundle_android_app.py','server/routes/nativeDevices.js','server/routes/edgeSms.js','server/middleware/packageAccess.js','server.js','tests/edgeSms.test.js','db/migrations/*android_native*']
 jobs:
  backend:
