@@ -203,7 +203,7 @@ const nativeDeviceHandlers = createNativeDeviceHandlers({
 app.use('/api', asyncRoute(nativeDeviceHandlers.attach))
 
 let stopCourierFulfillmentWorker = () => {}
-const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard', credentialHeader: 'x-merchant-secret' })
+const requireStandardPackage = createRequirePackage({ pool, minimumPackage: 'standard' })
 const requirePremiumPackage = createRequirePackage({ pool, minimumPackage: 'premium' })
 
 // Native Android authentication and one-time dashboard pairing.
