@@ -49,22 +49,22 @@ class CallExecutionService:Service(){
   val phone=call.optString("customer_phone").filter{it.isDigit()||it=='+'}
   if(phone.length<8){finish("no_answer",0);return}
   try{
-   registerCallState()
    val tm=getSystemService(TELECOM_SERVICE) as TelecomManager
    val subs=getSystemService(TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
    val slot=AuthPreferences(this).primaryCallSimSlot()
-   val sub=subs.activeSubscriptionInfoList?.firstOrNull{it.simSlotIndex==slot}
-   val account=tm.callCapablePhoneAccounts.firstOrNull{h->sub!=null&&(h.id==sub.subscriptionId.toString()||h.id.contains(sub.iccId.takeLast(4)))}
+   val sub=subs.activeSubscriptionInfoList?.firstOrNull{it.simSlotIndex==slot} ?: throw IllegalStateException("Selected SIM slot is not active")
+   registerCallState(sub.subscriptionId)
+   val account=tm.callCapablePhoneAccounts.firstOrNull{h->h.id==sub.subscriptionId.toString()||h.id==sub.iccId}
+     ?: throw IllegalStateException("No call account is registered for selected SIM")
    val uri=Uri.fromParts("tel",phone,null)
-   val intent=Intent(Intent.ACTION_CALL,uri).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-   if(account!=null)intent.putExtra(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE,account)
-   intent.putExtra("kashnode_sim_slot",slot+1)
-   startActivity(intent)
+   val extras=Bundle().apply{putParcelable(TelecomManager.EXTRA_PHONE_ACCOUNT_HANDLE,account)}
+   tm.placeCall(uri,extras)
    updateNotification("Calling $phone")
   }catch(_:SecurityException){finish("no_answer",0)}catch(_:Exception){finish("no_answer",0)}
  }
- private fun registerCallState(){
-  val telephony=getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+ private fun registerCallState(subscriptionId:Int){
+  val baseTelephony=getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+  val telephony=baseTelephony.createForSubscriptionId(subscriptionId)
   if(Build.VERSION.SDK_INT>=31){
    val callback=object:TelephonyCallback(),TelephonyCallback.CallStateListener{
     override fun onCallStateChanged(state:Int){onState(state)}
