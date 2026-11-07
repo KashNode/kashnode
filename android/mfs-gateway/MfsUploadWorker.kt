@@ -1,12 +1,10 @@
 package com.kashnode.mfsgateway
 
 import android.content.Context
-import androidx.work.BackoffPolicy
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import org.json.JSONObject
 import java.net.HttpURLConnection
-import java.util.concurrent.TimeUnit
 import java.net.URL
 import java.security.SecureRandom
 import javax.crypto.Mac
@@ -22,7 +20,7 @@ class MfsUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val gateway = inputData.getString("gateway") ?: return Result.failure()
         val trxId = inputData.getString("trx_id") ?: return Result.failure()
         val sender = inputData.getString("sender_phone") ?: return Result.failure()
-        val receiver = inputData.getString("receiver_phone") ?: return Result.failure()
+        val receiver = inputData.getString("receiver_phone") ?: when (gateway) {\n            "bKash" -> BuildConfig.KASHNODE_BKASH_RECEIVER\n            "Nagad" -> BuildConfig.KASHNODE_NAGAD_RECEIVER\n            "Rocket" -> BuildConfig.KASHNODE_ROCKET_RECEIVER\n            else -> null\n        } ?: return Result.failure()
 
         val payload = JSONObject().apply {
             put("gateway", gateway); put("trx_id", trxId)
