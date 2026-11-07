@@ -22,6 +22,7 @@ class CallExecutionService:Service(){
  private val http=OkHttpClient.Builder().callTimeout(20,TimeUnit.SECONDS).build()
  private var current:JSONObject?=null
  private var answeredAt:Long?=null
+ private var activeSimSlot:Int=0
  private var sawCallActivity=false
  private var callListener:Any?=null
  private var callTelephony:TelephonyManager?=null
@@ -55,6 +56,7 @@ class CallExecutionService:Service(){
    val tm=getSystemService(TELECOM_SERVICE) as TelecomManager
    val subs=getSystemService(TELEPHONY_SUBSCRIPTION_SERVICE) as SubscriptionManager
    val slot=AuthPreferences(this).primaryCallSimSlot()
+   activeSimSlot=slot
    val sub=subs.activeSubscriptionInfoList?.firstOrNull{it.simSlotIndex==slot} ?: throw IllegalStateException("Selected SIM slot is not active")
    registerCallState(sub.subscriptionId)
    val account=tm.callCapablePhoneAccounts.firstOrNull{h->h.id==sub.subscriptionId.toString()||h.id==sub.iccId}
@@ -91,7 +93,7 @@ class CallExecutionService:Service(){
  }
  private suspend fun finish(status:String,seconds:Int){
   val call=current?:return;current=null;unregisterCallState()
-  val slot=AuthPreferences(this).primaryCallSimSlot()+1
+  val slot=activeSimSlot+1
   val payload=JSONObject().put("duration_seconds",seconds).put("call_status",status).put("sim_slot",slot)
   try{http.newCall(request("api/v1/edge/calls/${call.getString("call_id")}/complete").post(payload.toString().toRequestBody("application/json".toMediaType())).build()).execute().close()}catch(_:Exception){}
   updateNotification(if(status=="completed")"Call finished: $seconds seconds" else "Call ended: $status")
