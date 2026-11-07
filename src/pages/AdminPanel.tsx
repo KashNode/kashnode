@@ -5,7 +5,7 @@ import type { AuthUser } from '../lib/auth'
 import { getAdminSystemSettings, saveAdminSystemSettings, type AdminSystemSettings, type LlmProvider } from '../lib/adminSettings'
 
 type Props = { user: AuthUser; onSignOut: () => void }
-type CatalogPlan = { slug:string; name:string; tagline:string; price_per_minute:string|number; short_features:string[]; details:string[]; feature_groups:{category:string;items:string[]}[]; is_active?:boolean; updated_at?:string }
+type CatalogPlan = { slug:string; name:string; tagline:string; monthly_fee:string|number; included_minutes:number; price_per_minute:string|number; minimum_topup_minutes:number; short_features:string[]; details:string[]; feature_groups:{category:string;items:string[]}[]; is_active?:boolean; updated_at?:string }
 type Section = 'overview' | 'merchants' | 'orders' | 'calls' | 'courier' | 'devices' | 'integrations' | 'reliability' | 'plans' | 'settings'
 type LiveData = {
   source: 'database'; generatedAt: string
@@ -47,6 +47,13 @@ export default function AdminPanel({user,onSignOut}:Props) {
   const [catalogPlans,setCatalogPlans]=useState<CatalogPlan[]>([])
   const [catalogLoading,setCatalogLoading]=useState(false)
   const [catalogError,setCatalogError]=useState('')
+  const [planSaving,setPlanSaving]=useState('')
+  const [planDrafts,setPlanDrafts]=useState<Record<string,{monthly_fee:string;included_minutes:string;price_per_minute:string;minimum_topup_minutes:string;is_active:boolean}>>({})
+  const [upgradeRequests,setUpgradeRequests]=useState<Array<Record<string,any>>>([])
+  const [upgradeLoading,setUpgradeLoading]=useState(false)
+  const [upgradeAction,setUpgradeAction]=useState('')
+  const [upgradeError,setUpgradeError]=useState('')
+
 
   async function loadLiveData() {
     try {
@@ -87,7 +94,29 @@ export default function AdminPanel({user,onSignOut}:Props) {
     } catch(e){setSettingsError(e instanceof Error?e.message:'Could not save settings.')}
     finally{setSettingsSaving(false)}
   }
-  const merchants=useMemo(()=>data?.merchants.filter(m=>[m.name,m.email,m.plan].join(' ').toLowerCase().includes(search.toLowerCase()))||[],[data,search])
+  async function loadUpgradeRequests() {
+    setUpgradeLoading(true);setUpgradeError('')
+    try { const response=await fetch('/api/admin/plan-upgrades',{credentials:'include',cache:'no-store'});const payload=await response.json();if(!response.ok)throw new Error(payload.message||'Could not load upgrade requests.');setUpgradeRequests(payload.requests||[]) }
+    catch(e){setUpgradeError(e instanceof Error?e.message:'Could not load upgrade requests.')} finally{setUpgradeLoading(false)}
+  }
+  async function savePlan(plan:CatalogPlan) {
+    const draft=planDrafts[plan.slug];if(!draft)return
+    setPlanSaving(plan.slug);setCatalogError('')
+    try {
+      const response=await fetch('/api/admin/plans/'+encodeURIComponent(plan.slug),{method:'PUT',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({...draft,monthly_fee:Number(draft.monthly_fee),included_minutes:Number(draft.included_minutes),price_per_minute:Number(draft.price_per_minute),minimum_topup_minutes:Number(draft.minimum_topup_minutes)})})
+      const payload=await response.json();if(!response.ok)throw new Error(payload.message||'Could not save plan.')
+      setCatalogPlans(current=>current.map(item=>item.slug===plan.slug?{...item,...payload.plan}:item))
+      setNotice('Plan '+plan.name+' saved.')
+    } catch(e){setCatalogError(e instanceof Error?e.message:'Could not save plan.')} finally{setPlanSaving('')}
+  }
+  async function reviewUpgrade(id:string,action:'approve'|'reject') {
+    if(!window.confirm((action==='approve'?'Approve':'Reject')+' this plan upgrade request?'))return
+    setUpgradeAction(id);setUpgradeError('')
+    try {const response=await fetch('/api/admin/plan-upgrades/'+encodeURIComponent(id)+'/review',{method:'POST',credentials:'include',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});const payload=await response.json();if(!response.ok)throw new Error(payload.message||'Could not review request.');await loadUpgradeRequests();setNotice('Plan upgrade '+action+'d.')}
+    catch(e){setUpgradeError(e instanceof Error?e.message:'Could not review request.')}finally{setUpgradeAction('')}
+  }
+  useEffect(()=>{if(section==='plans')void loadUpgradeRequests()},[section])
+    const merchants=useMemo(()=>data?.merchants.filter(m=>[m.name,m.email,m.plan].join(' ').toLowerCase().includes(search.toLowerCase()))||[],[data,search])
   const title=sections.find(s=>s.id===section)?.label||'Overview'
   const summary=data?.summary
   const panel=(heading:string,sub:string,children:ReactNode)=><section className="cd-panel"><div className="cd-card-heading"><div><h2>{heading}</h2><p>{sub}</p></div><span className="cd-preview-chip">LIVE DATA</span></div>{children}</section>
@@ -147,7 +176,18 @@ export default function AdminPanel({user,onSignOut}:Props) {
                   <tr><td><strong>Short feature list</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(p=><td key={p.slug}>{(p.short_features||[]).join(' · ')}</td>)}</tr>
                   <tr><td><strong>More details</strong></td>{catalogPlans.filter(p=>p.slug!=='free').map(p=><td key={p.slug}>{(p.details||[]).join(' ')}</td>)}</tr></tbody>
                 </table></div>
-                <p className="cd-panel-note">KashNode Box: ৳8,000 one-time hardware price, same for all packages. Catalog rows are read-only in this release; edits must be made through a controlled database migration until an audited plan editor is implemented.</p>
+                <div className="cd-panel-note">KashNode Box: ৳8,000 one-time hardware price, same for all packages.</div>
+                <div className="cd-plan-edit-grid">{catalogPlans.map(plan=>{const draft=planDrafts[plan.slug]||{monthly_fee:String(plan.monthly_fee??0),included_minutes:String(plan.included_minutes??0),price_per_minute:String(plan.price_per_minute??0),minimum_topup_minutes:String(plan.minimum_topup_minutes??100),is_active:Boolean(plan.is_active)};return <form className="cd-settings-card" key={plan.slug} onSubmit={e=>{e.preventDefault();void savePlan(plan)}}><h3>{plan.name} · {plan.slug}</h3>
+                  <label className="cd-settings-field"><span>Monthly fee (BDT)</span><input type="number" min="0" step="0.01" value={draft.monthly_fee} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,monthly_fee:e.target.value}}))}/></label>
+                  <label className="cd-settings-field"><span>Included voice minutes</span><input type="number" min="0" step="1" value={draft.included_minutes} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,included_minutes:e.target.value}}))}/></label>
+                  <label className="cd-settings-field"><span>Voice rate (BDT/min)</span><input type="number" min="0" step="0.01" value={draft.price_per_minute} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,price_per_minute:e.target.value}}))}/></label>
+                  <label className="cd-settings-field"><span>Minimum top-up minutes</span><input type="number" min="1" step="1" value={draft.minimum_topup_minutes} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,minimum_topup_minutes:e.target.value}}))}/></label>
+                  <label className="cd-settings-field"><span><input type="checkbox" checked={draft.is_active} onChange={e=>setPlanDrafts(v=>({...v,[plan.slug]:{...draft,is_active:e.target.checked}}))}/> Active plan</span></label>
+                  <button type="submit" disabled={planSaving===plan.slug}>{planSaving===plan.slug?'Saving…':'Save plan'}</button></form>})}</div>
+                {upgradeError&&<div className="cd-notice" role="alert">{upgradeError}</div>}
+                <div className="cd-panel"><div className="cd-card-heading"><div><h2>Pending Plan Upgrades</h2><p>Review unmatched MFS payments and approve or reject requests.</p></div><button type="button" className="cd-action" onClick={()=>void loadUpgradeRequests()} disabled={upgradeLoading}>Refresh queue</button></div>
+                  {upgradeLoading?<p>Loading pending requests…</p>:<Table headers={['Merchant','Target plan','TrxID','Gateway','Sender phone','Expected amount','Actions']} empty="No pending plan upgrades." rows={upgradeRequests.map(request=><tr key={request.id}><td>{cell(request.merchant_name)}</td><td>{cell(request.target_plan_name||request.requested_plan_slug)}</td><td>{cell(request.trx_id)}</td><td>{cell(request.gateway)}</td><td>{cell(request.sender_phone)}</td><td>{money(request.expected_amount)}</td><td><button type="button" disabled={Boolean(upgradeAction)} onClick={()=>void reviewUpgrade(request.id,'approve')}>{upgradeAction===request.id?'Working…':'Approve'}</button> <button type="button" disabled={Boolean(upgradeAction)} onClick={()=>void reviewUpgrade(request.id,'reject')}>Reject</button></td></tr>)}/>}
+                </div>
               </div>
             </>}
           </div>}
