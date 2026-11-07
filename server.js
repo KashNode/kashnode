@@ -211,7 +211,7 @@ app.post('/api/auth/device-login', loginLimiter, asyncRoute(nativeDeviceHandlers
 app.post('/api/auth/device-web-session', asyncRoute(nativeDeviceHandlers.webSession))
 app.post('/api/auth/device-logout', asyncRoute(nativeDeviceHandlers.logout))
 app.post('/api/devices/pair/claim', loginLimiter, asyncRoute(nativeDeviceHandlers.claimPairing))
-app.post('/api/merchant/devices/pairing', requireOrigin, requireMerchantSession, integrationLimiter, asyncRoute(nativeDeviceHandlers.createPairing))
+app.post('/api/merchant/devices/pairing', requireOrigin, integrationLimiter, asyncRoute((req,res) => req.session?.user ? nativeDeviceHandlers.createPairing(req,res) : res.status(401).json({message:'Web dashboard authentication required.'})))
 
 app.get('/api/health', (_req, res) => res.json({ status: 'success', service: 'KashNode API', timestamp: new Date().toISOString() }))
 
