@@ -46,8 +46,7 @@ class MainActivity : ComponentActivity() {
      when {
       logged && settings -> SettingsScreen(
        viewModel=settingsViewModel,
-       onBack={settings=false},
-       onRequestPhoneStatePermission={ActivityCompat.requestPermissions(this,arrayOf(Manifest.permission.READ_PHONE_STATE),4202)}
+       onBack={settings=false}
       )
       logged && !scan -> Box(Modifier.fillMaxSize()) {
        DashboardWebView(effectiveUrl, api, Modifier.fillMaxSize()) { logged = false; auth.clear() }
