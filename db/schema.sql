@@ -602,8 +602,10 @@ CREATE TABLE IF NOT EXISTS public.edge_voice_calls (
   customer_phone TEXT NOT NULL DEFAULT '',
   customer_name TEXT,
   total_amount NUMERIC(12,2),
-  status TEXT NOT NULL DEFAULT 'dispatching'
-    CHECK (status IN ('dispatching','dialing','completed','no_answer','busy','failed')),
+  status TEXT NOT NULL DEFAULT 'pending'
+    CHECK (status IN ('pending','dispatching','dialing','completed','no_answer','busy','failed')),
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+  max_attempts INTEGER NOT NULL DEFAULT 3 CHECK (max_attempts > 0),
   sim_slot INTEGER CHECK (sim_slot IS NULL OR sim_slot BETWEEN 1 AND 2),
   duration_seconds INTEGER CHECK (duration_seconds IS NULL OR duration_seconds BETWEEN 0 AND 86400),
   lease_expires_at TIMESTAMPTZ,
