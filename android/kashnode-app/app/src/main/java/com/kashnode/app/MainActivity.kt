@@ -17,9 +17,10 @@ class MainActivity:ComponentActivity(){
  override fun onCreate(savedInstanceState:Bundle?){super.onCreate(savedInstanceState);val auth=AuthPreferences(this);val prefs=getSharedPreferences("server_config",MODE_PRIVATE);setContent{MaterialTheme(colorScheme=darkColorScheme()){
  var url by remember{mutableStateOf(prefs.getString("base_url",BuildConfig.DEFAULT_API_BASE_URL)?:BuildConfig.DEFAULT_API_BASE_URL)}
  var logged by remember{mutableStateOf(auth.session()!=null)};var scan by remember{mutableStateOf(false)};val scope= rememberCoroutineScope()
- val api= remember(url){runCatching{ApiClient.create(this,url,auth)}.getOrElse{ApiClient.create(this,BuildConfig.DEFAULT_API_BASE_URL,auth)}}
+ val effectiveUrl=if(url.startsWith("https://")||url.startsWith("http://10.0.2.2/"))url else BuildConfig.DEFAULT_API_BASE_URL
+ val api= remember(effectiveUrl){ApiClient.create(this,effectiveUrl,auth)}
  val repo= remember(api){SessionRepository(this,auth,api)}
- when{logged&&!scan->DashboardWebView(url,api,Modifier.fillMaxSize()){logged=false;auth.clear()}
+ when{logged&&!scan->DashboardWebView(effectiveUrl,api,Modifier.fillMaxSize()){logged=false;auth.clear()}
  scan->QrScanner({token->scan=false;scope.launch{runCatching{repo.pair(token);logged=true}}},{scan=false})
  else->LoginScreen(url,{url=it;prefs.edit().putString("base_url",it).apply()},{logged=true},repo){scan=true}}
  }}}
