@@ -1,10 +1,12 @@
 package com.kashnode.mfsgateway
 
 import android.content.Context
+import androidx.work.BackoffPolicy
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import org.json.JSONObject
 import java.net.HttpURLConnection
+import java.util.concurrent.TimeUnit
 import java.net.URL
 import java.security.SecureRandom
 import javax.crypto.Mac
@@ -19,8 +21,8 @@ class MfsUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
         val secret = DeviceSecrets.hmacSecret(applicationContext) ?: return Result.failure()
         val gateway = inputData.getString("gateway") ?: return Result.failure()
         val trxId = inputData.getString("trx_id") ?: return Result.failure()
-        val sender = inputData.getString("sender_phone") ?: return Result.retry()
-        val receiver = inputData.getString("receiver_phone") ?: return Result.retry()
+        val sender = inputData.getString("sender_phone") ?: return Result.failure()
+        val receiver = inputData.getString("receiver_phone") ?: return Result.failure()
 
         val payload = JSONObject().apply {
             put("gateway", gateway); put("trx_id", trxId)
@@ -67,6 +69,5 @@ class MfsUploadWorker(context: Context, params: WorkerParameters) : CoroutineWor
 
 /** Replace with AndroidX Security Crypto encrypted preferences + enrollment flow. */
 object DeviceSecrets {
-    fun bearerToken(context: Context): String? = context.getSharedPreferences("device-enrollment", Context.MODE_PRIVATE).getString("bearer_token", null)
-    fun hmacSecret(context: Context): String? = context.getSharedPreferences("device-enrollment", Context.MODE_PRIVATE).getString("hmac_secret", null)
+    private fun prefs(context: Context) = androidx.security.crypto.EncryptedSharedPreferences.create(\n        context, "device-enrollment",\n        androidx.security.crypto.MasterKey.Builder(context)\n            .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM).build(),\n        androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,\n        androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM\n    )\n    fun bearerToken(context: Context): String? = prefs(context).getString("bearer_token", null)\n    fun hmacSecret(context: Context): String? = prefs(context).getString("hmac_secret", null)
 }
