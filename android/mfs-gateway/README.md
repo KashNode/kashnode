@@ -24,3 +24,19 @@ The sample worker posts to `POST /api/admin/device/payment-sms` with:
 Signature canonical string is exactly `timestamp.nonce.rawBody`, HMAC-SHA256 hex. Server requires the same 32+ byte device signing secret and checks timestamp freshness and nonce uniqueness.
 
 Provider message formats vary. The parser deliberately refuses to guess missing sender numbers or receiver numbers. Validate patterns against redacted, real collection-SIM messages before enabling unattended crediting.
+
+## Module configuration
+
+Example app module Gradle configuration:
+
+```kotlin
+android {
+  defaultConfig {
+    buildConfigField("String", "KASHNODE_MFS_ENDPOINT", "\\\"https://YOUR_KASHNODE_HOST/api/admin/device/payment-sms\\\"")
+    buildConfigField("String", "KASHNODE_DEVICE_ID", "\\\"kashnode-mfs-01\\\"")
+  }
+  buildFeatures { buildConfig = true }
+}
+```
+
+The enrollment screen/service must write `bearer_token` and `hmac_secret` using `DeviceSecrets.prefs` (or an equivalent secure provisioning API). The worker uses encrypted preferences, exact-body HMAC, and WorkManager exponential backoff. Missing sender/receiver data fails closed; add a supervised review workflow for provider messages that do not expose those fields.
