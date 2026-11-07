@@ -11,11 +11,11 @@ export function createEdgeCallHandlers({pool,leaseSeconds=90}={}){
    await c.query('BEGIN');
    const picked=await c.query(`SELECT o.id AS order_id,o.customer_phone,o.customer_name,o.total_amount
      FROM public.orders o
-     WHERE o.merchant_id=$1 AND o.ai_call_status='pending'
+     WHERE o.merchant_id=$1 AND (o.ai_call_status='pending' OR (o.ai_call_status='dispatching' AND EXISTS(SELECT 1 FROM public.edge_voice_calls expired WHERE expired.order_id=o.id AND expired.status IN ('dispatching','dialing') AND expired.lease_expires_at<=NOW())))
        AND COALESCE(o.customer_phone,'')<>''
        AND NOT EXISTS(SELECT 1 FROM public.edge_voice_calls v WHERE v.order_id=o.id AND (v.status IN ('completed','busy','no_answer') OR (v.status IN ('dispatching','dialing') AND v.lease_expires_at>NOW())))
      ORDER BY o.created_at ASC
-     FOR UPDATE OF o SKIP LOCKED LIMIT 1`,[who.merchantId]);
+     LIMIT 1 FOR UPDATE OF o SKIP LOCKED`,[who.merchantId]);
    const order=picked.rows[0];
    if(!order){await c.query('COMMIT');return res.status(204).end()}
    const callId=randomUUID(),sessionId=randomUUID();

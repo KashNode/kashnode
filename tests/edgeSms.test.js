@@ -67,7 +67,7 @@ describe('POST /api/v1/edge/sms handler', () => {
     if (sql.includes('SELECT pg_advisory_xact_lock')) return { rows: [] }
     if (sql.includes('SELECT id FROM public.raw_sms_inbox')) return { rows: [] }
     if (sql.includes('SELECT id FROM public.merchant_topups')) return { rows: [] }
-    if (sql.includes('INSERT INTO raw_sms_inbox')) return { rows: [{ id: 'sms-uuid' }] }
+    if (sql.includes('INSERT INTO public.raw_sms_inbox')) return { rows: [{ id: 'sms-uuid' }] }
     return { rows: [] }
   }
   const pool = { query, async connect() { return { query, release() {} } } }

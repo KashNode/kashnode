@@ -6,6 +6,7 @@ import androidx.work.WorkerParameters
 import com.kashnode.app.BuildConfig
 import com.kashnode.app.data.local.AuthPreferences
 import com.kashnode.app.data.local.DeviceRole
+import com.kashnode.app.sms.MfsRegexParser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -27,10 +28,10 @@ class SmsIngestWorker(c: Context, p: WorkerParameters) : CoroutineWorker(c, p) {
   val deviceId = Settings.Secure.getString(applicationContext.contentResolver, Settings.Secure.ANDROID_ID) ?: "android-device"
   val payloadObject = JSONObject().put("sender", sender).put("message", message).put("device_id", deviceId)
   if (session.deviceRole == DeviceRole.ADMIN_GATEWAY) {
-    val trx = Regex("(?:TrxID|TxnID|Transaction ID)\\s*:?\\s*([A-Z0-9-]{5,40})", RegexOption.IGNORE_CASE).find(message)?.groupValues?.get(1)?.uppercase()
-    val amountText = Regex("(?:Tk|BDT)\\s*([0-9,]+(?:\\.[0-9]{1,2})?)", RegexOption.IGNORE_CASE).find(message)?.groupValues?.get(1)?.replace(",", "")
-    val phones = Regex("(?:\\+?88)?01[3-9]\\d{8}").findAll(message).map { it.value }.toList()
-    val gateway = when { sender.contains("bkash",true) || sender=="16247" -> "bKash"; sender.contains("nagad",true) || sender=="16167" -> "Nagad"; sender.contains("rocket",true) || sender=="16216" -> "Rocket"; else -> null }
+    val parsed = MfsRegexParser.parse(sender,message)\n    val trx = parsed.trxId
+    val amountText = parsed.amount?.toString()
+    val phones = listOfNotNull(parsed.senderPhone)
+    val gateway = parsed.provider
     val receiver = Regex("(?:to|receiver)\\s*:?\\s*((?:\\+?88)?01[3-9]\\d{8})",RegexOption.IGNORE_CASE).find(message)?.groupValues?.get(1)
     if (trx == null || amountText == null || gateway == null || phones.isEmpty() || receiver == null) return@withContext Result.success()
     payloadObject.put("gateway",gateway).put("trx_id",trx).put("amount",amountText.toDouble()).put("sender_phone",phones.first()).put("receiver_phone",receiver).put("received_at",java.time.Instant.now().toString())
